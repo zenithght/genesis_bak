@@ -1,0 +1,2 @@
+-define(GAME_CANCELLED, 0).
+-define(GAME_STARTING, 1).
