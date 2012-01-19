@@ -8,7 +8,7 @@ $(function() {
   });
   return $('#go').bind('click', function() {
     var url;
-    url = 'http://localhost/texas/?host=' + $('#host').val();
+    url = "" + document.location.origin + "/game/texas?host=" + ($('#host').val());
     url += '&usr=' + $('#usr').val();
     url += '&pwd=' + $('#pwd').val();
     if ($('#auto_join').attr('checked') === 'checked') url += '&auto_join=true';

@@ -3,3 +3,6 @@
 
 texas('GET', []) ->
   {ok, []}.
+
+entry('GET', []) ->
+  {ok, []}.

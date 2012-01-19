@@ -6,7 +6,7 @@ $ ->
     return
 
   $('#go').bind 'click', ->
-    url = 'http://localhost/texas/?host=' + $('#host').val()
+    url = "#{document.location.origin}/game/texas?host=#{$('#host').val()}"
     url += '&usr=' + $('#usr').val()
     url += '&pwd=' + $('#pwd').val()
 
