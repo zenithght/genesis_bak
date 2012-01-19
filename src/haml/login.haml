@@ -1,0 +1,17 @@
+!!! 5
+%html
+  %head
+    %meta{:charset => "utf-8"}
+    %title 創世紀-系统管理-登陆
+    %link{:href => '/static/css/admin.css', :rel => 'stylesheet', :type => 'text/css'}
+
+  %body
+    %form.login{:method => 'post'}
+      .rowElem
+        %label Username
+        %input{:type => 'text', :name => 'username'}
+      .rowElem
+        %label Password
+        %input{:type => 'password', :name => 'password'}
+      .rowElem
+        %input{:type => 'submit', :value => 'Singin'}

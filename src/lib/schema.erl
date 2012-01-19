@@ -18,6 +18,7 @@ install(Nodes) when is_list(Nodes) ->
     mnesia:delete_schema(Nodes),
     catch(mnesia:create_schema(Nodes)),
     db:start(),
+    install_admin(Nodes),
     install_counter(Nodes),
     install_player_info(Nodes),
     install_player(Nodes),
@@ -50,6 +51,17 @@ install_player(Nodes) ->
                              {ram_copies, Nodes}, 
                              {type, set}, 
                              {attributes, record_info(fields, tab_player)}
+                            ]).
+
+install_admin(Nodes) ->
+    %% player 
+    {atomic, ok} =
+        mnesia:create_table(tab_admin, 
+                            [
+                             {disc_copies, Nodes}, 
+                             {index, [username]}, 
+                             {type, set}, 
+                             {attributes, record_info(fields, tab_admin)}
                             ]).
 
 install_balance(Nodes) ->

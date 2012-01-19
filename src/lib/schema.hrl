@@ -1,5 +1,13 @@
 %%% Copyright (C) 2005-2008 Wager Labs, SA
 
+-record(tab_admin, {
+          id,
+					username,
+				  password,
+          root = false,
+          disabled = false
+				 }).
+
 -record(tab_counter, {
 					type,
 					value
