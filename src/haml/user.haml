@@ -3,3 +3,20 @@
   %head
     %meta{:charset => "utf-8"}
     %title 創世紀-用户管理
+    %link{:href => '/static/css/admin.css', :rel => 'stylesheet', :type => 'text/css'}
+  %body
+    %input{:type => 'button', :value => '添加用户'}
+    %hr
+    #add_user
+      %form.add_user{:method => 'post'}
+        .rowElem
+          %label 手机号
+          %input{:type => 'text', :name => 'username'}
+        .rowElem
+          %label 密码
+          %input{:type => 'password', :name => 'password'}
+        .rowElem
+          %label 密码重复
+          %input{:type => 'password', :name => 'repeat_password'}
+        .rowElem
+          %input{:type => 'submit', :value => '创建'}

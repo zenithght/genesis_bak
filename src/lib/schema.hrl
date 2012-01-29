@@ -1,6 +1,6 @@
 %%% Copyright (C) 2005-2008 Wager Labs, SA
 
--record(tab_admin, {
+-record(tab_agent, {
           id,
 					username,
 				  password,

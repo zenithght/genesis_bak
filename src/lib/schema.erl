@@ -18,7 +18,7 @@ install(Nodes) when is_list(Nodes) ->
     mnesia:delete_schema(Nodes),
     catch(mnesia:create_schema(Nodes)),
     db:start(),
-    install_admin(Nodes),
+    install_agent(Nodes),
     install_counter(Nodes),
     install_player_info(Nodes),
     install_player(Nodes),
@@ -30,7 +30,14 @@ install(Nodes) when is_list(Nodes) ->
     install_tourney_config(Nodes),
     populate(),
     reset_counters(),
+
+    init_agent(),
     ok.
+
+init_agent() ->
+  Root = #tab_agent{ id = 1, username = <<"root">>, password = <<"password">>, root = 1 },
+  db:write(Root),
+  error_logger:info_report("INIT ROOT AGENT").
 
 install_player_info(Nodes) ->
     %% static player info
@@ -53,15 +60,15 @@ install_player(Nodes) ->
                              {attributes, record_info(fields, tab_player)}
                             ]).
 
-install_admin(Nodes) ->
+install_agent(Nodes) ->
     %% player 
     {atomic, ok} =
-        mnesia:create_table(tab_admin, 
+        mnesia:create_table(tab_agent, 
                             [
                              {disc_copies, Nodes}, 
                              {index, [username]}, 
                              {type, set}, 
-                             {attributes, record_info(fields, tab_admin)}
+                             {attributes, record_info(fields, tab_agent)}
                             ]).
 
 install_balance(Nodes) ->

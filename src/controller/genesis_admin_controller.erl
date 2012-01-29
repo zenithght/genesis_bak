@@ -35,9 +35,9 @@ login('POST', []) ->
       Action
   end,
 
-  case db:index_read(tab_admin, Usr, username) of
+  case db:index_read(tab_agent, Usr, username) of
     [Admin] ->
-      case Pwd =:= Admin#tab_admin.password of
+      case Pwd =:= Admin#tab_agent.password of
         true ->
           boss_session:set_session_data(SessionID, "LOGIN", Usr),
           {redirect, Act};
