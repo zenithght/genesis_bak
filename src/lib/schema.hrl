@@ -1,11 +1,13 @@
 %%% Copyright (C) 2005-2008 Wager Labs, SA
+-define(ROOT_ID, 1).
 
 -record(tab_agent, {
-          id,
+          aid,
 					username,
 				  password,
           root = false,
-          disabled = false
+          disabled = false,
+          parent = ?ROOT_ID
 				 }).
 
 -record(tab_counter, {
@@ -21,7 +23,8 @@
           photo,
 					location,
 					login_errors = 0,
-					disabled = false % player is disabled
+					disabled = false, % player is disabled
+          agent = ?ROOT_ID
 				 }).
 
 -record(tab_player, {

@@ -35,7 +35,7 @@ install(Nodes) when is_list(Nodes) ->
     ok.
 
 init_agent() ->
-  Root = #tab_agent{ id = 1, username = <<"root">>, password = <<"password">>, root = 1 },
+  Root = #tab_agent{ aid = ?ROOT_ID, username = <<"root">>, password = <<"password">>, root = 1 },
   db:write(Root),
   error_logger:info_report("INIT ROOT AGENT").
 
@@ -178,5 +178,6 @@ reset_counters()->
     counter:reset(game),
     counter:reset(player),
     counter:reset(inplay_xref),
+    counter:reset(agent, ?ROOT_ID),
     ok.
 

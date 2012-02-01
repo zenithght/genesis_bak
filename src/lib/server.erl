@@ -229,16 +229,16 @@ process_game_query(Client, Socket, Q)
     Client.
 
 process_event(Client, _Socket, Event) ->
-  if 
+  Client1 = if 
     Client#client.player == none ->
       %% start a proxy
       {ok, Visitor} = visitor:start(self()),
-      Client1 = Client#client{ player = Visitor };
+      Client#client{ player = Visitor };
     true ->
-      Client1 = Client
+      Client
   end,
   gen_server:cast(Client1#client.player, Event),
-  Client1. %% }}}
+  Client1.
 
 parse_packet(Socket, tcp_closed, Client) ->
   process_logout(Client, Socket);

@@ -6,7 +6,7 @@
 
 -export([start/1, stop/1, stop/2]).
 
--export([create/5, update_photo/2]).
+-export([create/6, update_photo/2]).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -330,18 +330,19 @@ code_change(_OldVsn, Data, _Extra) ->
 %%      none
 %%     end.
 
-create(Usr, Pass, Nick, Location, Balance)
+create(Usr, Pass, Nick, Location, Balance, Agent)
   when is_list(Usr),
        is_list(Pass),
        is_list(Location),
-       is_number(Balance) ->
+       is_number(Balance),
+       is_number(Agent) ->
     create(list_to_binary(Usr),
            list_to_binary(Pass),
            list_to_binary(Nick),
            list_to_binary(Location),
-           Balance);
+           Balance, Agent);
 
-create(Usr, Pass, Nick, Location, Balance)
+create(Usr, Pass, Nick, Location, Balance, Agent)
   when is_binary(Usr),
        is_binary(Pass),
        is_binary(Nick),
@@ -359,7 +360,8 @@ create(Usr, Pass, Nick, Location, Balance)
               %% instead of the password itself
               password = erlang:phash2(Pass, 1 bsl 32),
               nick = Nick,
-              location = Location
+              location = Location,
+              agent = Agent
              },
             ok = db:write(Info),
             db:update_balance(tab_balance, ID, Balance),
