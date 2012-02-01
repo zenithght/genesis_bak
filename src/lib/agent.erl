@@ -17,15 +17,22 @@
 
 %% Server Function
 
-init([Agent = #tab_agent{}]) ->
-  ?LOG([{agent, Agent#tab_agent.username, start}]),
-  {ok, #agent{record = Agent}}.
+init([R = #tab_agent{}]) ->
+  ?LOG([{agent, R#tab_agent.username, start}]),
+  {ok, #agent{record = R}}.
 
-handle_call(_Msg, _From, Server) ->
-  {noreply, Server}.
+handle_cast(_Msg, Agent) ->
+  {noreply, Agent}.
 
-handle_cast(_Msg, Server) ->
-  {noreply, Server}.
+handle_call({auth, ReqPwd}, _From, Agent = #agent{record = R}) when
+    ReqPwd /= R#tab_agent.password ->
+  {reply, false, Agent};
+
+handle_call({auth, _Pwd}, _From, Agent) ->
+  {reply, true, Agent};
+
+handle_call(_Msg, _From, Agent) ->
+  {noreply, Agent}.
 
 handle_info(_Msg, Server) ->
   {noreply, Server}.
@@ -39,15 +46,20 @@ terminate(normal, Server) ->
 %% Client Function
 
 start() ->
+  db:start(),
   Fun = fun(Agent = #tab_agent{username = Usr}) ->
       Reg = {global, {agent, list_to_atom(binary_to_list(Usr))}},
       R = gen_server:start(Reg, agent, [Agent], []),
       ?LOG([{agent_proc, R}])
   end, 
 
-  {atomic, Agents} = db:find(tab_agent),
-  lists:map(Fun, Agents),
-  ok.
+  case db:wait_for_tables([tab_agent], 10000) of 
+    ok ->
+      {atomic, Agents} = db:find(tab_agent),
+      lists:map(Fun, Agents);
+    _ ->
+      {error}
+  end.
 
 create(Usr, Pwd, Parent) when 
     is_binary(Usr), 

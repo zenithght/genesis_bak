@@ -35,15 +35,15 @@ login('POST', []) ->
       Action
   end,
 
-  case db:index_read(tab_agent, Usr, username) of
-    [Admin] ->
-      case Pwd =:= Admin#tab_agent.password of
+  case global:whereis_name({agent, list_to_atom(Req:post_param("username"))}) of
+    undefined ->
+      {ok, []};
+    Pid -> 
+      case gen_server:call(Pid, {auth, Pwd}) of
         true ->
           boss_session:set_session_data(SessionID, "LOGIN", Usr),
           {redirect, Act};
-        _ ->
+        false ->
           {ok, []}
-      end;
-    _ ->
-      {ok, []}
+      end
   end.
