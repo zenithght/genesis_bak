@@ -2,12 +2,14 @@
 -define(ROOT_ID, 1).
 
 -record(tab_agent, {
-          aid,
-					username,
+					identity,
 				  password,
           root = false,
-          disabled = false,
-          parent = ?ROOT_ID
+          disable = false,
+          parent = ?ROOT_ID,
+
+          balance = 0,
+          credit = 0
 				 }).
 
 -record(tab_counter, {
