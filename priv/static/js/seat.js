@@ -1,5 +1,6 @@
-var EmptySeat, PlayingSeat, Seat;
-var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
+var EmptySeat, PlayingSeat, Seat,
+  __hasProp = Object.prototype.hasOwnProperty,
+  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
 
 Seat = (function() {
 
@@ -30,9 +31,9 @@ Seat = (function() {
 
 })();
 
-EmptySeat = (function() {
+EmptySeat = (function(_super) {
 
-  __extends(EmptySeat, Seat);
+  __extends(EmptySeat, _super);
 
   function EmptySeat(detail, game) {
     this.detail = detail;
@@ -60,11 +61,11 @@ EmptySeat = (function() {
 
   return EmptySeat;
 
-})();
+})(Seat);
 
-PlayingSeat = (function() {
+PlayingSeat = (function(_super) {
 
-  __extends(PlayingSeat, Seat);
+  __extends(PlayingSeat, _super);
 
   function PlayingSeat(detail, game) {
     this.detail = detail;
@@ -239,7 +240,7 @@ PlayingSeat = (function() {
 
   return PlayingSeat;
 
-})();
+})(Seat);
 
 $(function() {
   var mod_sum;

@@ -13,3 +13,7 @@ guard 'livereload' do
   watch(%r{priv/static/.+\.(js|css)$})
   watch(%r{src/view/.+\.html$})
 end
+
+guard 'coffeescript', :output => 'priv/static/js/', :bare => true, :hide_success => true do
+  watch(%r{src/coffee/(.+\.coffee)$})
+end
