@@ -39,7 +39,7 @@ install(Nodes) when is_list(Nodes) ->
       create_tables(RamTables),
       create_tables(DiscTables),
 
-      create_indices(tab_agent, identity),
+      create_indices(tab_agent, [parent, identity]),
       create_indices(tab_player_info, identity)
   end.
 

@@ -1,4 +1,3 @@
-%%% Copyright (C) 2005-2008 Wager Labs, SA
 -define(ROOT_ID, 1).
 
 -record(tab_agent, {
@@ -8,7 +7,7 @@
     root = false,
     disable = false,
     parent = ?ROOT_ID,
-    balance = 0,
+    cash = 0,
     credit = 0
   }).
 

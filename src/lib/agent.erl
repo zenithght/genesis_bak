@@ -4,32 +4,26 @@
 -export([init/1, handle_call/3, handle_cast/2, 
          handle_info/2, terminate/2, code_change/3]).
 
--export([start/0, create/3]).
+-export([start/0, create/3, auth/2]).
 
 -include("common.hrl").
 -include("schema.hrl").
 
--record(agent, {
-    credit = 0,    % 信用额度，账户最大可赊欠的数额。
-    balance = 0,   % 账户的现金余额，可使用信用额度进行赊欠。
-    turnover = 0,  % 当日流水额
-    
-    players = [],      % 下级玩家列表
-    subordinate = [],  % 下级代理列表
-    disable = false,   % 代理是否被停用
+-include_lib("eunit/include/eunit.hrl").
 
-    record     % 数据库中的原始记录
+-record(agent, {
+    cash = 0,           % cash balance
+    credit = 0,         % credit balance, max owe to system.
+    turnover = 0,       % today turnover
+    subordinate = [],   % low level agent list
+    record,             % tab_agent record
+    disable = false
   }).
 
 %% Server Function
 
-init([Identity]) ->
-  case check(Identity) of
-    nil ->
-      {stop};
-    Agent ->
-      init_agent(Agent)
-  end.
+init([R = #tab_agent{}]) when R#tab_agent.disable /= true ->
+  {ok, #agent{ record = R}}.
 
 handle_cast(_Msg, Agent) ->
   {noreply, Agent}.
@@ -50,63 +44,101 @@ handle_info(_Msg, Server) ->
 code_change(_OldVsn, Server, _Extra) ->
   {ok, Server}.
 
-terminate(normal, Server) ->
+terminate(normal, _Server) ->
   ok.
 
 %% Client Function
 
 start() ->
-  Fun = fun(Agent = #tab_agent{identity = Identity}) ->
-      Reg = {global, {agent, list_to_atom(binary_to_list(Identity))}},
-      R = gen_server:start(Reg, agent, [Agent], []),
-      ?LOG([{agent_proc, R}])
+  Fun = fun(R = #tab_agent{identity = Identity, disable = Disable}, _Acc) 
+    when Disable =:= false ->
+      Name = {global, {agent, list_to_atom(binary_to_list(Identity))}},
+      gen_server:start(Name, agent, [R], [])
   end, 
+  ok = mnesia:wait_for_tables([tab_agent], 1000),
+  {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, [], tab_agent) end).
 
-  case db:wait_for_tables([tab_agent], 10000) of 
-    ok ->
-      {atomic, Agents} = db:find(tab_agent),
-      lists:map(Fun, Agents);
-    _ ->
-      {error}
-  end.
-
-create(Identity, Password, Parent) when 
-    is_binary(Identity), 
-    is_binary(Password), 
-    is_number(Parent), 
-    Identity /= <<"root">> ->
-  case check(Identity) of
-    nil ->
-      Agent = #tab_agent{ 
-        identity = Identity, 
-        password = Password, 
-        root = 0,
-        parent = Parent
-      },
-      db:write(Agent),
+create(Identity, Password, _Parent) when not is_binary(Identity), not is_binary(Password) -> error;
+create(Identity, Password, Parent) when is_atom(Parent) ->
+  case {check(Parent), check(Identity)} of
+    {_Pid, Pid} when is_pid(Pid) ->
+      repeat_error;
+    {Pid, undefined} when is_pid(Pid) ->
+      {atomic, _Result} = mnesia:transaction(
+        fun() ->
+            mnesia:write(#tab_agent{ 
+                aid = counter:bump(agent),
+                identity = Identity,
+                password = Password,
+                parent = Parent
+              }
+            )
+        end
+      ),
       ok;
     _ ->
-      repeat_error
-  end;
+      error
+  end.
+      
+  %case check(Identity) of
+    %undefined ->
+      %Agent = #tab_agent{ 
+        %identity = Identity, 
+        %password = Password, 
+        %root = 0,
+        %parent = Parent
+      %},
+      %db:write(Agent),
+      %ok;
+    %_ ->
+      %repeat_error
+  %end;
 
-create(_, _, _) ->
-  unknown_error.
+auth(Identity, Password) when is_list(Identity), is_list(Password) ->
+  auth(list_to_binary(Identity), list_to_binary(Password));
+auth(Identity, Password) when is_binary(Identity), is_binary(Password) ->
+  gen_server:call(check(Identity), {auth, Password}).
 
 %% Private Function
 
-init_agent(R = #tab_agent{ balance = Balance, credit = Credit, disable = Disable }) ->
-  {ok, #agent{
-      balance = Balance,
-      credit = Credit,
-      disable = Disable,
-      record = R
-    }
-  }.
-
-check(Identity) ->
-  case db:index_read(tab_agent, Identity, identity) of
-    [Agent] ->
-      Agent;
+check(undefined) ->
+  undefined;
+check(Identity) when is_binary(Identity) ->
+  check(list_to_atom(binary_to_list(Identity)));
+check(Identity) when is_atom(Identity) ->
+  check(global:whereis_name({agent, Identity}));
+check(Identity) when is_pid(Identity) ->
+  case is_process_alive(Identity) of
+    true ->
+      Identity;
     _ ->
-      nil
+      stopped
   end.
+
+%% Eunit Test Case
+
+check_test() ->
+  setup(),
+  ?assert(undefined =:= check(unknown)),
+  ?assert(is_pid(check(root))),
+  exit(global:whereis_name({agent, root}), kill),
+  ?assert(stopped =:= check(root)).
+  
+auth_test() ->
+  setup(),
+  ?assert(true =:= auth("root", "password")),
+  ?assert(true =:= auth(<<"root">>, <<"password">>)),
+  ?assert(false =:= auth("root", "")),
+  ?assert(false =:= auth(<<"root">>, <<"">>)).
+
+create_test() ->
+  setup(),
+  ?assert(ok =:= create(<<"user">>, <<"pass">>, root)),
+  ?assert(error =:= create("user", "pass", root)),
+  ?assert(repeat_error =:= create(<<"root">>, <<"pass">>, root)).
+
+setup() ->
+  schema:uninstall(),
+  schema:install(),
+  schema:load_default_data(),
+  start().
