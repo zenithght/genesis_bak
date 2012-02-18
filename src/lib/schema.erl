@@ -40,7 +40,7 @@ install(Nodes) when is_list(Nodes) ->
       create_tables(DiscTables),
 
       create_indices(tab_agent, identity),
-      create_indices(tab_player_info, usr),
+      create_indices(tab_player_info, identity),
 
       setup_counters()
   end.

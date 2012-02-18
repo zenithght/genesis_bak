@@ -26,10 +26,10 @@
           photo = undefined
          }).
 
-start(Usr) 
-  when is_binary(Usr) ->
+start(Identity) 
+  when is_binary(Identity) ->
     %% make sure we exist
-    case db:index_read(tab_player_info, Usr, #tab_player_info.usr) of
+    case db:index_read(tab_player_info, Identity, #tab_player_info.identity) of
         [Info] ->
             PID = Info#tab_player_info.pid,
             gen_server:start({global, {player, PID}}, player, [PID], []);
@@ -330,32 +330,32 @@ code_change(_OldVsn, Data, _Extra) ->
 %%      none
 %%     end.
 
-create(Usr, Pass, Nick, Location, Balance, Agent)
-  when is_list(Usr),
+create(Identity, Pass, Nick, Location, Balance, Agent)
+  when is_list(Identity),
        is_list(Pass),
        is_list(Location),
        is_number(Balance),
        is_number(Agent) ->
-    create(list_to_binary(Usr),
+    create(list_to_binary(Identity),
            list_to_binary(Pass),
            list_to_binary(Nick),
            list_to_binary(Location),
            Balance, Agent);
 
-create(Usr, Pass, Nick, Location, Balance, Agent)
-  when is_binary(Usr),
+create(Identity, Pass, Nick, Location, Balance, Agent)
+  when is_binary(Identity),
        is_binary(Pass),
        is_binary(Nick),
        is_binary(Location),
        is_number(Balance) ->
-    case db:index_read(tab_player_info, Usr, #tab_player_info.usr) of
+    case db:index_read(tab_player_info, Identity, #tab_player_info.identity) of
         [_] ->
             {error, player_exists};
         _ ->
             ID = counter:bump(player),
             Info = #tab_player_info {
               pid = ID,
-              usr = Usr,
+              identity = Identity,
               %% store a hash of the password
               %% instead of the password itself
               password = erlang:phash2(Pass, 1 bsl 32),

@@ -19,7 +19,7 @@
 
 -record(tab_player_info, {
     pid,
-    usr,
+    identity,
     password,
     nick,
     photo,

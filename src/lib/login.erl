@@ -14,7 +14,7 @@ login(Usr, Pass, Socket)
   when is_binary(Usr),
        is_binary(Pass),
        is_pid(Socket) -> % socket handler process
-    Recs = db:index_read(tab_player_info, Usr, #tab_player_info.usr),
+    Recs = db:index_read(tab_player_info, Usr, #tab_player_info.identity),
     login(Recs, [Usr, Pass, Socket]).
 
 login([], _) ->

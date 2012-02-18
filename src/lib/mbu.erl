@@ -49,7 +49,7 @@ create_players([Player|Rest])
     Usr = list_to_binary(Player#irc_player.usr),
     Balance = Player#irc_player.balance,
     case db:index_read(tab_player_info, 
-                       Usr, #tab_player_info.usr) of
+                       Usr, #tab_player_info.identity) of
         [Info] ->
             PID = Info#tab_player_info.pid,
             db:delete(tab_balance, PID),
