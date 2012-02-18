@@ -40,9 +40,7 @@ install(Nodes) when is_list(Nodes) ->
       create_tables(DiscTables),
 
       create_indices(tab_agent, identity),
-      create_indices(tab_player_info, identity),
-
-      setup_counters()
+      create_indices(tab_player_info, identity)
   end.
 
 uninstall() ->
@@ -50,12 +48,12 @@ uninstall() ->
   ok = mnesia:delete_schema([node()]).
 
 load_default_data() ->
+  setup_counters(),
   setup_cluster([node()]),
   setup_agent(),
   setup_games().
 
 %% Private
-
 
 create_tables([]) -> ok;
 create_tables([{Name, TabDef}|T]) ->
