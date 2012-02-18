@@ -1,16 +1,10 @@
-%%% Copyright (C) 2005-2008 Wager Labs, SA
+-define(L(Msg, Params), io:format(Msg ++ "~n", Params)).
 
 -define(LOG(L), error_logger:info_report([{debug, {module, ?MODULE}, {line, ?LINE}, {self, self()}},L])).
 -define(ERROR(L), error_logger:error_report([{debug, {module, ?MODULE}, {line, ?LINE}, {self, self()}},L])).
-%-define(LOG(L), ok).
-%-define(ERROR(L), ok).
-
-%%% 
 
 -define(MAX_RAISES, 3).
 -define(MAX_PLAYERS, 500000).
-
-%%%
 
 -define(GAME_SERVERS, 'GAME SERVERS').
 -define(MULTIBOTS, 'MULTIBOTS').

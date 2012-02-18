@@ -2,130 +2,77 @@
 -define(ROOT_ID, 1).
 
 -record(tab_agent, {
-					identity,
-				  password,
-          root = false,
-          disable = false,
-          parent = ?ROOT_ID,
-
-          balance = 0,
-          credit = 0
-				 }).
+    aid,
+    identity,
+    password,
+    root = false,
+    disable = false,
+    parent = ?ROOT_ID,
+    balance = 0,
+    credit = 0
+  }).
 
 -record(tab_counter, {
-					type,
-					value
-				 }).
+    type,
+    value
+  }).
 
 -record(tab_player_info, {
-					pid,
-					usr,
-					password,
-          nick,
-          photo,
-					location,
-					login_errors = 0,
-					disabled = false, % player is disabled
-          agent = ?ROOT_ID
-				 }).
+    pid,
+    usr,
+    password,
+    nick,
+    photo,
+    location,
+    login_errors = 0,
+    disabled = false, % player is disabled
+    agent = ?ROOT_ID
+  }).
 
 -record(tab_player, {
-					pid,
-					process = none, % process id
-					socket = none
-				 }).
+    pid,
+    process = none, % process id
+    socket = none
+  }).
 
 -record(tab_balance, {
-					pid, 
-					amount % integer
-				 }).
-
--record(tab_tourney_balance, {
-					tidpid, 
-					amount % integer
-				 }).
+    pid, 
+    amount % integer
+  }).
 
 -record(tab_inplay, {
-					gidpid, 
-					amount % integer
-				 }).
+    gidpid, 
+    amount % integer
+  }).
 
 -record(tab_game_xref, {
-					gid,
-					process,
-					type,
-					limit,
-					table_name,
-					seat_count,
-					timeout,
-					required % min player count 
-				 }).
-
--record(tab_seat_history, {
-					usr,
-					hand,
-					state
-				 }).
-
-%% app config
+    gid,
+    process,
+    type,
+    limit,
+    table_name,
+    seat_count,
+    timeout,
+    required % min player count 
+  }).
 
 -record(tab_game_config, {
-					id,
-					type,
-					seat_count,
-					limit,
-					start_delay,
-					player_timeout,
-					max
-				 }).
+    id,
+    type,
+    seat_count,
+    limit,
+    start_delay,
+    player_timeout,
+    max
+  }).
 
 -record(tab_cluster_config, {
-					id,
-					gateways = [],
-					mnesia_masters = [],
-					logdir = "/tmp",
-					max_login_errors = 5,
-					%% players can start games
-					enable_dynamic_games = false,
-					test_game_pass
-				 }).
-
--record(tab_tourney_config, {
-					id,
-					type, % normal or sit&go
-					max_players, % # players required to start
-					seat_count, % per table
-					start_time,
-					buyin, % 
-					chips, % amount each player gets for their buy-in
-					rake,
-					level_duration, % minutes
-					blinds_factor, % per level multiplier
-					starting_blinds, % e.g. {10, 20}
-					ante,
-					ante_start_level,
-					break_duration, % minutes
-					break_frequency, % number
-					prize_winners,
-					prize_struct
-				 }).
-
--record(tab_tourney, {
-					tid,
-					config,
-					level,
-					break_timer,
-					level_timer,
-					empty_seats
-				 }).
-
--record(tab_tourney_table, {
-					tid,
-					gid
-				 }).
-
--record(tab_tourney_player, {
-					tid,
-					pid
-				 }).
-
+    id,
+    gateways = [],
+    mnesia_masters = [],
+    logdir = "/tmp",
+    max_login_errors = 5,
+    %% players can start games
+    enable_dynamic_games = false,
+    test_game_pass
+  }).

@@ -1,183 +1,132 @@
 -module(schema).
-
-%%%
-%%% Database schema
-%%%
-
--export([install/1, install/0, populate/0]).
+-export([install/0, uninstall/0, load_default_data/0]).
 
 -include("schema.hrl").
 -include("common.hrl").
--include("pp.hrl").
+
+-include_lib("eunit/include/eunit.hrl").
+
+-define(RAM, {ram_copies, Nodes}).
+-define(DISC, {disc_copies, Nodes}).
+
+-define(TABLE_DEF(Name, Type, Copies), 
+  {Name, [Copies, {type, Type}, {attributes, record_info(fields, Name)}]}).
 
 install() ->
-    install([node()]).
+  install([node()]).
 
 install(Nodes) when is_list(Nodes) ->
-    mnesia:stop(),
-    mnesia:delete_schema(Nodes),
-    catch(mnesia:create_schema(Nodes)),
-    db:start(),
-    install_agent(Nodes),
-    install_counter(Nodes),
-    install_player_info(Nodes),
-    install_player(Nodes),
-    install_balance(Nodes),
-    install_inplay(Nodes),
-    install_game_xref(Nodes),
-    install_cluster_config(Nodes),
-    install_game_config(Nodes),
-    install_tourney_config(Nodes),
-    populate(),
-    reset_counters(),
+  case mnesia:create_schema(Nodes) of
+    {error, Reason} -> 
+      {error, Reason};
+    _ ->
+      RamTables = [
+        ?TABLE_DEF(tab_game_xref, set, ?RAM),
+        ?TABLE_DEF(tab_player, set, ?RAM)
+      ],
+      DiscTables = [
+        ?TABLE_DEF(tab_agent, set, ?DISC),
+        ?TABLE_DEF(tab_player_info, set, ?DISC),
+        ?TABLE_DEF(tab_balance, set, ?DISC),
+        ?TABLE_DEF(tab_inplay, set, ?DISC),
+        ?TABLE_DEF(tab_game_config, set, ?DISC),
+        ?TABLE_DEF(tab_cluster_config, set, ?DISC),
+        ?TABLE_DEF(tab_counter, set, ?DISC)
+      ],
 
-    init_agent(),
-    ok.
+      mnesia:start(),
 
-init_agent() ->
-  Root = #tab_agent{ identity = <<"root">>, password = <<"password">>, root = 1 },
-  db:write(Root),
-  error_logger:info_report("INIT ROOT AGENT").
+      create_tables(RamTables),
+      create_tables(DiscTables),
 
-install_player_info(Nodes) ->
-    %% static player info
-    {atomic, ok} =
-        mnesia:create_table(tab_player_info, 
-                            [
-                             {disc_copies, Nodes}, 
-                             {index, [usr]}, 
-                             {type, set}, 
-                             {attributes, record_info(fields, tab_player_info)}
-                            ]).
+      create_indices(tab_agent, identity),
+      create_indices(tab_player_info, usr),
 
-install_player(Nodes) ->
-    %% player 
-    {atomic, ok} =
-        mnesia:create_table(tab_player, 
-                            [
-                             {ram_copies, Nodes}, 
-                             {type, set}, 
-                             {attributes, record_info(fields, tab_player)}
-                            ]).
+      setup_counters()
+  end.
 
-install_agent(Nodes) ->
-    %% player 
-    {atomic, ok} =
-        mnesia:create_table(tab_agent, 
-                            [
-                             {disc_copies, Nodes}, 
-                             {index, [username]}, 
-                             {type, set}, 
-                             {attributes, record_info(fields, tab_agent)}
-                            ]).
+uninstall() ->
+  stopped = mnesia:stop(),
+  ok = mnesia:delete_schema([node()]).
 
-install_balance(Nodes) ->
-    {atomic, ok} =
-        mnesia:create_table(tab_balance, 
-                            [
-                             {disc_copies, Nodes}, 
-                             {type, set}, 
-                             {attributes, record_info(fields, tab_balance)}
-                            ]).
-install_inplay(Nodes) ->
-    {atomic, ok} =
-        mnesia:create_table(tab_inplay, 
-                            [
-                             {disc_copies, Nodes}, 
-                             {type, set}, 
-                             {attributes, record_info(fields, tab_inplay)}
-                            ]).
+load_default_data() ->
+  setup_cluster([node()]),
+  setup_agent(),
+  setup_games().
 
-install_game_xref(Nodes) ->
-    %% online game
-    {atomic, ok} =
-        mnesia:create_table(tab_game_xref, 
-                            [
-                             {ram_copies, Nodes}, 
-                             {type, set}, 
-                             {attributes, record_info(fields, tab_game_xref)}
-                            ]).
+%% Private
 
-install_cluster_config(Nodes) ->
-    %% cluster configuration
-    {atomic, ok} =
-        mnesia:create_table(tab_cluster_config, 
-                            [
-                             {disc_copies, Nodes}, 
-                             {type, set}, 
-                             {attributes, record_info(fields, tab_cluster_config)}
-                            ]),
-    Conf = #tab_cluster_config {
-      id = 0,
-      mnesia_masters = Nodes,
-      test_game_pass = <<"@!%#%2E35D$%#$^">>
-     },
-    F = fun() -> mnesia:write(Conf) end,
-    {atomic, ok} = mnesia:transaction(F).
 
-install_game_config(Nodes) ->
-    {atomic, ok} = 
-        mnesia:create_table(tab_game_config, 
-                            [
-                             {disc_copies, Nodes}, 
-                             {type, set}, 
-                             {attributes, record_info(fields, tab_game_config)}
-                            ]).
+create_tables([]) -> ok;
+create_tables([{Name, TabDef}|T]) ->
+  {atomic, ok} = mnesia:create_table(Name, TabDef),
+  ?L("CREATE TABLE ~w", [Name]),
+  create_tables(T).
 
-install_tourney_config(Nodes) ->
-    {atomic, ok} =
-        mnesia:create_table(tab_tourney_config, 
-                            [
-                             {disc_copies, Nodes}, 
-                             {type, set}, 
-                             {attributes, record_info(fields, tab_tourney_config)}
-                            ]).
+create_indices(_, []) -> ok;
+create_indices(Name, Index) when is_atom(Index) ->
+  create_indices(Name, [Index]);
+create_indices(Name, [Index|T]) ->
+  {atomic, ok} = mnesia:add_table_index(Name, Index),
+  ?L("CREATE INDEX ~w by ~w", [Index, Name]),
+  create_indices(Name, T).
 
-install_counter(Nodes) ->
-    %% counter
-    {atomic, ok} = 
-        mnesia:create_table(tab_counter, 
-                            [
-                             {disc_copies, Nodes}, 
-                             {type, set}, 
-                             {attributes, record_info(fields, tab_counter)}
-                            ]).
+setup_cluster(Nodes) ->
+  %% cluster configuration
+  Conf = #tab_cluster_config {
+    id = 0,
+    mnesia_masters = Nodes,
+    test_game_pass = <<"@!%#%2E35D$%#$^">>
+  },
+  F = fun() -> mnesia:write(Conf) end,
+  {atomic, ok} = mnesia:transaction(F).
 
-populate(_) ->
-    g:setup(?GT_IRC_TEXAS, 20, 
-            #limit{ type = ?LT_FIXED_LIMIT, low = 10, high = 20}, 
-            ?START_DELAY, ?PLAYER_TIMEOUT,
-            10),
-    g:setup(?GT_TEXAS_HOLDEM, 10, 
-            #limit{ type = ?LT_FIXED_LIMIT, low = 10, high = 20}, 
-            ?START_DELAY, ?PLAYER_TIMEOUT,
-            50),
-    g:setup(?GT_TEXAS_HOLDEM, 10, 
-            #limit{ type = ?LT_NO_LIMIT, low = 10, high = 20}, 
-            ?START_DELAY, ?PLAYER_TIMEOUT,
-            50),
-    g:setup(?GT_TEXAS_HOLDEM, 10, 
-            #limit{ type = ?LT_POT_LIMIT, low = 10, high = 20}, 
-            ?START_DELAY, ?PLAYER_TIMEOUT,
-            50).
+setup_counters()->
+  counter:reset(game),
+  counter:reset(player),
+  counter:reset(inplay_xref),
+  counter:reset(agent, ?ROOT_ID),
+  ok.
 
-populate() ->
-  %g:setup(?GT_TEXAS_HOLDEM, 9, 
-          %#limit{ type = ?LT_NO_LIMIT, low = 10, high = 20 },
-          %?START_DELAY, ?PLAYER_TIMEOUT, 
-          %8),
+setup_games() ->
+  g:setup(?GT_IRC_TEXAS, 20, 
+    #limit{ type = ?LT_FIXED_LIMIT, low = 10, high = 20}, 
+    ?START_DELAY, ?PLAYER_TIMEOUT,
+    10),
+  g:setup(?GT_TEXAS_HOLDEM, 10, 
+    #limit{ type = ?LT_FIXED_LIMIT, low = 10, high = 20}, 
+    ?START_DELAY, ?PLAYER_TIMEOUT,
+    50),
+  g:setup(?GT_TEXAS_HOLDEM, 10, 
+    #limit{ type = ?LT_NO_LIMIT, low = 10, high = 20}, 
+    ?START_DELAY, ?PLAYER_TIMEOUT,
+    50),
+  g:setup(?GT_TEXAS_HOLDEM, 10, 
+    #limit{ type = ?LT_POT_LIMIT, low = 10, high = 20}, 
+    ?START_DELAY, ?PLAYER_TIMEOUT,
+    50),
   g:setup(?GT_TEXAS_HOLDEM, 9,
-          #limit{ type = ?LT_NO_LIMIT, low = 5, high = 10, min = 100, max = 2000 },
-          6000, 150000, 1). 
-  %g:setup(?GT_TEXAS_HOLDEM, 9,
-          %#limit{ type = ?LT_NO_LIMIT, low = 10, high = 20 },
-          %5000, ?PLAYER_TIMEOUT * 100, 
-          %1).
+    #limit{ type = ?LT_NO_LIMIT, low = 5, high = 10, min = 100, max = 2000 },
+    6000, 150000, 1). 
 
-reset_counters()->
-    counter:reset(game),
-    counter:reset(player),
-    counter:reset(inplay_xref),
-    counter:reset(agent, ?ROOT_ID),
-    ok.
+setup_agent() ->
+  Root = #tab_agent{ identity = <<"root">>, password = <<"password">>, root = 1 },
+  {atomic, _} = mnesia:transaction(
+    fun() -> 
+        mnesia:write(Root)
+    end
+  ).
+  
+%% EUnit Test Case
 
+uninstall_test() ->
+  ?assert(ok == uninstall()).
+
+install_test() ->
+  ok = uninstall(),
+  ok = install().
+
+reinstall_raise_error_test() ->
+  ok = uninstall(),
+  ok = install(),
+  {error, _} = install().

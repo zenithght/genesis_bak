@@ -4,3 +4,4 @@ log/*
 ebin
 *.dump
 Mnesia.*
+stats.csv

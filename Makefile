@@ -13,4 +13,5 @@ update_po:
 
 .PHONY: test
 test:
-	$(ERL) -pa $(PWD)/ebin -pa /Users/jack/Codes/ChicagoBoss-0.6.10/ebin -run boss_web_test start $(APP) -noshell
+	#$(ERL) -pa $(PWD)/ebin -pa /Users/jack/Codes/ChicagoBoss-0.6.10/ebin -run boss_web_test start $(APP) -noshell
+	$(ERL) -pa $(PWD)/ebin -eval 'agent:test()' -s init stop -noshell
