@@ -40,7 +40,7 @@ install(Nodes) when is_list(Nodes) ->
       create_tables(DiscTables),
 
       create_indices(tab_agent, [parent, identity]),
-      create_indices(tab_player_info, identity)
+      create_indices(tab_player_info, [agent, identity])
   end.
 
 uninstall() ->

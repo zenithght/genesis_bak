@@ -16,6 +16,7 @@
     credit = 0,         % credit balance, max owe to system.
     turnover = 0,       % today turnover
     subordinate = [],   % low level agent list
+    players = gb_trees:empty(),
     record,             % tab_agent record
     disable = false
   }).
@@ -25,15 +26,23 @@
 init([R = #tab_agent{}]) when R#tab_agent.disable =:= true ->
   {stop, disable_agent};
 init([R = #tab_agent{}]) when R#tab_agent.disable =:= false ->
-  Subordinate = setup_subordinate(R#tab_agent.identity),
   {ok, #agent{ 
-      subordinate = Subordinate,
+      players = setup_players(R#tab_agent.identity),
+      subordinate = setup_subordinate(R#tab_agent.identity),
       record = R
     }
   }.
 
 handle_cast(_Msg, Agent) ->
   {noreply, Agent}.
+
+handle_call({betting, Player, Bet}, _From, Data) when is_list(Player), is_integer(Bet), Bet > 0 ->
+  case gb_trees:lookup(Player, Data#agent.players) of
+    none ->
+      {reply, not_own_player, Data};
+    {value, Val} ->
+      {reply, ok, Data#agent{players = gb_trees:update(Player, Val + Bet, Data#agent.players)}}
+  end;
 
 handle_call({auth, ReqPwd}, _From, Agent = #agent{record = R}) when
     ReqPwd /= R#tab_agent.password ->
@@ -44,6 +53,12 @@ handle_call({auth, _Pwd}, _From, Data) ->
 
 handle_call(subordinate, _From, Data) ->
   {reply, Data#agent.subordinate, Data};
+
+handle_call(players, _From, Data) ->
+  {reply, gb_trees:keys(Data#agent.players), Data};
+
+handle_call({turnover, today}, _From, Data) ->
+  {reply, lists:foldl(fun(Val, Sum) -> Val + Sum end, 0, gb_trees:values(Data#agent.players)), Data};
 
 handle_call(_Msg, _From, Agent) ->
   {noreply, Agent}.
@@ -72,7 +87,7 @@ start() ->
   end, 
 
   ok = mnesia:wait_for_tables([tab_agent], 1000),
-  {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, [], tab_agent) end).
+  {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, nil, tab_agent) end).
 
 kill() ->
   Fun = fun(R = #tab_agent{identity = Identity}, _Acc) ->
@@ -132,6 +147,17 @@ subordinate(Identity) when is_list(Identity) ->
 subordinate(Identity) when is_atom(Identity) ->
   gen_server:call(check(Identity), subordinate).
 
+players(Identity) when is_list(Identity) ->
+  players(list_to_existing_atom(Identity));
+players(Identity) when is_atom(Identity) ->
+  gen_server:call(check(Identity), players).
+
+betting(Identity, Player, Bet) when is_atom(Identity), is_list(Player), is_integer(Bet), Bet > 0 ->
+  gen_server:call(check(Identity), {betting, Player, Bet}).
+
+turnover(Identity, today) when is_atom(Identity) ->
+  gen_server:call(check(Identity), {turnover, today}).
+
 %% Private Function
 
 setup_subordinate(Identity) when is_list(Identity) ->
@@ -140,6 +166,15 @@ setup_subordinate(Identity) when is_atom(Identity) ->
   case mnesia:dirty_index_read(tab_agent, Identity, parent) of
     Subordinate when is_list(Subordinate) ->
       Result = lists:map(fun(Agent) -> list_to_existing_atom(Agent#tab_agent.identity) end, Subordinate)
+  end.
+
+setup_players(Identity) when is_list(Identity) ->
+  setup_players(list_to_existing_atom(Identity));
+setup_players(Identity) when is_atom(Identity) ->
+  case mnesia:dirty_index_read(tab_player_info, Identity, agent) of
+    Players when is_list(Players) ->
+      lists:foldl(fun(Player, PlayersTree) -> gb_trees:insert(Player#tab_player_info.identity, 0, PlayersTree) end, 
+        gb_trees:empty(), Players)
   end.
 
 check(undefined) ->
@@ -163,6 +198,20 @@ subordinate_test() ->
   ?assert(is_pid(check(agent_1))),
   ?assertEqual([agent_1_1], subordinate(agent_1)),
   ?assertEqual([agent_1, disable_agent], subordinate(root)).
+
+players_test() ->
+  setup(),
+  ?assertEqual(["player_1", "player_2"], players(root)),
+  ?assertEqual(["player_3"], players(agent_1)),
+  ?assertEqual(["player_4"], players(agent_1_1)).
+
+betting_test() ->
+  setup(),
+  ?assertEqual(not_own_player, betting(root, "player_3", 10)),
+  ?assertEqual(ok, betting(root, "player_1", 10)),
+  ?assertEqual(ok, betting(root, "player_2", 10)),
+  ?assertEqual(ok, betting(root, "player_2", 30)),
+  ?assertEqual(50, turnover(root, today)).
 
 check_test() ->
   setup(),
@@ -212,9 +261,28 @@ setup() ->
     }
   ],
 
-  lists:map(fun(Agent) -> 
-        {atomic, _} = mnesia:transaction( fun() -> mnesia:write(Agent) end) 
-    end, Agents),
+  Players = [
+    #tab_player_info {
+      pid = counter:bump(player),
+      identity = "player_1",
+      agent = root
+    }, #tab_player_info {
+      pid = counter:bump(player),
+      identity = "player_2",
+      agent = root
+    }, #tab_player_info {
+      pid = counter:bump(player),
+      identity = "player_3",
+      agent = agent_1 
+    }, #tab_player_info {
+      pid = counter:bump(player),
+      identity = "player_4",
+      agent = agent_1_1
+    }
+  ],
+
+  lists:foreach(fun(R) -> mnesia:dirty_write(R) end, Agents),
+  lists:foreach(fun(R) -> mnesia:dirty_write(R) end, Players),
 
   kill(),
   start().
