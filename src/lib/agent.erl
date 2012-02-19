@@ -22,7 +22,9 @@
 
 %% Server Function
 
-init([R = #tab_agent{}]) when R#tab_agent.disable /= true ->
+init([R = #tab_agent{}]) when R#tab_agent.disable =:= true ->
+  {stop, disable_agent};
+init([R = #tab_agent{}]) when R#tab_agent.disable =:= false ->
   {ok, #agent{ record = R}}.
 
 handle_cast(_Msg, Agent) ->
@@ -64,6 +66,9 @@ start() ->
   ok = mnesia:wait_for_tables([tab_agent], 1000),
   {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, [], tab_agent) end).
 
+start_agent(R = #tab_agent{identity = Identity, disable = Disable}) 
+when is_list(Identity), Disable =:= true ->
+  disable_agent;
 start_agent(R = #tab_agent{identity = Identity, disable = Disable}) 
 when is_list(Identity), Disable =:= false ->
   Name = {global, {agent, list_to_atom((Identity))}},
@@ -126,6 +131,19 @@ check_test() ->
   ?assert(is_pid(check(root))),
   exit(global:whereis_name({agent, root}), kill),
   ?assert(stopped =:= check(root)).
+
+start_disable_agent_test() ->
+  setup(),
+  Root = #tab_agent{ 
+    aid = counter:bump(agent), 
+    identity = "disable_agent", 
+    password = "password", 
+    root = root,
+    disable = true
+  },
+  {atomic, _} = mnesia:transaction( fun() -> mnesia:write(Root) end),
+  start(),
+  ?assertEqual(undefined, check(disable_agent)).
   
 auth_test() ->
   setup(),

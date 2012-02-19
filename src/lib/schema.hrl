@@ -1,4 +1,4 @@
--define(ROOT_ID, 1).
+-define(ROOT_AID, 1).
 
 -record(tab_agent, {
     aid,
@@ -6,7 +6,7 @@
     password,
     root = false,
     disable = false,
-    parent = ?ROOT_ID,
+    parent = root,
     cash = 0,
     credit = 0
   }).
@@ -25,7 +25,7 @@
     location,
     login_errors = 0,
     disabled = false, % player is disabled
-    agent = ?ROOT_ID
+    agent = root
   }).
 
 -record(tab_player, {

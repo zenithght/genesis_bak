@@ -83,7 +83,7 @@ setup_counters()->
   counter:reset(game),
   counter:reset(player),
   counter:reset(inplay_xref),
-  counter:reset(agent, ?ROOT_ID),
+  counter:reset(agent, ?ROOT_AID),
   ok.
 
 setup_games() ->
@@ -108,12 +108,8 @@ setup_games() ->
     6000, 150000, 1). 
 
 setup_agent() ->
-  Root = #tab_agent{ identity = "root", password = "password", root = 1 },
-  {atomic, _} = mnesia:transaction(
-    fun() -> 
-        mnesia:write(Root)
-    end
-  ).
+  Root = #tab_agent{ aid = ?ROOT_AID, identity = "root", password = "password", root = true },
+  {atomic, _} = mnesia:transaction( fun() -> mnesia:write(Root) end).
   
 %% EUnit Test Case
 
