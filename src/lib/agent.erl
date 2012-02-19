@@ -50,61 +50,64 @@ terminate(normal, _Server) ->
 %% Client Function
 
 start() ->
-  Fun = fun(R = #tab_agent{identity = Identity, disable = Disable}, _Acc) 
-    when Disable =:= false ->
-      Name = {global, {agent, list_to_atom(binary_to_list(Identity))}},
-      gen_server:start(Name, agent, [R], [])
+  Fun = fun(R = #tab_agent{identity = Identity}, _Acc) ->
+      case check(list_to_atom(Identity)) of
+        undefined ->
+          start_agent(R);
+        stopped ->
+          throw({agent_stopped, Identity});
+        _ ->
+          ok
+      end
   end, 
+
   ok = mnesia:wait_for_tables([tab_agent], 1000),
   {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, [], tab_agent) end).
 
-create(Identity, Password, _Parent) when not is_binary(Identity), not is_binary(Password) -> error;
-create(Identity, Password, Parent) when is_atom(Parent) ->
+start_agent(R = #tab_agent{identity = Identity, disable = Disable}) 
+when is_list(Identity), Disable =:= false ->
+  Name = {global, {agent, list_to_atom((Identity))}},
+  {ok, Pid} = gen_server:start(Name, agent, [R], []),
+  Pid.
+
+create(Identity, Password, Parent) 
+when is_atom(Parent), is_list(Identity), is_list(Password) ->
   case {check(Parent), check(Identity)} of
-    {_Pid, Pid} when is_pid(Pid) ->
-      repeat_error;
-    {Pid, undefined} when is_pid(Pid) ->
-      {atomic, _Result} = mnesia:transaction(
-        fun() ->
-            mnesia:write(#tab_agent{ 
-                aid = counter:bump(agent),
-                identity = Identity,
-                password = Password,
-                parent = Parent
-              }
-            )
-        end
-      ),
-      ok;
-    _ ->
-      error
+    {undefined, _Identity} ->
+      throw(parent_undefined);
+    {stopped, _Identity} ->
+      throw(parent_stopped);
+    {_Pid, stopped} ->
+      throw(identity_stopped_and_repeat);
+    {_Pid, IdentityPid} when is_pid(IdentityPid) ->
+      throw(identity_repeat);
+    {ParentPid, undefined} when is_pid(ParentPid) ->
+      Agent = #tab_agent{ 
+        aid = counter:bump(agent),
+        identity = Identity,
+        password = Password,
+        parent = Parent
+      },
+      {atomic, ok} = mnesia:transaction(fun() -> mnesia:write(Agent) end),
+      start_agent(Agent)
   end.
       
-  %case check(Identity) of
-    %undefined ->
-      %Agent = #tab_agent{ 
-        %identity = Identity, 
-        %password = Password, 
-        %root = 0,
-        %parent = Parent
-      %},
-      %db:write(Agent),
-      %ok;
-    %_ ->
-      %repeat_error
-  %end;
-
 auth(Identity, Password) when is_list(Identity), is_list(Password) ->
-  auth(list_to_binary(Identity), list_to_binary(Password));
-auth(Identity, Password) when is_binary(Identity), is_binary(Password) ->
-  gen_server:call(check(Identity), {auth, Password}).
+  case check(Identity) of
+    undefined ->
+      false;
+    stopped ->
+      false;
+    Agent when is_pid(Agent) ->
+      gen_server:call(Agent, {auth, Password})
+  end.
 
 %% Private Function
 
 check(undefined) ->
   undefined;
-check(Identity) when is_binary(Identity) ->
-  check(list_to_atom(binary_to_list(Identity)));
+check(Identity) when is_list(Identity) ->
+  check(list_to_existing_atom(Identity));
 check(Identity) when is_atom(Identity) ->
   check(global:whereis_name({agent, Identity}));
 check(Identity) when is_pid(Identity) ->
@@ -127,15 +130,14 @@ check_test() ->
 auth_test() ->
   setup(),
   ?assert(true =:= auth("root", "password")),
-  ?assert(true =:= auth(<<"root">>, <<"password">>)),
-  ?assert(false =:= auth("root", "")),
-  ?assert(false =:= auth(<<"root">>, <<"">>)).
+  ?assert(false =:= auth("root", "")).
 
 create_test() ->
   setup(),
-  ?assert(ok =:= create(<<"user">>, <<"pass">>, root)),
-  ?assert(error =:= create("user", "pass", root)),
-  ?assert(repeat_error =:= create(<<"root">>, <<"pass">>, root)).
+  ?assert(is_pid(create("user", "pass", root))),
+  ?assert(is_pid(check(user))),
+  ?assertThrow(identity_repeat, create("user", "pass", root)),
+  ?assertThrow(parent_undefined, create("user", "pass", other_root)).
 
 setup() ->
   schema:uninstall(),

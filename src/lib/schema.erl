@@ -108,7 +108,7 @@ setup_games() ->
     6000, 150000, 1). 
 
 setup_agent() ->
-  Root = #tab_agent{ identity = <<"root">>, password = <<"password">>, root = 1 },
+  Root = #tab_agent{ identity = "root", password = "password", root = 1 },
   {atomic, _} = mnesia:transaction(
     fun() -> 
         mnesia:write(Root)
