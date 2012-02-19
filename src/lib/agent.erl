@@ -25,7 +25,12 @@
 init([R = #tab_agent{}]) when R#tab_agent.disable =:= true ->
   {stop, disable_agent};
 init([R = #tab_agent{}]) when R#tab_agent.disable =:= false ->
-  {ok, #agent{ record = R}}.
+  Subordinate = setup_subordinate(R#tab_agent.identity),
+  {ok, #agent{ 
+      subordinate = Subordinate,
+      record = R
+    }
+  }.
 
 handle_cast(_Msg, Agent) ->
   {noreply, Agent}.
@@ -34,8 +39,11 @@ handle_call({auth, ReqPwd}, _From, Agent = #agent{record = R}) when
     ReqPwd /= R#tab_agent.password ->
   {reply, false, Agent};
 
-handle_call({auth, _Pwd}, _From, Agent) ->
-  {reply, true, Agent};
+handle_call({auth, _Pwd}, _From, Data) ->
+  {reply, true, Data};
+
+handle_call(subordinate, _From, Data) ->
+  {reply, Data#agent.subordinate, Data};
 
 handle_call(_Msg, _From, Agent) ->
   {noreply, Agent}.
@@ -66,7 +74,19 @@ start() ->
   ok = mnesia:wait_for_tables([tab_agent], 1000),
   {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, [], tab_agent) end).
 
-start_agent(R = #tab_agent{identity = Identity, disable = Disable}) 
+kill() ->
+  Fun = fun(R = #tab_agent{identity = Identity}, _Acc) ->
+      case check(list_to_atom(Identity)) of
+        Agent when is_pid(Agent) ->
+          exit(Agent, kill);
+        _ ->
+          ok
+      end
+  end,
+  ok = mnesia:wait_for_tables([tab_agent], 1000),
+  {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, [], tab_agent) end).
+
+start_agent(#tab_agent{identity = Identity, disable = Disable}) 
 when is_list(Identity), Disable =:= true ->
   disable_agent;
 start_agent(R = #tab_agent{identity = Identity, disable = Disable}) 
@@ -107,7 +127,20 @@ auth(Identity, Password) when is_list(Identity), is_list(Password) ->
       gen_server:call(Agent, {auth, Password})
   end.
 
+subordinate(Identity) when is_list(Identity) ->
+  subordinate(list_to_existing_atom(Identity));
+subordinate(Identity) when is_atom(Identity) ->
+  gen_server:call(check(Identity), subordinate).
+
 %% Private Function
+
+setup_subordinate(Identity) when is_list(Identity) ->
+  setup_subordinate(list_to_existing_atom(Identity));
+setup_subordinate(Identity) when is_atom(Identity) ->
+  case mnesia:dirty_index_read(tab_agent, Identity, parent) of
+    Subordinate when is_list(Subordinate) ->
+      Result = lists:map(fun(Agent) -> list_to_existing_atom(Agent#tab_agent.identity) end, Subordinate)
+  end.
 
 check(undefined) ->
   undefined;
@@ -125,6 +158,12 @@ check(Identity) when is_pid(Identity) ->
 
 %% Eunit Test Case
 
+subordinate_test() ->
+  setup(),
+  ?assert(is_pid(check(agent_1))),
+  ?assertEqual([agent_1_1], subordinate(agent_1)),
+  ?assertEqual([agent_1, disable_agent], subordinate(root)).
+
 check_test() ->
   setup(),
   ?assert(undefined =:= check(unknown)),
@@ -134,17 +173,8 @@ check_test() ->
 
 start_disable_agent_test() ->
   setup(),
-  Root = #tab_agent{ 
-    aid = counter:bump(agent), 
-    identity = "disable_agent", 
-    password = "password", 
-    root = root,
-    disable = true
-  },
-  {atomic, _} = mnesia:transaction( fun() -> mnesia:write(Root) end),
-  start(),
   ?assertEqual(undefined, check(disable_agent)).
-  
+
 auth_test() ->
   setup(),
   ?assert(true =:= auth("root", "password")),
@@ -161,4 +191,30 @@ setup() ->
   schema:uninstall(),
   schema:install(),
   schema:load_default_data(),
+
+  Agents = [
+    #tab_agent{ 
+      aid = counter:bump(agent), 
+      identity = "disable_agent", 
+      password = "password", 
+      parent = root,
+      disable = true
+    }, #tab_agent{
+      aid = counter:bump(agent), 
+      identity = "agent_1", 
+      password = "password", 
+      parent = root
+    }, #tab_agent{
+      aid = counter:bump(agent), 
+      identity = "agent_1_1", 
+      password = "password", 
+      parent = agent_1
+    }
+  ],
+
+  lists:map(fun(Agent) -> 
+        {atomic, _} = mnesia:transaction( fun() -> mnesia:write(Agent) end) 
+    end, Agents),
+
+  kill(),
   start().

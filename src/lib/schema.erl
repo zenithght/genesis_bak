@@ -108,7 +108,7 @@ setup_games() ->
     6000, 150000, 1). 
 
 setup_agent() ->
-  Root = #tab_agent{ aid = ?ROOT_AID, identity = "root", password = "password", root = true },
+  Root = #tab_agent{ aid = ?ROOT_AID, identity = "root", password = "password", root = true, parent = nil },
   {atomic, _} = mnesia:transaction( fun() -> mnesia:write(Root) end).
   
 %% EUnit Test Case
