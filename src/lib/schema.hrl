@@ -1,12 +1,10 @@
--define(ROOT_AID, 1).
-
 -record(tab_agent, {
-    aid,
     identity,
     password,
     root = false,
     disable = false,
     parent = root,
+    subordinate = [],
     cash = 0,
     credit = 0
   }).

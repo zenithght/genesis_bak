@@ -11,6 +11,9 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+-define(AGENT(Name), {global, {agent, Name}}).
+-define(LOOKUP_AGENT(Name), global:whereis_name({agent, Name})).
+
 -record(agent, {
     cash = 0,           % cash balance
     credit = 0,         % credit balance, max owe to system.
@@ -23,12 +26,11 @@
 
 %% Server Function
 
-init([R = #tab_agent{}]) when R#tab_agent.disable =:= true ->
-  {stop, disable_agent};
-init([R = #tab_agent{}]) when R#tab_agent.disable =:= false ->
+init([R = #tab_agent{}]) when is_list(R#tab_agent.subordinate) ->
   {ok, #agent{ 
+      disable = R#tab_agent.disable,
       players = setup_players(R#tab_agent.identity),
-      subordinate = setup_subordinate(R#tab_agent.identity),
+      subordinate = R#tab_agent.subordinate,
       record = R
     }
   }.
@@ -72,102 +74,6 @@ code_change(_OldVsn, Server, _Extra) ->
 terminate(normal, _Server) ->
   ok.
 
-%% Client Function
-
-start() ->
-  Fun = fun(R = #tab_agent{identity = Identity}, _Acc) ->
-      case check(list_to_atom(Identity)) of
-        undefined ->
-          start_agent(R);
-        stopped ->
-          throw({agent_stopped, Identity});
-        _ ->
-          ok
-      end
-  end, 
-
-  ok = mnesia:wait_for_tables([tab_agent], 1000),
-  {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, nil, tab_agent) end).
-
-kill() ->
-  Fun = fun(R = #tab_agent{identity = Identity}, _Acc) ->
-      case check(list_to_atom(Identity)) of
-        Agent when is_pid(Agent) ->
-          exit(Agent, kill);
-        _ ->
-          ok
-      end
-  end,
-  ok = mnesia:wait_for_tables([tab_agent], 1000),
-  {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, [], tab_agent) end).
-
-start_agent(#tab_agent{identity = Identity, disable = Disable}) 
-when is_list(Identity), Disable =:= true ->
-  disable_agent;
-start_agent(R = #tab_agent{identity = Identity, disable = Disable}) 
-when is_list(Identity), Disable =:= false ->
-  Name = {global, {agent, list_to_atom((Identity))}},
-  {ok, Pid} = gen_server:start(Name, agent, [R], []),
-  Pid.
-
-create(Identity, Password, Parent) 
-when is_atom(Parent), is_list(Identity), is_list(Password) ->
-  case {check(Parent), check(Identity)} of
-    {undefined, _Identity} ->
-      throw(parent_undefined);
-    {stopped, _Identity} ->
-      throw(parent_stopped);
-    {_Pid, stopped} ->
-      throw(identity_stopped_and_repeat);
-    {_Pid, IdentityPid} when is_pid(IdentityPid) ->
-      throw(identity_repeat);
-    {ParentPid, undefined} when is_pid(ParentPid) ->
-      Agent = #tab_agent{ 
-        aid = counter:bump(agent),
-        identity = Identity,
-        password = Password,
-        parent = Parent
-      },
-      {atomic, ok} = mnesia:transaction(fun() -> mnesia:write(Agent) end),
-      start_agent(Agent)
-  end.
-      
-auth(Identity, Password) when is_list(Identity), is_list(Password) ->
-  case check(Identity) of
-    undefined ->
-      false;
-    stopped ->
-      false;
-    Agent when is_pid(Agent) ->
-      gen_server:call(Agent, {auth, Password})
-  end.
-
-subordinate(Identity) when is_list(Identity) ->
-  subordinate(list_to_existing_atom(Identity));
-subordinate(Identity) when is_atom(Identity) ->
-  gen_server:call(check(Identity), subordinate).
-
-players(Identity) when is_list(Identity) ->
-  players(list_to_existing_atom(Identity));
-players(Identity) when is_atom(Identity) ->
-  gen_server:call(check(Identity), players).
-
-betting(Identity, Player, Bet) when is_atom(Identity), is_list(Player), is_integer(Bet), Bet > 0 ->
-  gen_server:call(check(Identity), {betting, Player, Bet}).
-
-turnover(Identity, today) when is_atom(Identity) ->
-  gen_server:call(check(Identity), {turnover, today}).
-
-%% Private Function
-
-setup_subordinate(Identity) when is_list(Identity) ->
-  setup_subordinate(list_to_existing_atom(Identity));
-setup_subordinate(Identity) when is_atom(Identity) ->
-  case mnesia:dirty_index_read(tab_agent, Identity, parent) of
-    Subordinate when is_list(Subordinate) ->
-      Result = lists:map(fun(Agent) -> list_to_existing_atom(Agent#tab_agent.identity) end, Subordinate)
-  end.
-
 setup_players(Identity) when is_list(Identity) ->
   setup_players(list_to_existing_atom(Identity));
 setup_players(Identity) when is_atom(Identity) ->
@@ -177,27 +83,54 @@ setup_players(Identity) when is_atom(Identity) ->
         gb_trees:empty(), Players)
   end.
 
-check(undefined) ->
-  undefined;
-check(Identity) when is_list(Identity) ->
-  check(list_to_existing_atom(Identity));
-check(Identity) when is_atom(Identity) ->
-  check(global:whereis_name({agent, Identity}));
-check(Identity) when is_pid(Identity) ->
-  case is_process_alive(Identity) of
-    true ->
-      Identity;
-    _ ->
-      stopped
-  end.
+%% Client Function
 
+start() ->
+  Fun = fun(R = #tab_agent{identity = Identity}, _Acc) when is_atom(Identity) ->
+      case ?LOOKUP_AGENT(Identity) of
+        undefined -> gen_server:start(?AGENT(Identity), agent, [R], []);
+        A -> ?LOG({live_agent, Identity, is_A})
+      end
+  end, 
+
+  ok = mnesia:wait_for_tables([tab_agent], 1000),
+  {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, nil, tab_agent) end).
+
+kill() ->
+  Fun = fun(R = #tab_agent{identity = Identity}, _Acc) ->
+      case ?LOOKUP_AGENT(Identity) of
+        Pid when is_pid(Pid) -> 
+          ?LOG({exit, Identity}),
+          exit(Pid, kill);
+        _ -> ok
+      end
+  end,
+
+  {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, [], tab_agent) end).
+
+create(Identity, Password, Parent) ->
+  ok.
+      
+auth(Identity, Password) when is_atom(Identity), is_list(Password) ->
+  gen_server:call(?AGENT(Identity), {auth, Password}).
+
+betting(Identity, Player, Bet) when is_atom(Identity), is_list(Player), is_integer(Bet), Bet > 0 ->
+  gen_server:call(?AGENT(Identity), {betting, Player, Bet}).
+
+turnover(Identity, today) when is_atom(Identity) ->
+  gen_server:call(?AGENT(Identity), {turnover, today}).
+
+subordinate(Identity) when is_atom(Identity) ->
+  gen_server:call(?AGENT(Identity), subordinate).
+
+players(Identity) when is_atom(Identity) ->
+  gen_server:call(?AGENT(Identity), players).
 %% Eunit Test Case
 
 subordinate_test() ->
   setup(),
-  ?assert(is_pid(check(agent_1))),
   ?assertEqual([agent_1_1], subordinate(agent_1)),
-  ?assertEqual([agent_1, disable_agent], subordinate(root)).
+  ?assertEqual([disable_agent, agent_1], subordinate(root)).
 
 players_test() ->
   setup(),
@@ -213,51 +146,41 @@ betting_test() ->
   ?assertEqual(ok, betting(root, "player_2", 30)),
   ?assertEqual(50, turnover(root, today)).
 
-check_test() ->
-  setup(),
-  ?assert(undefined =:= check(unknown)),
-  ?assert(is_pid(check(root))),
-  exit(global:whereis_name({agent, root}), kill),
-  ?assert(stopped =:= check(root)).
-
-start_disable_agent_test() ->
-  setup(),
-  ?assertEqual(undefined, check(disable_agent)).
-
 auth_test() ->
   setup(),
-  ?assert(true =:= auth("root", "password")),
-  ?assert(false =:= auth("root", "")).
+  ?assert(true =:= auth(root, "password")),
+  ?assert(false =:= auth(root, "")).
 
-create_test() ->
-  setup(),
-  ?assert(is_pid(create("user", "pass", root))),
-  ?assert(is_pid(check(user))),
-  ?assertThrow(identity_repeat, create("user", "pass", root)),
-  ?assertThrow(parent_undefined, create("user", "pass", other_root)).
+%create_test() ->
+  %setup().
 
 setup() ->
   schema:uninstall(),
   schema:install(),
   schema:load_default_data(),
 
+  DefPwd = "password",
+
   Agents = [
     #tab_agent{ 
-      aid = counter:bump(agent), 
-      identity = "disable_agent", 
-      password = "password", 
+      identity = disable_agent, 
+      password = DefPwd,
       parent = root,
       disable = true
     }, #tab_agent{
-      aid = counter:bump(agent), 
-      identity = "agent_1", 
-      password = "password", 
-      parent = root
+      identity = agent_1, 
+      password = DefPwd,
+      parent = root,
+      subordinate = [agent_1_1]
     }, #tab_agent{
-      aid = counter:bump(agent), 
-      identity = "agent_1_1", 
-      password = "password", 
+      identity = agent_1_1, 
+      password = DefPwd,
       parent = agent_1
+    }, #tab_agent{
+      identity = root,
+      password = DefPwd,
+      parent = nil,
+      subordinate = [disable_agent, agent_1]
     }
   ],
 
