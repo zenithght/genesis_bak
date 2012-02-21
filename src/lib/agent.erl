@@ -13,6 +13,7 @@
 
 -define(AGENT(Name), {global, {agent, Name}}).
 -define(LOOKUP_AGENT(Name), global:whereis_name({agent, Name})).
+-define(DEF_PWD, "password").
 
 -record(agent, {
     cash = 0,           % cash balance
@@ -26,17 +27,22 @@
 
 %% Server Function
 
-init([R = #tab_agent{}]) when is_list(R#tab_agent.subordinate) ->
-  {ok, #agent{ 
-      disable = R#tab_agent.disable,
-      players = setup_players(R#tab_agent.identity),
-      subordinate = lists:foldl(fun(Sub, Acc) -> gb_trees:insert(Sub, 0, Acc) end, gb_trees:empty(), R#tab_agent.subordinate),
-      record = R
-    }
-  }.
+init([R = #tab_agent{}]) ->
+  Agent = #agent { 
+    disable = R#tab_agent.disable,
+    players = setup_players(R#tab_agent.identity),
+    subordinate = lists:foldl(fun(Sub, Acc) -> gb_trees:insert(Sub, 0, Acc) end, gb_trees:empty(), R#tab_agent.subordinate),
+    record = R
+  },
+  {ok, Agent}.
 
 handle_cast(_Msg, Agent) ->
   {noreply, Agent}.
+
+handle_call({create, Subordinate}, _Form, Data = #agent{record = R})
+when is_record(Subordinate, tab_agent), R#tab_agent.identity =:= Subordinate#tab_agent.parent ->
+  NewSubordinate = gb_trees:insert(Subordinate#tab_agent.identity, 0, Data#agent.subordinate),
+  {reply, ok, Data#agent{subordinate = NewSubordinate}};
 
 handle_call({betting, Player, Bet}, _From, Data) when is_list(Player), is_integer(Bet), Bet > 0 ->
   case gb_trees:lookup(Player, Data#agent.players) of
@@ -112,12 +118,25 @@ kill() ->
   {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, [], tab_agent) end).
 
 create(Identity, Password, Parent) when is_list(Identity), is_list(Password), is_list(Parent) ->
-  %%% check parent agent limit create count everyday
-  %mnesia:transaction(fun() -> 
-        %{atomic, ok} = mnesia:write_lock_table(tab_agent),
-        %{atomic, Parent} = mnesia:read(tab_agent, Identity)
-  %).
-  ok.
+  {atomic, _} = mnesia:transaction(
+    fun() -> 
+        ok = mnesia:write_lock_table(tab_agent),
+
+        [] = mnesia:read(tab_agent, Identity),
+        [ParentAgent] = mnesia:read(tab_agent, Parent),
+
+        R = #tab_agent{ identity = Identity, password = Password, parent = Parent },
+        Subordinate = [ Identity | ParentAgent#tab_agent.subordinate],
+        NewParentAgent = ParentAgent#tab_agent{ subordinate = Subordinate },
+
+        ok = mnesia:write(R),
+        ok = mnesia:write(NewParentAgent),
+
+
+        {ok, _} = gen_server:start(?AGENT(Identity), agent, [R], []),
+        ok = gen_server:call(?AGENT(Parent), {create, R})
+    end
+  ), ok.
       
 auth(Identity, Password) when is_list(Identity), is_list(Password) ->
   gen_server:call(?AGENT(Identity), {auth, Password}).
@@ -139,6 +158,11 @@ subordinate_test() ->
   setup(),
   ?assertEqual(["agent_1_1"], subordinate("agent_1")),
   ?assertEqual(["agent_1", "disable_agent"], subordinate("root")).
+
+create_test() ->
+  setup(),
+  ?assertEqual(ok, create("agent_1_2", ?DEF_PWD, "agent_1")),
+  ?assertEqual(["agent_1_1", "agent_1_2"], subordinate("agent_1")).
 
 players_test() ->
   setup(),
@@ -167,7 +191,7 @@ setup() ->
   schema:install(),
   schema:load_default_data(),
 
-  DefPwd = "password",
+  DefPwd = ?DEF_PWD,
 
   Agents = [
     #tab_agent{ 
