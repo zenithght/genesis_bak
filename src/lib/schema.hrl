@@ -9,6 +9,17 @@
     credit = 0
   }).
 
+-record(tab_turnover, {
+    aid,      %% aid
+    pid,      %% pid
+    game,     %% {gid, sn}
+    out,      %% integer
+    in,       %% integer
+    inplay,   %% integer
+    date,     %% {year, month, day}
+    time      %% {hour, min, sec}
+  }).
+
 -record(tab_counter, {
     type,
     value

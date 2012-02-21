@@ -152,6 +152,7 @@ subordinate(Identity) when is_list(Identity) ->
 
 players(Identity) when is_list(Identity) ->
   gen_server:call(?AGENT(Identity), players).
+
 %% Eunit Test Case
 
 subordinate_test() ->
@@ -182,9 +183,6 @@ auth_test() ->
   setup(),
   ?assert(true =:= auth("root", "password")),
   ?assert(false =:= auth("root", "")).
-
-%create_test() ->
-  %setup().
 
 setup() ->
   schema:uninstall(),

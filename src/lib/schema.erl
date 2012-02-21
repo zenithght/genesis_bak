@@ -31,7 +31,8 @@ install(Nodes) when is_list(Nodes) ->
         ?TABLE_DEF(tab_inplay, set, ?DISC),
         ?TABLE_DEF(tab_game_config, set, ?DISC),
         ?TABLE_DEF(tab_cluster_config, set, ?DISC),
-        ?TABLE_DEF(tab_counter, set, ?DISC)
+        ?TABLE_DEF(tab_counter, set, ?DISC),
+        ?TABLE_DEF(tab_turnover, bag, ?DISC)
       ],
 
       mnesia:start(),
@@ -40,6 +41,7 @@ install(Nodes) when is_list(Nodes) ->
       create_tables(DiscTables),
 
       create_indices(tab_agent, [parent]),
+      create_indices(tab_turnover, [date]),
       create_indices(tab_player_info, [agent, identity])
   end.
 

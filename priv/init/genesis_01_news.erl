@@ -6,7 +6,8 @@
 % return a list of WatchIDs that should be cancelled in the stop
 % function below (stop is executed if the script is ever reloaded).
 init() ->
-  agent:start(),
+  %mnesia:start(),
+  %agent:start(),
   {ok, []}.
 
 stop(ListOfWatchIDs) ->
