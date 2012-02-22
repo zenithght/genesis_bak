@@ -25,9 +25,6 @@ before_(Act) ->
 index('GET', []) ->
   {ok, []}.
 
-root('GET', []) ->
-  {ok, []}.
-
 user('GET', []) ->
   {ok, []}.
 
