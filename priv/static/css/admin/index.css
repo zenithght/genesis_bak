@@ -11,6 +11,9 @@ body {
     color: #3b5998;
     text-decoration: none; }
 
+#nil {
+  display: none; }
+
 #header {
   height: 50px;
   background-color: #3b5998; }
@@ -75,3 +78,87 @@ div.menu {
       display: block;
       margin-top: 5px;
       margin-left: 150px; }
+
+form .rowElem label {
+  width: 50px;
+  text-align: left;
+  font-size: 14px;
+  color: #445668;
+  float: left;
+  clear: left;
+  margin: 11px 20px 0 0;
+  width: 95px;
+  text-transform: uppercase;
+  text-shadow: 0px 1px 0px #f2f2f2; }
+form input {
+  width: 200px;
+  height: 25px;
+  padding: 5px 20px 0px 20px;
+  margin: 0 0 20px 0;
+  background: #5E768D;
+  background: -moz-linear-gradient(top, #546a7f 0%, #5e768d 20%);
+  /* firefox */
+  background: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #546a7f), color-stop(20%, #5e768d));
+  /* webkit */
+  border-radius: 5px;
+  -moz-border-radius: 5px;
+  -webkit-border-radius: 5px;
+  -moz-box-shadow: 0px 1px 0px #f2f2f2;
+  -webkit-box-shadow: 0px 1px 0px #f2f2f2;
+  font-family: sans-serif;
+  font-size: 16px;
+  color: #f2f2f2;
+  text-transform: uppercase;
+  text-shadow: 0px -1px 0px #334f71; }
+form input::-webkit-input-placeholder {
+  color: #a1b2c3;
+  text-shadow: 0px -1px 0px #38506b; }
+form input:-moz-placeholder {
+  color: #a1b2c3;
+  text-shadow: 0px -1px 0px #38506b; }
+form textarea {
+  width: 260px;
+  height: 170px;
+  padding: 12px 20px 0px 20px;
+  margin: 0 0 20px 0;
+  background: #5E768D;
+  background: -moz-linear-gradient(top, #546a7f 0%, #5e768d 20%);
+  /* firefox */
+  background: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #546a7f), color-stop(20%, #5e768d));
+  /* webkit */
+  border-radius: 5px;
+  -moz-border-radius: 5px;
+  -webkit-border-radius: 5px;
+  -moz-box-shadow: 0px 1px 0px #f2f2f2;
+  -webkit-box-shadow: 0px 1px 0px #f2f2f2;
+  font-family: sans-serif;
+  font-size: 16px;
+  color: #f2f2f2;
+  text-transform: uppercase;
+  text-shadow: 0px -1px 0px #334f71; }
+form textarea::-webkit-input-placeholder {
+  color: #a1b2c3;
+  text-shadow: 0px -1px 0px #38506b; }
+form textarea:-moz-placeholder {
+  color: #a1b2c3;
+  text-shadow: 0px -1px 0px #38506b; }
+form input:focus, form textarea:focus {
+  background: #728eaa;
+  background: -moz-linear-gradient(top, #668099 0%, #728eaa 20%);
+  /* firefox */
+  background: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #668099), color-stop(20%, #728eaa));
+  /* webkit */ }
+form input[type=submit] {
+  width: 185px;
+  height: 52px;
+  float: right;
+  padding: 10px 15px;
+  margin: 0 15px 0 0;
+  -moz-box-shadow: 0px 0px 5px #999;
+  -webkit-box-shadow: 0px 0px 5px #999;
+  border: 1px solid #556f8c;
+  background: -moz-linear-gradient(top, #718da9 0%, #415d79 100%);
+  /* firefox */
+  background: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #718da9), color-stop(100%, #415d79));
+  /* webkit */
+  cursor: pointer; }

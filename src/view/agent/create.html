@@ -1,5 +1,18 @@
-{% extends "templates/layout.html" %}
-{% block title %}創建代理{% endblock %}
-{% block body %}
 <h2>創建代理</h2>
-{% endblock %}
+<form method='post'>
+  <div class='rowElem'>
+    <label for='identity'>用户</label>
+    <input name='identity' type='text' />
+  </div>
+  <div class='rowElem'>
+    <label for='password'>密碼</label>
+    <input name='password' type='password' />
+  </div>
+  <div class='rowElem'>
+    <label for='re-password'></label>
+    <input name='re-password' type='password' />
+  </div>
+  <div class='rowElem'>
+    <input type='submit' value='登陆' />
+  </div>
+</form>
