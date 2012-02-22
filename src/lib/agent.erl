@@ -86,8 +86,10 @@ terminate(normal, _Server) ->
 setup_players(Identity) when is_list(Identity) ->
   case mnesia:dirty_index_read(tab_player_info, Identity, agent) of
     Players when is_list(Players) ->
-      lists:foldl(fun(Player, PlayersTree) -> gb_trees:insert(Player#tab_player_info.identity, 0, PlayersTree) end, 
-        gb_trees:empty(), Players)
+      Fun = fun(Player, PlayersTree) -> 
+          gb_trees:insert(Player#tab_player_info.identity, 0, PlayersTree) 
+      end, 
+      lists:foldl(Fun, gb_trees:empty(), Players)
   end.
 
 write(Agent = #tab_agent{}) ->
