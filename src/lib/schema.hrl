@@ -1,4 +1,5 @@
 -record(tab_agent, {
+    aid,
     identity,
     password,
     root = false,

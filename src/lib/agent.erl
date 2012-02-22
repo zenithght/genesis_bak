@@ -122,12 +122,13 @@ create(Identity, Password, Parent) when is_list(Identity), is_list(Password), is
     fun() -> 
         ok = mnesia:write_lock_table(tab_agent),
 
-        [] = mnesia:read(tab_agent, Identity),
-        [ParentAgent] = mnesia:read(tab_agent, Parent),
+        [] = mnesia:index_read(tab_agent, Identity, identity),
+        [ParentAgent] = mnesia:index_read(tab_agent, Parent, identity),
 
-        R = #tab_agent{ identity = Identity, password = Password, parent = Parent },
         Subordinate = [ Identity | ParentAgent#tab_agent.subordinate],
         NewParentAgent = ParentAgent#tab_agent{ subordinate = Subordinate },
+        R = #tab_agent{ aid = counter:bump(agent), identity = Identity, 
+          password = Password, parent = Parent },
 
         ok = mnesia:write(R),
         ok = mnesia:write(NewParentAgent),
@@ -193,20 +194,24 @@ setup() ->
 
   Agents = [
     #tab_agent{ 
+      aid = counter:bump(agent),
       identity = "disable_agent", 
       password = DefPwd,
       parent = "root",
       disable = true
     }, #tab_agent{
+      aid = counter:bump(agent),
       identity = "agent_1", 
       password = DefPwd,
-      parent = root,
+      parent = "root",
       subordinate = ["agent_1_1"]
     }, #tab_agent{
+      aid = counter:bump(agent),
       identity = "agent_1_1",
       password = DefPwd,
       parent = "agent_1"
     }, #tab_agent{
+      aid = counter:bump(agent),
       identity = "root",
       password = DefPwd,
       parent = nil,

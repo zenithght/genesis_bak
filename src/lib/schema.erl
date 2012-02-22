@@ -40,7 +40,7 @@ install(Nodes) when is_list(Nodes) ->
       create_tables(RamTables),
       create_tables(DiscTables),
 
-      create_indices(tab_agent, [parent]),
+      create_indices(tab_agent, [identity, parent]),
       create_indices(tab_turnover, [date]),
       create_indices(tab_player_info, [agent, identity])
   end.
@@ -85,6 +85,7 @@ setup_counters()->
   counter:reset(game),
   counter:reset(player),
   counter:reset(inplay_xref),
+  counter:reset(agent),
   ok.
 
 setup_games() ->
@@ -109,7 +110,7 @@ setup_games() ->
     6000, 150000, 1). 
 
 setup_agent() ->
-  Root = #tab_agent{ identity = "root", password = "password", root = true, parent = nil },
+  Root = #tab_agent{ aid = counter:bump(agent), identity = "root", password = "password", root = true, parent = nil },
   {atomic, _} = mnesia:transaction( fun() -> mnesia:write(Root) end).
   
 %% EUnit Test Case
