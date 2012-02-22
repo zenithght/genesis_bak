@@ -8,7 +8,7 @@
     #header
       #main
         %label{:id => "logo"} Genesis
-        %a{:herf => '{% url action="logout" %}'} 登出
+        %a{:id => "logout", :href => '{% url controller="admin" action="logout" %}'} 登出
     #center
       #main
         #side
@@ -16,9 +16,9 @@
             %span{:class => "title"} 用户管理
             %ul{:class => "group"}
               %li{:class => "item"}
-                %a 創建玩家
+                %a{:href => '{% url controller="player" action="create" %}'} 創建玩家
               %li{:class => "item"}
-                %a 創建代理
+                %a{:href => '{% url controller="agent" action="create" %}'} 創建代理
         #content
           = '{% block body %}'
           = '{% endblock %}'
