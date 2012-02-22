@@ -6,8 +6,17 @@
 % return a list of WatchIDs that should be cancelled in the stop
 % function below (stop is executed if the script is ever reloaded).
 init() ->
-  %mnesia:start(),
-  %agent:start(),
+  case init:get_argument(sname) of
+    {ok, [["dev"]]} ->
+      io:format("test", []),
+      schema:uninstall(),
+      schema:install(),
+      mnesia:start(),
+      schema:load_default_data(),
+      agent:start();
+    _ ->
+      ok
+  end,
   {ok, []}.
 
 stop(ListOfWatchIDs) ->
