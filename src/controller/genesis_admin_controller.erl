@@ -3,15 +3,17 @@
 
 -include("../lib/schema.hrl").
 
-before_(Act) when Act /= "login" ->
+before_(Act) ->
   case boss_session:get_session_data(SessionID, "LOGIN") of
-    undefined ->
+    undefined when Act /= "login" ->
       {redirect, string:concat("login?act=", Act)};
+    undefined when Act =:= "login" ->
+      {ok, []};
     Usr ->
       {ok, []}
-  end;
+  end.
 
-before_(_) ->
+index('GET', []) ->
   {ok, []}.
 
 root('GET', []) ->
@@ -25,25 +27,22 @@ login('GET', []) ->
   {ok, []};
 
 login('POST', []) ->
-  Usr = list_to_binary(Req:post_param("username")),
-  Pwd = list_to_binary(Req:post_param("password")),
+  Usr = Req:post_param("username"),
+  Pwd = Req:post_param("password"),
 
-  Act = case Req:query_param("act") of
-    undefined ->
-      "root";
-    Action ->
-      Action
-  end,
-
-  case global:whereis_name({agent, list_to_atom(Req:post_param("username"))}) of
-    undefined ->
-      {ok, []};
-    Pid -> 
-      case gen_server:call(Pid, {auth, Pwd}) of
-        true ->
-          boss_session:set_session_data(SessionID, "LOGIN", Usr),
-          {redirect, Act};
-        false ->
-          {ok, []}
-      end
+  case agent:auth(Usr, Pwd) of
+    true ->
+      boss_session:set_session_data(SessionID, "LOGIN", Usr),
+      {redirect, get("act", "/admin/")};
+    false ->
+      {ok, []}
   end.
+
+get(Name, Def) ->
+  case Req:query_param(Name) of
+    undefined ->
+      Def;
+    Param ->
+      Param
+  end.
+
