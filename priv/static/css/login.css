@@ -1,0 +1,57 @@
+body {
+  border: 0px;
+  margin: 0px;
+  padding: 0px;
+  width: 100%;
+  font-size: 11px;
+  font-family: "lucida grande",tahoma,verdana,arial,sans-serif;
+  color: #333;
+  line-height: 1.28; }
+  body a {
+    cursor: pointer;
+    color: #3b5998;
+    text-decoration: none; }
+
+#header {
+  height: 50px;
+  background-color: #3b5998; }
+  #header #logo {
+    margin: 0px auto;
+    padding-top: 10px;
+    width: 970px; }
+    #header #logo .app {
+      color: white;
+      font-size: 2.5em; }
+    #header #logo .help {
+      color: white;
+      float: right;
+      padding-top: 22px; }
+
+#content {
+  height: 577px;
+  background: -webkit-linear-gradient(top, white, #d3d8e8); }
+  #content #login {
+    margin: 0px auto;
+    width: 970px; }
+    #content #login form {
+      top: 200px;
+      left: 460px;
+      width: 500px;
+      position: relative; }
+      #content #login form input[type=text],
+      #content #login form input[type=password] {
+        width: 182px;
+        padding: 6px;
+        font-size: 16px; }
+      #content #login form label {
+        font-weight: normal;
+        cursor: pointer;
+        font-size: 13px; }
+
+#footer {
+  height: 100px; }
+  #footer #languages, #footer #info, #footer hr {
+    width: 970px;
+    margin: 0px auto; }
+  #footer #languages, #footer #info {
+    padding: 8px 0px 8px 0px; }

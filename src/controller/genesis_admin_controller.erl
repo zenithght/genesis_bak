@@ -3,13 +3,22 @@
 
 -include("../lib/schema.hrl").
 
-before_(Act) ->
-  case boss_session:get_session_data(SessionID, "LOGIN") of
-    undefined when Act /= "login" ->
-      {redirect, string:concat("login?act=", Act)};
-    undefined when Act =:= "login" ->
+-define(ROOT, "/admin/").
+
+before_(Act) when Act =:= "login" ->
+  case get_login_session() of
+    undefined ->
       {ok, []};
-    Usr ->
+    _ ->
+      {redirect, ?ROOT}
+  end;
+
+before_(Act) ->
+  case get_login_session() of
+    undefined ->
+      Url = string:concat("login?act=", Act),
+      {redirect, Url};
+    _ ->
       {ok, []}
   end.
 
@@ -32,8 +41,8 @@ login('POST', []) ->
 
   case agent:auth(Usr, Pwd) of
     true ->
-      boss_session:set_session_data(SessionID, "LOGIN", Usr),
-      {redirect, get("act", "/admin/")};
+      set_login_session(Usr),
+      {redirect, get("act", ?ROOT)};
     false ->
       {ok, []}
   end.
@@ -45,4 +54,10 @@ get(Name, Def) ->
     Param ->
       Param
   end.
+
+get_login_session() ->
+  boss_session:get_session_data(SessionID, "LOGIN").
+
+set_login_session(Usr) ->
+  boss_session:set_session_data(SessionID, "LOGIN", Usr).
 

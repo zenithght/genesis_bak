@@ -3,21 +3,54 @@
   <head>
     <meta charset='utf-8' />
     <title>創世紀-系统管理-登陆</title>
-    <link href='/static/css/admin.css' rel='stylesheet' type='text/css' />
+    <link href='/static/css/login.css' rel='stylesheet' type='text/css' />
   </head>
   <body>
-    <form class='login' method='post'>
-      <div class='rowElem'>
-        <label>Username</label>
-        <input name='username' type='text' />
+    <div id='header'>
+      <div id='logo'>
+        <label class='app'>Genesis 創世紀</label>
+        <a class='help' href='/help'>幫助</a>
       </div>
-      <div class='rowElem'>
-        <label>Password</label>
-        <input name='password' type='password' />
+    </div>
+    <div id='content'>
+      <div id='login'>
+        <form class='login' method='post'>
+          <table>
+            <tr>
+              <td>
+                <label>用户</label>
+              </td>
+              <td>
+                <label>密碼</label>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <input name='username' type='text' />
+              </td>
+              <td>
+                <input name='password' type='password' />
+              </td>
+              <td>
+                <input type='submit' value='登陆' />
+              </td>
+            </tr>
+            <tr>
+              <td></td>
+              <td></td>
+            </tr>
+          </table>
+        </form>
       </div>
-      <div class='rowElem'>
-        <input type='submit' value='Singin' />
+    </div>
+    <div id='footer'>
+      <div id='languages'>
+        <a>繁體中文</a>
+        <hr />
       </div>
-    </form>
+      <div id='info'>
+        <label>Genesis © 2012</label>
+      </div>
+    </div>
   </body>
 </html>

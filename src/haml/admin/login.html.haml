@@ -3,15 +3,36 @@
   %head
     %meta{:charset => "utf-8"}
     %title 創世紀-系统管理-登陆
-    %link{:href => '/static/css/admin.css', :rel => 'stylesheet', :type => 'text/css'}
+    %link{:href => '/static/css/login.css', :rel => 'stylesheet', :type => 'text/css'}
 
   %body
-    %form.login{:method => 'post'}
-      .rowElem
-        %label Username
-        %input{:type => 'text', :name => 'username'}
-      .rowElem
-        %label Password
-        %input{:type => 'password', :name => 'password'}
-      .rowElem
-        %input{:type => 'submit', :value => 'Singin'}
+    #header
+      #logo
+        %label.app Genesis 創世紀
+        %a.help{:href => '/help'} 幫助
+    #content
+      #login
+        %form.login{:method => 'post'}
+          %table
+            %tr
+              %td
+                %label 用户
+              %td
+                %label 密碼
+            %tr
+              %td
+                %input{:type => 'text', :name => 'username'}
+              %td
+                %input{:type => 'password', :name => 'password'}
+              %td
+                %input{:type => 'submit', :value => '登陆'}
+            %tr
+              %td
+              %td
+    #footer
+      #languages
+        %a 繁體中文
+        %hr
+      #info
+        %label Genesis © 2012
+        
