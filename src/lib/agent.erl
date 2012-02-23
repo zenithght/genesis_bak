@@ -120,26 +120,35 @@ kill() ->
   {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, [], tab_agent) end).
 
 create(Identity, Password, Parent) when is_list(Identity), is_list(Password), is_list(Parent) ->
-  {atomic, _} = mnesia:transaction(
+  mnesia:transaction(
     fun() -> 
         ok = mnesia:write_lock_table(tab_agent),
 
-        [] = mnesia:index_read(tab_agent, Identity, identity),
-        [ParentAgent] = mnesia:index_read(tab_agent, Parent, identity),
+        NewList = mnesia:index_read(tab_agent, Identity, identity),
+        ParentList = mnesia:index_read(tab_agent, Parent, identity),
 
-        Subordinate = [ Identity | ParentAgent#tab_agent.subordinate],
-        NewParentAgent = ParentAgent#tab_agent{ subordinate = Subordinate },
-        R = #tab_agent{ aid = counter:bump(agent), identity = Identity, 
-          password = Password, parent = Parent },
+        case create_check(NewList, ParentList) of
+          ok ->
+            [ParentAgent] = ParentList,
+            NewSubordinate = [ Identity | ParentAgent#tab_agent.subordinate],
+            NewParentAgent = ParentAgent#tab_agent{ subordinate = NewSubordinate },
+            R = #tab_agent{ aid = counter:bump(agent), identity = Identity, 
+              password = Password, parent = Parent },
 
-        ok = mnesia:write(R),
-        ok = mnesia:write(NewParentAgent),
+            ok = mnesia:write(R),
+            ok = mnesia:write(NewParentAgent),
 
-
-        {ok, _} = gen_server:start(?AGENT(Identity), agent, [R], []),
-        ok = gen_server:call(?AGENT(Parent), {create, R})
+            {ok, _} = gen_server:start(?AGENT(Identity), agent, [R], []),
+            ok = gen_server:call(?AGENT(Parent), {create, R});
+          Error ->
+            Error
+        end
     end
-  ), ok.
+  ).
+
+create_check([], [#tab_agent{}]) -> ok;
+create_check([#tab_agent{}], _) -> repeat_identity;
+create_check(_, []) -> none_parent.
       
 auth(Identity, Password) when is_list(Identity), is_list(Password) ->
   gen_server:call(?AGENT(Identity), {auth, Password}).
@@ -165,7 +174,9 @@ subordinate_test() ->
 
 create_test() ->
   setup(),
-  ?assertEqual(ok, create("agent_1_2", ?DEF_PWD, "agent_1")),
+  ?assertEqual({atomic, none_parent}, create("agent_1_2", ?DEF_PWD, "agent_x")),
+  ?assertEqual({atomic, repeat_identity}, create("agent_1_1", ?DEF_PWD, "agent_1")),
+  ?assertEqual({atomic, ok}, create("agent_1_2", ?DEF_PWD, "agent_1")),
   ?assertEqual(["agent_1_1", "agent_1_2"], subordinate("agent_1")).
 
 players_test() ->

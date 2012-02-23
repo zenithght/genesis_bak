@@ -6,10 +6,34 @@
     <link href='/static/css/admin/index.css' rel='stylesheet' type='text/css' />
     <script src='/static/js/jquery/jquery.js' type='text/javascript'></script>
     <script src='/static/js/jquery/jquery.blockUI.js' type='text/javascript'></script>
+    <script src='/static/js/jquery/jquery.form.js' type='text/javascript'></script>
     <script src='/static/js/admin/index.js' type='text/javascript'></script>
   </head>
   <body>
-    <div id='nil'></div>
+    <div id='nil'>
+      <div class='pop' id='create_agent_wapper'>
+        <h2>創建代理</h2>
+        <hr />
+        <form action='{% url controller="agent" action="create" %}' id='create_agent_form' method='post'>
+          <div class='rowElem'>
+            <label for='identity'>用户</label>
+            <input id='identity' name='identity' required='required' type='text' />
+          </div>
+          <div class='rowElem'>
+            <label for='password'>密碼</label>
+            <input id='password' name='password' required='required' type='password' />
+          </div>
+          <div class='rowElem'>
+            <label for='re-password'></label>
+            <input id='re-password' name='re-password' required='required' type='password' />
+          </div>
+          <div class='rowElem'>
+            <input type='submit' value='創建' />
+            <a class='cancel'>取消</a>
+          </div>
+        </form>
+      </div>
+    </div>
     <div id='header'>
       <div id='main'>
         <label id='logo'>Genesis 創世紀</label>

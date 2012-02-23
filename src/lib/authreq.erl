@@ -12,6 +12,6 @@ require_login(Req, SessionID) ->
 
 set_login(Usr, SessionID) ->
   boss_session:set_session_data(SessionID, "LOGIN", Usr).
-  
 
-
+get_login(SessionID) ->
+  boss_session:get_session_data(SessionID, "LOGIN").

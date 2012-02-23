@@ -6,9 +6,28 @@
     %link{:href => '/static/css/admin/index.css', :rel => 'stylesheet', :type => 'text/css'}
     %script{:src => "/static/js/jquery/jquery.js", :type => 'text/javascript'}
     %script{:src => "/static/js/jquery/jquery.blockUI.js", :type => 'text/javascript'}
+    %script{:src => "/static/js/jquery/jquery.form.js", :type => 'text/javascript'}
     %script{:src => "/static/js/admin/index.js", :type => 'text/javascript'}
   %body
     #nil
+      #create_agent_wapper.pop
+        %h2 創建代理
+        %hr
+
+        %form{:id => 'create_agent_form', :action => '{% url controller="agent" action="create" %}', :method => "post"}
+          .rowElem
+            %label{:for => 'identity'} 用户
+            %input{:type => 'text', :name => 'identity', :id => 'identity', :required => 'required'}
+          .rowElem
+            %label{:for => 'password'} 密碼
+            %input{:type => 'password', :name => 'password', :id => 'password', :required => 'required'}
+          .rowElem
+            %label{:for => 're-password'} 
+            %input{:type => 'password', :name => 're-password', :id => 're-password', :required => 'required'}
+          .rowElem
+            %input{:type => 'submit', :value => '創建'}
+            %a.cancel 取消
+
     #header
       #main
         %label{:id => "logo"} Genesis 創世紀
