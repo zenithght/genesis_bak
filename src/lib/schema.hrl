@@ -32,10 +32,9 @@
     password,
     nick,
     photo,
-    location,
     login_errors = 0,
-    disabled = false, % player is disabled
-    agent = root
+    disabled = false,
+    agent = "root"
   }).
 
 -record(tab_player, {

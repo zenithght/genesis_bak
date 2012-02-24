@@ -60,3 +60,39 @@ validate_password_test() ->
 validate_repassword_test() ->
   ?assertEqual(validate_repassword("aa", "aa"), ok),
   ?assertEqual(validate_repassword("aa", "aac"), invalidate_repassword).
+
+validate_amount(Req) ->
+  validate_amount(Req:post_param("cash"), Req:post_param("credit")).
+
+validate_amount(Cash, Credit) when Cash =:= undefined; Credit =:= undefined ->
+    invalidate_amount;
+
+validate_amount(Cash, Credit) when is_list(Cash), is_list(Credit) ->
+  case {catch list_to_integer(Cash), catch list_to_integer(Credit)} of
+    {_, {'EXIT', _}} ->
+      invalidate_amount;
+    {{'EXIT', _}, _} ->
+      invalidate_amount;
+    {CashInteger, CreditInteger}->
+      validate_amount(CashInteger, CreditInteger)
+  end;
+  
+validate_amount(Cash, Credit) when is_integer(Cash), is_integer(Credit) ->
+  case {Cash, Credit} of
+    {0, 0} ->
+      invalidate_amount;
+    {Cash, Credit} when Cash < 0; Credit < 0 ->
+      invalidate_amount;
+    _ ->
+      ok
+  end.
+
+check_request(Req, [], Errors) -> Errors;
+check_request(Req, [H|T], Errors) ->
+  case H(Req) of
+    ok ->
+      check_request(Req, T, Errors);
+    Why ->
+      check_request(Req, T, [Why | Errors])
+  end.
+

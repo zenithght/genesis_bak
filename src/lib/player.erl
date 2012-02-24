@@ -4,9 +4,7 @@
 -export([init/1, handle_call/3, handle_cast/2, 
          handle_info/2, terminate/2, code_change/3]).
 
--export([start/1, stop/1, stop/2]).
-
--export([create/6, update_photo/2]).
+-export([start/1, stop/1, stop/2, update_photo/2]).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -314,60 +312,6 @@ code_change(_OldVsn, Data, _Extra) ->
 %%% Utility
 %%%
 
-%% cast(PID, Event) ->
-%%     case db:read(tab_player, PID) of
-%%  [Player] ->
-%%      gen_server:cast(Player#tab_player.process, Event);
-%%  _ ->
-%%      none
-%%     end.
-
-%% call(PID, Event) ->
-%%     case db:read(tab_player, PID) of
-%%  [Player] ->
-%%      gen_server:call(Player#tab_player.process, Event);
-%%  _ ->
-%%      none
-%%     end.
-
-create(Identity, Pass, Nick, Location, Balance, Agent)
-  when is_list(Identity),
-       is_list(Pass),
-       is_list(Location),
-       is_number(Balance),
-       is_number(Agent) ->
-    create(list_to_binary(Identity),
-           list_to_binary(Pass),
-           list_to_binary(Nick),
-           list_to_binary(Location),
-           Balance, Agent);
-
-create(Identity, Pass, Nick, Location, Balance, Agent)
-  when is_binary(Identity),
-       is_binary(Pass),
-       is_binary(Nick),
-       is_binary(Location),
-       is_number(Balance) ->
-    case db:index_read(tab_player_info, Identity, #tab_player_info.identity) of
-        [_] ->
-            {error, player_exists};
-        _ ->
-            ID = counter:bump(player),
-            Info = #tab_player_info {
-              pid = ID,
-              identity = Identity,
-              %% store a hash of the password
-              %% instead of the password itself
-              password = erlang:phash2(Pass, 1 bsl 32),
-              nick = Nick,
-              location = Location,
-              agent = Agent
-             },
-            ok = db:write(Info),
-            db:update_balance(tab_balance, ID, Balance),
-            {ok, ID}
-    end.
-
 update_photo(ID, Photo) when is_binary(Photo) ->
   case db:read(tab_player_info, ID) of
     [Info] -> 
@@ -442,11 +386,6 @@ get_photo(Player, Data) when is_pid(Player) ->
   
 get_photo(_, _) ->
   undefined.
-%% delete_balance(PID) ->
-%%     db:delete(tab_balance, PID).
-
-%% update_balance(PID, Amount) ->
-%%     db:update_balance(tab_balance, PID, Amount).
 
 forward_to_client(Event, Data) ->    
   if 
