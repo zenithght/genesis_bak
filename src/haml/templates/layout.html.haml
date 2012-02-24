@@ -14,7 +14,7 @@
         %h2 創建代理
         %hr
 
-        %form{:id => 'create_agent_form', :action => '{% url controller="agent" action="create" %}', :method => "post"}
+        %form{:id => 'create_agent_form', :action => '/agent/create', :method => "post"}
           .rowElem
             %label{:for => 'identity'} 登錄名
             %input{:type => 'text', :name => 'identity', :id => 'identity', :required => 'required'}
@@ -61,7 +61,7 @@
               %li{:class => "item"}
                 %a.pop{:id => 'create_player', :href => '{% url controller="player" action="create" %}'} 創建玩家
               %li{:class => "item"}
-                %a.pop{:id => 'create_agent', :href => '{% url controller="agent" action="create" %}'} 創建代理
+                %a.pop{:id => 'create_agent', :href => '/agent/create'} 創建代理
         #content
           = '{% block body %}'
           = '{% endblock %}'

@@ -14,7 +14,7 @@
       <div class='pop' id='create_agent_wapper'>
         <h2>創建代理</h2>
         <hr />
-        <form action='{% url controller="agent" action="create" %}' id='create_agent_form' method='post'>
+        <form action='/agent/create' id='create_agent_form' method='post'>
           <div class='rowElem'>
             <label for='identity'>登錄名</label>
             <input id='identity' name='identity' required='required' type='text' />
@@ -76,7 +76,7 @@
                 <a class='pop' href='{% url controller="player" action="create" %}' id='create_player'>創建玩家</a>
               </li>
               <li class='item'>
-                <a class='pop' href='{% url controller="agent" action="create" %}' id='create_agent'>創建代理</a>
+                <a class='pop' href='/agent/create' id='create_agent'>創建代理</a>
               </li>
             </ul>
           </div>
