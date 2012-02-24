@@ -16,13 +16,33 @@
 
         %form{:id => 'create_agent_form', :action => '{% url controller="agent" action="create" %}', :method => "post"}
           .rowElem
-            %label{:for => 'identity'} 用户
+            %label{:for => 'identity'} 登錄名
             %input{:type => 'text', :name => 'identity', :id => 'identity', :required => 'required'}
           .rowElem
             %label{:for => 'password'} 密碼
             %input{:type => 'password', :name => 'password', :id => 'password', :required => 'required'}
           .rowElem
-            %label{:for => 're-password'} 
+            %label{:for => 're-password'} 確認密碼
+            %input{:type => 'password', :name => 're-password', :id => 're-password', :required => 'required'}
+          .rowElem
+            %label{:for => 'nick'} 中文標識
+            %input{:type => 'text', :name => 'nick', :id => 'nick', :required => 'required'}
+          .rowElem
+            %input{:type => 'submit', :value => '創建'}
+            %a.cancel 取消
+      #create_player_wapper.pop
+        %h2 創建玩家
+        %hr
+
+        %form{:id => 'create_player_form', :action => '{% url controller="player" action="create" %}', :method => "post"}
+          .rowElem
+            %label{:for => 'identity'} 登錄名
+            %input{:type => 'text', :name => 'identity', :id => 'identity', :required => 'required'}
+          .rowElem
+            %label{:for => 'password'} 密碼
+            %input{:type => 'password', :name => 'password', :id => 'password', :required => 'required'}
+          .rowElem
+            %label{:for => 're-password'} 確認密碼
             %input{:type => 'password', :name => 're-password', :id => 're-password', :required => 'required'}
           .rowElem
             %input{:type => 'submit', :value => '創建'}

@@ -16,7 +16,7 @@
         <hr />
         <form action='{% url controller="agent" action="create" %}' id='create_agent_form' method='post'>
           <div class='rowElem'>
-            <label for='identity'>用户</label>
+            <label for='identity'>登錄名</label>
             <input id='identity' name='identity' required='required' type='text' />
           </div>
           <div class='rowElem'>
@@ -24,7 +24,33 @@
             <input id='password' name='password' required='required' type='password' />
           </div>
           <div class='rowElem'>
-            <label for='re-password'></label>
+            <label for='re-password'>確認密碼</label>
+            <input id='re-password' name='re-password' required='required' type='password' />
+          </div>
+          <div class='rowElem'>
+            <label for='nick'>中文標識</label>
+            <input id='nick' name='nick' required='required' type='text' />
+          </div>
+          <div class='rowElem'>
+            <input type='submit' value='創建' />
+            <a class='cancel'>取消</a>
+          </div>
+        </form>
+      </div>
+      <div class='pop' id='create_player_wapper'>
+        <h2>創建玩家</h2>
+        <hr />
+        <form action='{% url controller="player" action="create" %}' id='create_player_form' method='post'>
+          <div class='rowElem'>
+            <label for='identity'>登錄名</label>
+            <input id='identity' name='identity' required='required' type='text' />
+          </div>
+          <div class='rowElem'>
+            <label for='password'>密碼</label>
+            <input id='password' name='password' required='required' type='password' />
+          </div>
+          <div class='rowElem'>
+            <label for='re-password'>確認密碼</label>
             <input id='re-password' name='re-password' required='required' type='password' />
           </div>
           <div class='rowElem'>

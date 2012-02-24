@@ -1,5 +1,21 @@
 = '{% extends "templates/layout.html" %}'
 = '{% block title %}首頁{% endblock %}'
 = '{% block body %}'
-%h2 INDEX PAGE
+%h2 账户信息
+%hr
+.acount_info
+  %label 账户總額
+  %span.sum 10000
+  %label 
+  %span.sum 10000
+  %label 可用餘額
+  %span.balance 10000
+  %label 當日流水
+  %span.turnover 10000
+  %label 本周流水
+  %span.turnover_week 10000
+  %label 用户總量
+  %span.player_sum 10000
+  %input{:type => "button", :value => "刷新"}
+%hr
 = '{% endblock %}'

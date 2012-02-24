@@ -90,13 +90,13 @@ form input::-webkit-input-placeholder {
   color: #a1b2c3;
   text-shadow: 0px -1px 0px #38506b; }
 form input[type=submit] {
+  float: right;
+  margin-top: 10px;
+  margin-bottom: 10px;
   width: 50px;
   cursor: pointer;
   border: 1px solid #556f8c;
-  box-shadow: 0px 0px 2px #999;
-  margin-top: 10px;
-  margin-bottom: 10px;
-  float: right; }
+  box-shadow: 0px 0px 2px #999; }
 form a.cancel {
   margin-top: 16px;
   margin-right: 8px;
@@ -109,3 +109,24 @@ div.pop {
   font-size: 1.1em; }
   div.pop h2 {
     font-size: 1.3em; }
+
+div.acount_info label {
+  display: block-inline;
+  font-size: 14px;
+  padding-bottom: 2px;
+  font-weight: bold;
+  color: #999999;
+  margin-left: 10px; }
+div.acount_info span {
+  display: block-inline;
+  font-size: 1.5em;
+  padding-bottom: 2px;
+  font-weight: bold;
+  color: #3b5998; }
+div.acount_info input[type=button] {
+  float: right;
+  margin-right: 10px;
+  width: 50px;
+  cursor: pointer;
+  border: 1px solid #556f8c;
+  box-shadow: 0px 0px 2px #999; }
