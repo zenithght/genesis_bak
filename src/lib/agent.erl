@@ -13,7 +13,7 @@
 
 -define(AGENT(Name), {global, {agent, Name}}).
 -define(LOOKUP_AGENT(Name), global:whereis_name({agent, Name})).
--define(DEF_PWD, "password").
+-define(DEF_PWD, erlang:md5("password")).
 
 -record(pdata, {
     aid = 0,
@@ -173,7 +173,7 @@ create(Identity, R) ->
   gen_server:call(?AGENT(Identity), {create, R}).
 
 auth(Identity, Password) when is_list(Identity), is_list(Password) ->
-  gen_server:call(?AGENT(Identity), {auth, Password}).
+  gen_server:call(?AGENT(Identity), {auth, erlang:md5(Password)}).
 
 betting(Identity, Player, Bet) when is_list(Identity), is_list(Player), is_integer(Bet), Bet > 0 ->
   gen_server:call(?AGENT(Identity), {betting, Player, Bet}).
