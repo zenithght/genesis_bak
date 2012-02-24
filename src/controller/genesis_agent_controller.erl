@@ -2,10 +2,12 @@
 -compile(export_all).
 
 -define(SUCCESSFUL, {json, [{successful, true}]}).
+-define(SUCCESSFUL_DATA(DataList), {json, [{successful, true}] ++ DataList}).
 -define(ERROR(Errors), {json, [{successful, false}, {errors, Errors}]}).
 
+-include("../lib/schema.hrl").
 
-before_(Act) -> authreq:require_login(Req, SessionID).
+before_(_Act) -> authreq:require_login(Req, SessionID).
 
 index('GET', []) ->
   {ok, []}.
@@ -23,7 +25,15 @@ create('POST', []) ->
 
   case Errors of
     [] ->
-      {atomic, Result} = agent:create(Req:post_param("identity"), Req:post_param("password"), authreq:get_login(SessionID)),
+      Identity = authreq:get_login(SessionID),
+      Result = agent:create(Identity,
+        #tab_agent {
+          identity = Req:post_param("identity"), 
+          password = Req:post_param("password"),
+          parent = Identity
+        }
+      ),
+
       case Result of
         ok ->
           ?SUCCESSFUL;
@@ -50,3 +60,6 @@ repeat_identity(Req) ->
     _ ->
       repeat_identity
   end.
+
+balance() ->
+  ?SUCCESSFUL_DATA([{balance, agent:balance(authreq:get_login(SessionID))}]).

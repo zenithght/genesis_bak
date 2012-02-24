@@ -4,7 +4,7 @@
 -export([init/1, handle_call/3, handle_cast/2, 
          handle_info/2, terminate/2, code_change/3]).
 
--export([start/0, create/3, auth/2]).
+-export([start/0, create/2, auth/2]).
 
 -include("common.hrl").
 -include("schema.hrl").
@@ -15,9 +15,11 @@
 -define(LOOKUP_AGENT(Name), global:whereis_name({agent, Name})).
 -define(DEF_PWD, "password").
 
--record(agent, {
-    cash = 0,           % cash balance
-    credit = 0,         % credit balance, max owe to system.
+-record(pdata, {
+    aid = 0,
+    identity,
+    cash = 0,
+    credit = 0,
     turnover = 0,       % today turnover
     subordinate = gb_trees:empty(),   % low level agent list
     players = gb_trees:empty(),
@@ -28,7 +30,11 @@
 %% Server Function
 
 init([R = #tab_agent{}]) ->
-  Agent = #agent { 
+  Agent = #pdata { 
+    aid = R#tab_agent.aid,
+    identity = R#tab_agent.identity,
+    cash = R#tab_agent.cash,
+    credit = R#tab_agent.credit,
     disable = R#tab_agent.disable,
     players = setup_players(R#tab_agent.identity),
     subordinate = lists:foldl(fun(Sub, Acc) -> gb_trees:insert(Sub, 0, Acc) end, gb_trees:empty(), R#tab_agent.subordinate),
@@ -39,20 +45,52 @@ init([R = #tab_agent{}]) ->
 handle_cast(_Msg, Agent) ->
   {noreply, Agent}.
 
-handle_call({create, Subordinate}, _Form, Data = #agent{record = R})
-when is_record(Subordinate, tab_agent), R#tab_agent.identity =:= Subordinate#tab_agent.parent ->
-  NewSubordinate = gb_trees:insert(Subordinate#tab_agent.identity, 0, Data#agent.subordinate),
-  {reply, ok, Data#agent{subordinate = NewSubordinate}};
+handle_call({turnover, today}, _From, Data) ->
+  {reply, lists:foldl(fun(Val, Sum) -> Val + Sum end, 0, gb_trees:values(Data#pdata.players)), Data};
+
+handle_call({balance, today}, _From, Data) ->
+  {reply, lists:foldl(fun(Val, Sum) -> Val + Sum end, 0, gb_trees:values(Data#pdata.players)), Data};
+
+handle_call(kill, _From, Data) ->
+  {stop, normal, ok, Data};
+
+handle_call({create, R = #tab_agent{identity = Identity, parent = Parent}}, _Form, Data = #pdata{identity = Parent}) ->
+  Sum = R#tab_agent.cash + R#tab_agent.credit,
+  Fun = fun() -> 
+      ok = mnesia:write_lock_table(tab_agent),
+      case mnesia:index_read(tab_agent, Identity, identity) of
+        [] ->
+          PaymentData = cost(Data, Sum),
+          JoinedData = join(PaymentData, R),
+
+          ok = mnesia:write(R),
+          ok = mnesia:write(JoinedData#pdata.record),
+          ok = start(Identity, R),
+
+          {ok, JoinedData};
+        _ ->
+          exit(repeat_identity)
+      end
+  end,
+
+  case mnesia:transaction(Fun) of
+    {atomic, {Result, NewData}} ->
+      {reply, Result, NewData};
+    {aborted, Ex} when is_atom(Ex) ->
+      {reply, Ex, Data};
+    {aborted, _} ->
+      {reply, unknown_exception, Data}
+  end;
 
 handle_call({betting, Player, Bet}, _From, Data) when is_list(Player), is_integer(Bet), Bet > 0 ->
-  case gb_trees:lookup(Player, Data#agent.players) of
+  case gb_trees:lookup(Player, Data#pdata.players) of
     none ->
       {reply, not_own_player, Data};
     {value, Val} ->
-      {reply, ok, Data#agent{players = gb_trees:update(Player, Val + Bet, Data#agent.players)}}
+      {reply, ok, Data#pdata{players = gb_trees:update(Player, Val + Bet, Data#pdata.players)}}
   end;
 
-handle_call({auth, ReqPwd}, _From, Agent = #agent{record = R}) when
+handle_call({auth, ReqPwd}, _From, Agent = #pdata{record = R}) when
     ReqPwd /= R#tab_agent.password ->
   {reply, false, Agent};
 
@@ -60,16 +98,10 @@ handle_call({auth, _Pwd}, _From, Data) ->
   {reply, true, Data};
 
 handle_call(subordinate, _From, Data) ->
-  {reply, gb_trees:keys(Data#agent.subordinate), Data};
+  {reply, gb_trees:keys(Data#pdata.subordinate), Data};
 
 handle_call(players, _From, Data) ->
-  {reply, gb_trees:keys(Data#agent.players), Data};
-
-handle_call({turnover, today}, _From, Data) ->
-  {reply, lists:foldl(fun(Val, Sum) -> Val + Sum end, 0, gb_trees:values(Data#agent.players)), Data};
-
-handle_call(kill, _From, Data) ->
-  {stop, normal, ok, Data};
+  {reply, gb_trees:keys(Data#pdata.players), Data};
 
 handle_call(_Msg, _From, Agent) ->
   {noreply, Agent}.
@@ -83,6 +115,8 @@ code_change(_OldVsn, Server, _Extra) ->
 terminate(normal, _Server) ->
   ok.
 
+%% Private Function
+
 setup_players(Identity) when is_list(Identity) ->
   case mnesia:dirty_index_read(tab_player_info, Identity, agent) of
     Players when is_list(Players) ->
@@ -92,15 +126,26 @@ setup_players(Identity) when is_list(Identity) ->
       lists:foldl(Fun, gb_trees:empty(), Players)
   end.
 
-write(Agent = #tab_agent{}) ->
-  {atomic, _Result} = mnesia:transaction(fun() -> mnesia:write(Agent) end).
+cost(#pdata{cash = Cash, credit = Credit}, Amount) when (Cash + Credit) < Amount -> 
+  case mnesia:is_transaction() 
+    of true -> exit(less_balance); 
+    false -> less_balance 
+  end;
+cost(Data = #pdata{cash = Cash, record = R}, Amount) ->
+  Data#pdata{cash = Cash - Amount, record = R#tab_agent{cash = Cash - Amount}}.
+
+join(Data = #pdata{record = R, subordinate = Subordinate}, #tab_agent{identity = Identity}) ->
+  %% update record & pdata subordinate data.
+  NewRecord = R#tab_agent{subordinate = [ Identity | R#tab_agent.subordinate]},
+  NewTree = gb_trees:insert(Identity, nil, Subordinate),
+  Data#pdata{record = NewRecord, subordinate = NewTree}.
 
 %% Client Function
 
 start() ->
   Fun = fun(R = #tab_agent{identity = Identity}, _Acc) when is_list(Identity) ->
       case ?LOOKUP_AGENT(Identity) of
-        undefined -> {ok, _Pid} = gen_server:start(?AGENT(Identity), agent, [R], []);
+        undefined -> ok = start(Identity, R);
         A -> ?LOG({live_agent, Identity, A})
       end
   end, 
@@ -108,8 +153,13 @@ start() ->
   ok = mnesia:wait_for_tables([tab_agent], 1000),
   {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, nil, tab_agent) end).
 
+start(Identity, R) ->
+  case gen_server:start(?AGENT(Identity), agent, [R], []) of
+    {ok, _Pid} -> ok
+  end.
+
 kill() ->
-  Fun = fun(R = #tab_agent{identity = Identity}, _Acc) ->
+  Fun = fun(#tab_agent{identity = Identity}, _Acc) ->
       case ?LOOKUP_AGENT(Identity) of
         Pid when is_pid(Pid) -> 
           ok = gen_server:call(Pid, kill);
@@ -119,37 +169,9 @@ kill() ->
 
   {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, [], tab_agent) end).
 
-create(Identity, Password, Parent) when is_list(Identity), is_list(Password), is_list(Parent) ->
-  mnesia:transaction(
-    fun() -> 
-        ok = mnesia:write_lock_table(tab_agent),
+create(Identity, R) ->
+  gen_server:call(?AGENT(Identity), {create, R}).
 
-        NewList = mnesia:index_read(tab_agent, Identity, identity),
-        ParentList = mnesia:index_read(tab_agent, Parent, identity),
-
-        case create_check(NewList, ParentList) of
-          ok ->
-            [ParentAgent] = ParentList,
-            NewSubordinate = [ Identity | ParentAgent#tab_agent.subordinate],
-            NewParentAgent = ParentAgent#tab_agent{ subordinate = NewSubordinate },
-            R = #tab_agent{ aid = counter:bump(agent), identity = Identity, 
-              password = Password, parent = Parent },
-
-            ok = mnesia:write(R),
-            ok = mnesia:write(NewParentAgent),
-
-            {ok, _} = gen_server:start(?AGENT(Identity), agent, [R], []),
-            ok = gen_server:call(?AGENT(Parent), {create, R});
-          Error ->
-            Error
-        end
-    end
-  ).
-
-create_check([], [#tab_agent{}]) -> ok;
-create_check([#tab_agent{}], _) -> repeat_identity;
-create_check(_, []) -> none_parent.
-      
 auth(Identity, Password) when is_list(Identity), is_list(Password) ->
   gen_server:call(?AGENT(Identity), {auth, Password}).
 
@@ -165,6 +187,10 @@ subordinate(Identity) when is_list(Identity) ->
 players(Identity) when is_list(Identity) ->
   gen_server:call(?AGENT(Identity), players).
 
+balance(Identity) when is_list(Identity) ->
+  [R] = mnesia:dirty_index_read(tab_agent, Identity, identity),
+  R#tab_agent.cash + R#tab_agent.credit.
+  
 %% Eunit Test Case
 
 subordinate_test() ->
@@ -174,10 +200,14 @@ subordinate_test() ->
 
 create_test() ->
   setup(),
-  ?assertEqual({atomic, none_parent}, create("agent_1_2", ?DEF_PWD, "agent_x")),
-  ?assertEqual({atomic, repeat_identity}, create("agent_1_1", ?DEF_PWD, "agent_1")),
-  ?assertEqual({atomic, ok}, create("agent_1_2", ?DEF_PWD, "agent_1")),
-  ?assertEqual(["agent_1_1", "agent_1_2"], subordinate("agent_1")).
+  ?assertEqual(repeat_identity, create("agent_1", #tab_agent{identity = "agent_1_1", password = ?DEF_PWD, parent = "agent_1"})),
+  ?assertEqual(less_balance, create("agent_1", #tab_agent{identity = "agent_1_new", password = ?DEF_PWD, parent = "agent_1", cash = 1000 * 10000, credit = 0})),
+
+  ?assertEqual(10000, balance("agent_1")),
+  ?assertEqual(ok, create("agent_1", #tab_agent{identity = "agent_1_new", password = ?DEF_PWD, parent = "agent_1", cash = 1000, credit = 1000})),
+  ?assertEqual(8000, balance("agent_1")),
+  ?assert(is_pid(?LOOKUP_AGENT("agent_1_new"))),
+  ?assertEqual(["agent_1_1", "agent_1_new"], subordinate("agent_1")).
 
 players_test() ->
   setup(),
@@ -198,6 +228,10 @@ auth_test() ->
   ?assert(true =:= auth("root", "password")),
   ?assert(false =:= auth("root", "")).
 
+balance_test() ->
+  setup(),
+  ?assertEqual(10000, balance("agent_1")).
+
 setup() ->
   schema:uninstall(),
   schema:install(),
@@ -217,7 +251,9 @@ setup() ->
       identity = "agent_1", 
       password = DefPwd,
       parent = "root",
-      subordinate = ["agent_1_1"]
+      subordinate = ["agent_1_1"],
+      cash = 0,
+      credit = 10000
     }, #tab_agent{
       aid = counter:bump(agent),
       identity = "agent_1_1",
