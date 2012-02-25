@@ -9,8 +9,7 @@
 -define(RAM, {ram_copies, Nodes}).
 -define(DISC, {disc_copies, Nodes}).
 
--define(TABLE_DEF(Name, Type, Copies), 
-  {Name, [Copies, {type, Type}, {attributes, record_info(fields, Name)}]}).
+-define(TABLE_DEF(Name, Type, Copies, Fields), {Name, [Copies, {type, Type}, {attributes, Fields}]}).
 
 install() ->
   install([node()]).
@@ -21,18 +20,18 @@ install(Nodes) when is_list(Nodes) ->
       {error, Reason};
     _ ->
       RamTables = [
-        ?TABLE_DEF(tab_game_xref, set, ?RAM),
-        ?TABLE_DEF(tab_player, set, ?RAM)
+        ?TABLE_DEF(tab_game_xref, set, ?RAM, record_info(fields, tab_game_xref)),
+        ?TABLE_DEF(tab_player, set, ?RAM, record_info(fields, tab_player))
       ],
       DiscTables = [
-        ?TABLE_DEF(tab_agent, set, ?DISC),
-        ?TABLE_DEF(tab_player_info, set, ?DISC),
-        ?TABLE_DEF(tab_balance, set, ?DISC),
-        ?TABLE_DEF(tab_inplay, set, ?DISC),
-        ?TABLE_DEF(tab_game_config, set, ?DISC),
-        ?TABLE_DEF(tab_cluster_config, set, ?DISC),
-        ?TABLE_DEF(tab_counter, set, ?DISC),
-        ?TABLE_DEF(tab_turnover, bag, ?DISC)
+        ?TABLE_DEF(tab_agent, set, ?DISC, record_info(fields, tab_agent)),
+        ?TABLE_DEF(tab_player_info, set, ?DISC, record_info(fields, tab_player_info)),
+        ?TABLE_DEF(tab_balance, set, ?DISC, record_info(fields, tab_balance)),
+        ?TABLE_DEF(tab_inplay, set, ?DISC, record_info(fields, tab_inplay)),
+        ?TABLE_DEF(tab_game_config, set, ?DISC, record_info(fields, tab_game_config)),
+        ?TABLE_DEF(tab_cluster_config, set, ?DISC, record_info(fields, tab_cluster_config)),
+        ?TABLE_DEF(tab_counter, set, ?DISC, record_info(fields, tab_counter)),
+        ?TABLE_DEF(tab_turnover, bag, ?DISC, record_info(fields, tab_turnover))
       ],
 
       mnesia:start(),
