@@ -4,7 +4,7 @@
 -export([init/1, handle_call/3, handle_cast/2, 
          handle_info/2, terminate/2, code_change/3]).
 
--export([start/1, stop/1, stop/2, update_photo/2]).
+-export([start/0, start/1, stop/1, stop/2]).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -23,14 +23,14 @@
     watching = ?UNDEF,
     nick = ?UNDEF,
     photo = ?UNDEF,
-
+    record,
     zombie 
   }).
 
-init([#tab_player_info{pid = PID, nick = Nick, photo = Photo}]) ->
+init([R = #tab_player_info{pid = PID, nick = Nick, photo = Photo}]) ->
   process_flag(trap_exit, true),
   ok = create_runtime(PID, self()),
-  {ok, #pdata{ pid = PID, self = self(), nick = Nick, photo = Photo}}.
+  {ok, #pdata{ pid = PID, self = self(), nick = Nick, photo = Photo, record = R}}.
 
 handle_cast({protocol, #watch{}}, Data = #pdata{watching = W}) when W /= ?UNDEF ->
   {noreply, Data};
@@ -78,19 +78,6 @@ handle_cast({protocol, #player_query{ player = P }}, Data = #pdata{pid = PID}) w
     photo = Data#pdata.photo
   },
   handle_cast({notify, R}, Data);
-
-handle_cast({protocol, #player_query{ player = PID }}, Data) ->
-  case mnesia:drity_read(tab_player_info, PID) of
-    [Info] ->
-      R = #player_info{
-        player = Info#tab_player_info.pid,
-        nick = Info#tab_player_info.nick,
-        photo = Info#tab_player_info.photo
-      },
-      handle_cast({notify, R}, Data);
-    _ ->
-      {noreply, Data}
-  end;
 
 handle_cast({protocol, #seat_query{ game = G }}, Data = #pdata{watching = W, playing = P}) when W =:= ?UNDEF, P =:= ?UNDEF ->
   L = game:seat_query(G),
@@ -167,12 +154,23 @@ code_change(_OldVsn, Data, _Extra) ->
 %%% clinet function
 %%% 
 
+start() ->
+  Fun = fun(R = #tab_player_info{identity = Identity}, _Acc) when is_list(Identity) ->
+      case ?LOOKUP_PLAYER(Identity) of
+        undefined -> {ok, _Pid} = gen_server:start(?PLAYER(Identity), player, [R], []);
+        _ -> ok
+      end
+  end, 
+
+  ok = mnesia:wait_for_tables([tab_player_info], ?WAIT_TABLE),
+  {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, nil, tab_player_info) end).
+  
 start(Identity) when is_binary(Identity) ->
   start(binary_to_list(Identity));
 start(Identity) when is_list(Identity) ->
     case mnesia:dirty_index_read(tab_player_info, Identity, identity) of
-        [PlayerInfo] ->
-          gen_server:start({global, {player, Identity}}, player, [PlayerInfo], []);
+        [R] ->
+          gen_server:start(?PLAYER(Identity), player, [R], []);
         _ ->
           {error, not_found_player}
     end.
@@ -182,9 +180,6 @@ stop(Identity) when is_list(Identity) ->
 
 stop(Identity, Reason) when is_list(Identity) ->
     gen_server:cast(?PLAYER(Identity), {stop, Reason}).
-
-update_photo(Identity, Photo) when is_list(Identity), is_binary(Photo) ->
-  gen_server:cast(?PLAYER(Identity), {update_photo, Photo}).
 
 notify(Identity, R) ->
   gen_server:cast(?PLAYER(Identity), {notify, R}).
@@ -205,6 +200,17 @@ forward_to_client(R, Data = #pdata{socket = S}) -> S ! {packet, R}.
 %%%
 %%% unit test
 %%%
+
+start_all_test() ->
+  setup(),
+  start(),
+  ?assertEqual(true, erlang:is_process_alive(?LOOKUP_PLAYER("player_1"))),
+  Pdata = pdata("player_1"),
+  ?assertEqual("player1", Pdata#pdata.nick),
+  ?assertEqual("default1", Pdata#pdata.photo),
+  [Xref] = mnesia:dirty_read(tab_player, Pdata#pdata.pid),
+  ?assertEqual(Pdata#pdata.self, Xref#tab_player.process),
+  ?assertEqual(undefined, Xref#tab_player.socket).
 
 start_test() ->
   setup(),
@@ -287,4 +293,3 @@ pdata(Identity) ->
 % limit);
 % notify_seat_detail);
 % notify_bb) ->
-
