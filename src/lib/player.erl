@@ -144,7 +144,6 @@ handle_info({'EXIT', _Pid, _Reason}, Data) ->
     {noreply, Data};
 
 handle_info(Info, Data) ->
-  ?LOG([{player_unkonw_info, {info, Info}}]),
   {noreply, Data}.
 
 code_change(_OldVsn, Data, _Extra) ->

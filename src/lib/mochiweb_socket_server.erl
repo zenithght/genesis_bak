@@ -102,7 +102,6 @@ ipv6_supported() ->
   end.
 
 init(State=#mochiweb_socket_server{ip=Ip, port=Port, backlog=Backlog}) ->
-  ?LOG([{mochiweb_socket_server, {init, {self, self()}, {ip, Ip}, {port, Port}}}]),
   process_flag(trap_exit, true),
   BaseOpts = [binary,
     {reuseaddr, true},
@@ -168,7 +167,6 @@ call_loop(Loop, Socket) ->
   Loop(Socket).
 
 acceptor_loop({Server, Listen, Loop}) ->
-  ?LOG([{acceptor_loop, {self, self()}}]),
   case catch gen_tcp:accept(Listen) of
     {ok, Socket} ->
       gen_server:cast(Server, {accepted, self()}),
@@ -231,7 +229,7 @@ handle_info({'EXIT', _LoopPid, Reason},
     normal ->
       ok;
     _ ->
-      ?ERROR([{exit, {child_error, Reason}}])
+      ?LOG([{exit, Reason}])
   end,
   State1 = State#mochiweb_socket_server{max=Max + 1},
   State2 = case Pid of
@@ -243,6 +241,5 @@ handle_info({'EXIT', _LoopPid, Reason},
   {noreply, State2};
 
 handle_info(Info, State) ->
-  ?LOG([{websocket, {handle_info, Info}}]),
   error_logger:info_report([{'INFO', Info}, {'State', State}]),
   {noreply, State}.

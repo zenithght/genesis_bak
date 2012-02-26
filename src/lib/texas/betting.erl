@@ -63,7 +63,6 @@ betting(Game, Ctx, #raise{ player = Player, raise = 0.0 }) ->
 
   Amt1 = case Amt >= Inplay of
     true ->
-      ?LOG([{allin, Inplay}]),
       Inplay; % ALL-IN
     _ ->
       Amt
@@ -93,7 +92,6 @@ betting(Game, Ctx, #raise{ player = Player, raise = Amt }) ->
   Seat = g:get_seat(Game, Ctx#texas.exp_seat),
   Inplay = Seat#seat.inplay,
   RC = Game1#game.raise_count,
-  ?LOG([{betting, {amount, Amt}, {inplay, Inplay, call, Call}}]),
 
   if 
     (Amt > Inplay) or 

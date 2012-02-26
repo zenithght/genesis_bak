@@ -86,7 +86,6 @@ check_header(Socket,Path,Headers,MyLoop) ->
   end.
 
 verify_handshake(Socket,Path,Headers) ->
-  ?LOG([{websocket_handshake, {headers, Headers}}]),
   case string:to_lower(proplists:get_value('Upgrade',Headers)) of
     "websocket" ->
       send_handshake(Socket,Path,Headers);

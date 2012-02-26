@@ -46,7 +46,6 @@ login([Info], [_Usr, Pass|_] = Args)
                               fun is_client_down/3,
                               fun is_offline/3
                              ]),
-    ?LOG([{login}, {check_player, Condition}]),
     {Player2, Info1, Result} = login(Info, Player1, Condition, Args),
     case {db:write(Player2), db:write(Info1)} of
         {ok, ok} ->

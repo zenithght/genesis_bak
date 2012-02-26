@@ -405,7 +405,6 @@ do_join(Game, R, State) ->
      }.
 
 leave(Game, R) ->
-  ?LOG([{g_leave, R}]),
   XRef = Game#game.xref,
   Seats = Game#game.seats,
   Player = R#leave.player,
@@ -419,7 +418,6 @@ leave(Game, R) ->
       if 
         %% leave unless playing
         Seat#seat.state band R#leave.state > 0 ->
-          ?LOG([{can_leave}]),
           %% tell player
           R1 = #notify_leave{ 
             game = GID, 
@@ -427,9 +425,7 @@ leave(Game, R) ->
             proc = self()
           },
           %% notify players
-          ?LOG([{notify_player, R1}]),
           Game1 = broadcast(Game, R1),
-          ?LOG([{notify_player_end, R1}]),
           XRef1 = gb_trees:delete(Player, XRef),
           Game2 = Game1#game {
             xref = XRef1,
@@ -445,13 +441,10 @@ leave(Game, R) ->
           Inplay = Seat#seat.inplay,
           db:update_balance(tab_balance, PID, Inplay),
           ok = db:delete(tab_inplay, {GID, PID}),
-          ?LOG([{leave_auto_watch}]),
           Game3 = watch(#watch{player = Player}, Game2),
-          ?LOG([{leave_auto_watch_end}]),
           Game3;
         %% cannot leave now, use auto-play
         true ->
-          ?LOG([{auto_play}]),
           Fold = #fold{ game = self(), player = Player },
           Leave = #leave{ game = self(), player = Player },
           Seat1 = Seat#seat{ cmd_que = [[Fold, Leave]] },
@@ -461,7 +454,6 @@ leave(Game, R) ->
       end;
     %% not playing here
     true ->
-      ?LOG([{not_ourplayer, leave, R}]),
       Game
   end.
 
@@ -635,7 +627,6 @@ add_bet(Game, SeatNum, Amount) ->
     Seat = element(SeatNum, Game#game.seats),
     Player = Seat#seat.player,
     Inplay = Seat#seat.inplay,
-    ?LOG([{add_bet, {amount, Amount}, {inplay, Inplay}}]),
     if
         Amount > Inplay->
             set_state(Game, SeatNum, ?PS_OUT);

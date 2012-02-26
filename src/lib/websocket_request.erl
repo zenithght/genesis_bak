@@ -16,7 +16,6 @@ get_data() ->
     {ok, Data} ->
       case parse_data(Data) of
         {tcp_closed} ->
-          ?LOG([{close_handshake}]),
           {tcp_closed};
         NewData ->
           {tcp, Socket, base64:decode(NewData)}
@@ -24,7 +23,6 @@ get_data() ->
     {error, closed} ->
       {tcp_closed};
     {error, Reason} ->
-      ?LOG([{error, Reason}]),
       {error, Reason}
     end.
 

@@ -13,7 +13,6 @@ start(Game, Ctx, []) ->
 
   Pots = g:pots(Game),
   Winners = gb_trees:to_list(winners(Ranks, Pots)),
-  ?LOG([{winners, Winners}]),
   Game1 = notify_winners(Game, Winners),
 
   %% TODO 将所有金额不足的玩家重新设置状态
@@ -114,7 +113,6 @@ check_inplay([SeatNum|T], Big, Game) ->
   PID = Seat#seat.pid,
   Game1 = if
     Inplay =< Big ->
-      ?LOG([{player_out, SeatNum, Big, Inplay}]),
       erlang:start_timer(?PLAYER_OUT_TIMEOUT, self(), {out, SeatNum, PID}),
       g:set_state(Game, SeatNum, ?PS_OUT);
     true ->

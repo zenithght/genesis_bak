@@ -461,28 +461,6 @@
 					player
 				 }).
 
--define(CMD_TOURNEY_QUERY, 52).
-
--record(tourney_query, {
-				 }).
-
--define(CMD_TOURNEY_INFO, 53).
-
--record(tourney_info, {
-					tourney,
-					type,
-					seat_count,
-					max_players,
-					player_count,
-					start_time,
-					buyin,
-					chips,
-					rake,
-					ante,
-					break_duration,
-					break_frequency
-				 }).
-
 -define(CMD_PING, 253).
 
 -record(ping, {
