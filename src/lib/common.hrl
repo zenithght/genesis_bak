@@ -10,6 +10,8 @@
 -define(MULTIBOTS, 'MULTIBOTS').
 -define(LAUNCHERS, 'LAUNCHERS').
 
+-define(UNDEF, undefined).
+
 %%% Global stats server
 
 -define(STATS, {global, stats}).

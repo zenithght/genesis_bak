@@ -38,9 +38,9 @@
   }).
 
 -record(tab_player, {
-    pid,
-    process = none, % process id
-    socket = none
+    pid                 ::integer(),
+    process = undefined ::pid() | undefined,
+    socket = undefined  ::pid() | undefined 
   }).
 
 -record(tab_balance, {
@@ -67,8 +67,8 @@
 -record(tab_game_config, {
     id,
     type,
-    seat_count,
     limit,
+    seat_count,
     start_delay,
     player_timeout,
     max
