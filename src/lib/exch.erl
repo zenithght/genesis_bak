@@ -33,17 +33,17 @@ behaviour_info(callbacks) -> [
 %%%
 
 start(Module, Conf, Mods) ->
-    Id = Module:id(),
-    gen_server:start({global, {Module, Id}}, [Module, Id, Conf, Mods], []).
+  Id = Module:id(),
+  gen_server:start({global, {Module, Id}}, [Module, Id, Conf, Mods], []).
 
 stop(Module, Id) when is_number(Id) ->
   gen_server:cast({global, {Module, Id}}, stop).
 
 call(Exch, Event) ->
-    gen_server:call(Exch, Event).
+  gen_server:call(Exch, Event).
 
 cast(Exch, Event) ->
-    gen_server:cast(Exch, Event).
+  gen_server:cast(Exch, Event).
 
 %%%
 %%% callback
@@ -97,6 +97,9 @@ code_change(_OldVsn, Data, _Extra) ->
 init(Msg, Data = #pdata{ stack = [{Mod, Params}|_], ctx = Ctx }) ->
   advance(Mod:start(Ctx, Params), Msg, Data#pdata{ state = none }).
 
+advance({continue, Data, Ctx}, _Msg, Data = #pdata{}) ->
+  {noreply, Data#pdata{ ctx = Ctx }};
+
 advance({next, State, Ctx}, _Msg, Data) ->
   {noreply, Data#pdata{ state = State, ctx = Ctx }};
 
@@ -112,9 +115,6 @@ advance({stop, Ctx}, Msg, Data = #pdata{ stack = [_|T] }) ->
 advance({repeat, Ctx}, Msg, Data = #pdata{}) ->
   init(Msg, Data#pdata{ ctx = Ctx });
 
-advance({continue, Data, Ctx}, _Msg, Data = #pdata{}) ->
-  {noreply, Data#pdata{ ctx = Ctx }};
-
 advance({goto, top, Ctx}, Msg, Data = #pdata{mods = Mods}) ->
   init(Msg, Data#pdata{ ctx = Ctx, stack = Mods});
 
@@ -122,7 +122,7 @@ advance({goto, Mod, Ctx}, Msg, Data = #pdata{stack = Stack}) ->
   init(Msg, Data#pdata{ ctx = Ctx, stack = trim_stack(Mod, Stack) });
 
 advance(Command, Msg, Data) ->
-  ?LOG([{command, Command}, {msg, Msg}, {pdata, Data}]),
+  ?LOG([{command, Command}, {msg, Msg}, {mod, hd(Data#pdata.mods)}, {state, Data#pdata.state}, {pdata, Data}]),
   {noreply, none}.
 
 trim_stack(Mod, L = [{H, _}|_]) when Mod == H -> L;
