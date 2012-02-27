@@ -183,7 +183,7 @@ start() ->
   Fun = fun(R = #tab_agent{identity = Identity}, _Acc) when is_list(Identity) ->
       case ?LOOKUP_AGENT(Identity) of
         undefined -> ok = start(Identity, R);
-        A -> ok
+        _ -> ok
       end
   end, 
 

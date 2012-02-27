@@ -4,7 +4,7 @@
 %%% OpenPoker protocol
 %%%
 
--export([read/1, write/1, test/0, send/3]).
+-export([read/1, write/1]).
 -export([id_to_player/1, id_to_game/1, id_to_tourney/1]).
 
 -include("common.hrl").
@@ -840,30 +840,6 @@ write(R) when is_record(R, your_game) ->
 write(R) when is_record(R, show_cards) ->
     [?CMD_SHOW_CARDS|pickle(show_cards(), R)];
 
-write(R) when is_record(R, notify_tourney_leave) ->
-    [?CMD_NOTIFY_TOURNEY_LEAVE|pickle(notify_tourney_leave(), R)];
-
-write(R) when is_record(R, tourney_leave) ->
-    [?CMD_TOURNEY_LEAVE|pickle(tourney_leave(), R)];
-
-write(R) when is_record(R, notify_tourney_join) ->
-    [?CMD_NOTIFY_TOURNEY_JOIN|pickle(notify_tourney_join(), R)];
-
-write(R) when is_record(R, tourney_watch) ->
-    [?CMD_TOURNEY_WATCH|pickle(tourney_watch(), R)];
-
-write(R) when is_record(R, tourney_unwatch) ->
-    [?CMD_TOURNEY_UNWATCH|pickle(tourney_unwatch(), R)];
-
-write(R) when is_record(R, tourney_join) ->
-    [?CMD_TOURNEY_JOIN|pickle(tourney_join(), R)];
-
-write(R) when is_record(R, tourney_query) ->
-    [?CMD_TOURNEY_QUERY|pickle(tourney_query(), R)];
-
-write(R) when is_record(R, tourney_info) ->
-    [?CMD_TOURNEY_INFO|pickle(tourney_info(), R)];
-
 write(R) when is_record(R, notify_seat_detail) ->
   [?CMD_NOTIFY_SEAT_DETAIL | pickle(notify_seat_detail(), R)];
 
@@ -1028,30 +1004,6 @@ read(<<?CMD_YOUR_GAME, Bin/binary>>) ->
 read(<<?CMD_SHOW_CARDS, Bin/binary>>) ->
     unpickle(show_cards(), Bin);
 
-read(<<?CMD_NOTIFY_TOURNEY_LEAVE, Bin/binary>>) ->
-    unpickle(notify_tourney_leave(), Bin);
-
-read(<<?CMD_TOURNEY_LEAVE, Bin/binary>>) ->
-    unpickle(tourney_leave(), Bin);
-
-read(<<?CMD_NOTIFY_TOURNEY_JOIN, Bin/binary>>) ->
-    unpickle(notify_tourney_join(), Bin);
-
-read(<<?CMD_TOURNEY_WATCH, Bin/binary>>) ->
-    unpickle(tourney_watch(), Bin);
-
-read(<<?CMD_TOURNEY_UNWATCH, Bin/binary>>) ->
-    unpickle(tourney_unwatch(), Bin);
-
-read(<<?CMD_TOURNEY_JOIN, Bin/binary>>) ->
-    unpickle(tourney_join(), Bin);
-
-read(<<?CMD_TOURNEY_QUERY, Bin/binary>>) ->
-    unpickle(tourney_query(), Bin);
-
-read(<<?CMD_TOURNEY_INFO, Bin/binary>>) ->
-    unpickle(tourney_info(), Bin);
-
 read(<<?CMD_NOTIFY_GAME_DETAIL, Bin/binary>>) ->
   unpickle(notify_game_detail(), Bin);
 
@@ -1063,38 +1015,6 @@ read(<<?CMD_PING, Bin/binary>>) ->
 
 read(<<?CMD_PONG, Bin/binary>>) ->
     unpickle(pong(), Bin).
-
-send(Socket, Data, _Ping) ->
-  Bin = list_to_binary(write(Data)),
-  
-  [Cmd|_] = tuple_to_list(Data),
-  case Cmd of
-    seat_state -> opps;
-    pong -> opps;
-    _ ->
-      opps
-  end,
-  %%io:format("SND ~p~n", [Bin]),
-  case catch gen_tcp:send(Socket, websocket:encoding(Bin)) of
-    ok ->
-      ok;
-    {error, closed} ->
-      ok;
-    {error, econnaborted} ->
-      ok;
-    Any ->
-      error_logger:error_report([
-          {message, "gen_tcp:send error"},
-          {module, ?MODULE}, 
-          {line, ?LINE},
-          {socket, Socket}, 
-          {port_info, erlang:port_info(Socket, connected)},
-          {data, Data},
-          {bin, Bin},
-          {error, Any}
-        ])
-  end.
-%%ping(Socket, size(Bin), Ping).
 
 ping(_, _, false) ->
     ok;
@@ -1121,7 +1041,4 @@ ping(Socket, _Size, true) ->
     end,
     %%stats:sum(packets_out, 2),
     %%stats:sum(bytes_out, Size + size(Bin)),
-    ok.
-
-test() ->
     ok.
