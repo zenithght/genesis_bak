@@ -163,7 +163,6 @@ handle_call(Event, From, Server) ->
     {noreply, Server}.
 
 handle_info({'EXIT', Pid, Reason}, Server) ->
-  ?LOG([{server_error, {pid, Pid}, {reason, Reason}}]),
   {noreply, Server};
 
 handle_info(Info, Server) ->
@@ -252,7 +251,7 @@ parse_packet(Socket, {socket, Packet}, Client) ->
   case Data of
     #ping{} -> opps;
     #seat_query{} -> opps;
-    _ -> ?LOG([{receive_packet, {packet, Packet, Data}}])
+    _ -> ok
   end,
 
   Client1 = case Data of 
@@ -276,7 +275,6 @@ parse_packet(Socket, {socket, Packet}, Client) ->
   {loop_data, Client1};
 
 parse_packet(_Socket, Event, Client) ->
-  ?LOG([{parse_packet, {event, Event}}]),
   {loop_data, Client}.
 
 
@@ -307,30 +305,6 @@ find_games(Socket,
                          WaitOp, Waiting),
     
     send_games(Socket, L, lists:flatlength(L)).
-
-start_games() ->
-    {atomic, Games} = db:find(tab_game_config),
-    start_games(Games).
-
-start_games([]) ->
-    ok;
-
-start_games([Game|Rest]) ->
-    start_games(Game, Game#tab_game_config.max),
-    start_games(Rest).
-
-start_games(_Game, 0) ->
-    ok;
-
-start_games(Game, N) ->
-    g:make(_ = #start_game{ 
-             type = Game#tab_game_config.type, 
-             limit = Game#tab_game_config.limit, 
-             start_delay = Game#tab_game_config.start_delay,
-             player_timeout = Game#tab_game_config.player_timeout,
-             seat_count = Game#tab_game_config.seat_count
-            }),
-    start_games(Game, N - 1).
 
 kill_games() ->
     {atomic, Games} = db:find(tab_game_xref),

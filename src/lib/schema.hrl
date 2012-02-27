@@ -53,25 +53,25 @@
     amount % integer
   }).
 
--record(tab_game_xref, {
-    gid,
-    process,
-    type,
-    limit,
-    table_name,
-    seat_count,
-    timeout,
-    required % min player count 
-  }).
-
 -record(tab_game_config, {
     id,
-    type,
+    module,
     limit,
     seat_count,
     start_delay,
-    player_timeout,
+    required,
+    timeout,
     max
+  }).
+
+-record(tab_game_xref, {
+    gid,
+    process,
+    module,
+    limit,
+    seat_count,
+    timeout,
+    required % min player count 
   }).
 
 -record(tab_cluster_config, {

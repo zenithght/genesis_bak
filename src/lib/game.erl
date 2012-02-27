@@ -1,140 +1,136 @@
 -module(game).
 -behaviour(exch).
 
--export([id/0, start/1, stop/1, dispatch/2, call/2, cast/3]).
+-export([id/0, init/2, stop/1, dispatch/2, call/2]).
+-export([start/0, start/1, start/2]).
+
+-include("common.hrl").
+-include("schema.hrl").
+-include("game.hrl").
+-include("pp.hrl").
 
 -include_lib("eunit/include/eunit.hrl").
 
--include("common.hrl").
--include("game.hrl").
--include("pp.hrl").
--include("schema.hrl").
--include("lang.hrl").
+%%%
+%%% callback
+%%% 
 
 id() ->
   counter:bump(game).
 
-start([GID, R = #start_game{}]) ->
-    store_game_info(GID, R),
-    Game = #game {
-      gid = GID,
-      type = R#start_game.type, 
-      limit = case (R#start_game.limit)#limit.type of
-                  ?LT_FIXED_LIMIT -> fixed_limit;
-                  ?LT_POT_LIMIT -> pot_limit;
-                  ?LT_NO_LIMIT -> no_limit
-              end,
-      low = (R#start_game.limit)#limit.low, 
-      high = (R#start_game.limit)#limit.high, 
-      min = (R#start_game.limit)#limit.min,
-      max = (R#start_game.limit)#limit.max,
-      deck = deck:new(R#start_game.rigged_deck),
-      pot = pot:new(),
-      seats = g:create_seats(R#start_game.seat_count),
-      required_player_count = R#start_game.required,
-      timeout = R#start_game.player_timeout,
-      tourney = none
-     },
-    {Game, R}.
+init(GID, R = #tab_game_config{}) ->
+  create_runtime(GID, R),
+  #texas {
+    gid = GID,
+    limit = R#tab_game_config.limit,
+    seats = seat:new(R#tab_game_config.seat_count)
+  }.
 
-stop(Game) 
-  when is_record(Game, game) ->
-    Game1 = g:cancel_timer(Game),
-    %% force players to leave
-    g:kick(Game1),
-    %% remove ourselves from the db
-    ok = db:delete(tab_game_xref, Game1#game.gid).
+stop(#texas{gid = GID, timer = Timer}) ->
+  catch erlang:cancel_timer(Timer),
+  clear_runtime(GID).
 
-%%% Watch the game without joining
+call(_, Ctx) ->
+  {ok, ok, Ctx}.
 
-dispatch(R = #sit_out{}, Game) ->
-    change_state(Game, R#sit_out.player, ?PS_SIT_OUT);
+dispatch({timeout, _, _Msg}, Ctx) ->
+  Ctx;
 
-dispatch(R = #come_back{}, Game) ->
-    change_state(Game, R#sit_out.player, ?PS_PLAY);
+dispatch(#join{}, Ctx) ->
+  Ctx;
 
-dispatch({'SET STATE', Player, State}, Game) ->
-    change_state(Game, Player, State);
+dispatch(#leave{}, Ctx) ->
+  Ctx;
 
-dispatch(R, Game) ->
-  ?LOG([{unknown_dispatch, {msg, R}, {game, Game}}]).
-    
-call('ID', Game) ->
-  Game#game.gid;
+dispatch(#watch{}, Ctx) ->
+  Ctx;
 
-call('REQUIRED', Game) ->
-  Game#game.required_player_count;
+dispatch(#unwatch{}, Ctx) ->
+  Ctx;
 
-call('JOINED', Game) ->
-  Seats = g:get_seats(Game, ?PS_ANY),
-  length(Seats);
-
-call('WAITING', _) ->
-  0;
-
-call('SEAT QUERY', Game) ->
-  g:seat_query(Game);
-
-call({'INPLAY', Player}, Game) ->
-  {_, Seat} = g:get_seat(Game, Player),
-  Seat#seat.inplay;
-
-call('DEBUG', Game) ->
-  Game.
-
-cast({timeout, _, {out, SeatNum, PID}}, Ctx, Game) ->
-  Seat = element(SeatNum, Game#game.seats),
-  case Seat#seat.pid of
-    PID ->
-      GID = global:whereis_name({?MODULE, Game#game.gid}),
-      gen_server:cast(Seat#seat.player, #leave{ game = GID });
-    _ ->
-      ok
-  end,
-  {Game, Ctx};
-
-cast(R = #leave{}, Ctx, Game) ->
-  Game1 = g:leave(Game, R),
-  {Game1, Ctx};
-
-cast(R = #watch{}, Ctx, Game) ->
-  Game1 = g:watch(Game, Ctx, R),
-  {Game1, Ctx};
-
-cast(R = #unwatch{}, Ctx, Game) ->
-  ?LOG([{game_unwatch, R}]),
-  Game1 = g:unwatch(Game, R),
-  {Game1, Ctx};
-
-cast(_, _, _) ->
-  skip.
+dispatch(_, Ctx) ->
+  Ctx.
 
 %%%
-%%% Utility
+%%% client
 %%%
 
-change_state(Game, Player, State) ->
-    Game1 = g:set_state(Game, Player, State),
-    {SeatNum, Seat} = g:get_seat(Game1, Player),
-    R = #seat_state{
-      game = Game1#game.gid,
-      seat = SeatNum,
-      state = State,
-      player = Seat#seat.pid,
-      inplay = Seat#seat.inplay
-     },
-    g:broadcast(Game1, R),
-    Game1.
+start() ->
+  Fun = fun(R = #tab_game_config{max = Max}, _Acc) ->
+      start(R, Max)
+  end, 
 
-store_game_info(GID, R) ->
-    Game = #tab_game_xref {
+  ok = mnesia:wait_for_tables([tab_game_config], ?WAIT_TABLE),
+  {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, nil, tab_game_config) end).
+
+start(Conf) ->
+  start(Conf, 1).
+
+start(_Conf, 0) -> ok;
+start(Conf = #tab_game_config{module = Module}, N) ->
+  exch:start(Module, [Conf, texas_holdem_mods()]),
+  start(Conf, N - 1).
+
+%%%
+%%% private
+%%%
+
+create_runtime(GID, R) ->
+  ok = mnesia:dirty_write(#tab_game_xref {
       gid = GID,
       process = self(),
-      type = R#start_game.type, 
-      limit = R#start_game.limit,
-      table_name = R#start_game.table_name,
-      seat_count = R#start_game.seat_count,
-      timeout = R#start_game.player_timeout,
-      required = R#start_game.required
-     },
-    ok = db:write(Game).
+      module = R#tab_game_config.module,
+      limit = R#tab_game_config.limit,
+      seat_count = R#tab_game_config.seat_count,
+      timeout = R#tab_game_config.timeout,
+      required = R#tab_game_config.required
+  }).
+
+clear_runtime(GID) ->
+  ok = mnesia:dirty_delete(tab_game_xref, GID).
+
+core_texas_mods() ->
+  [
+    %% blind rules
+    {blinds, []},
+    %% deal 2 cards to each player
+    {deal_cards, [2, private]}, 
+    {rank, []}, 
+    %% start after BB, 3 raises
+    {betting, [?MAX_RAISES, ?GS_PREFLOP, true]}, 
+    %% show 3 shared cards
+    {deal_cards, [3, shared]}, 
+    {rank, []}, 
+    %% flop
+    {betting, [?MAX_RAISES, ?GS_FLOP]}, 
+    %% show 1 more shared card
+    {deal_cards, [1, shared]}, 
+    {rank, []}, 
+    %% turn
+    {betting, [?MAX_RAISES, ?GS_TURN]}, 
+    %% show 1 more shared card
+    {deal_cards, [1, shared]}, 
+    {rank, []}, 
+    %% river
+    {betting, [?MAX_RAISES, ?GS_RIVER]}, 
+    %% showdown
+    {showdown, []}
+  ].
+
+texas_holdem_mods() ->
+  [ {wait_players, []} ] 
+  ++ core_texas_mods() 
+  ++ [ {restart, []} ].
+
+%%%
+%%% unit test
+%%%
+
+start_test() ->
+  setup(),
+  ok.
+
+setup() ->
+  schema:uninstall(),
+  schema:install(),
+  schema:load_default_data().
