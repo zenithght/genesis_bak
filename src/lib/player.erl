@@ -4,7 +4,7 @@
 -export([init/1, handle_call/3, handle_cast/2, 
          handle_info/2, terminate/2, code_change/3]).
 
--export([start/0, start/1, stop/1, stop/2]).
+-export([start/0, start/1, stop/1, stop/2, notify/2, cast/2]).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -35,11 +35,11 @@ init([R = #tab_player_info{pid = PID, nick = Nick, photo = Photo}]) ->
 handle_cast({protocol, #watch{}}, Data = #pdata{watching = W}) when W /= ?UNDEF ->
   {noreply, Data};
 
-handle_cast({protocol, R = #watch{game = G}}, Data) ->
+handle_cast({protocol, #watch{game = G}}, Data) ->
   game:watch(G, self()),
   {noreply, Data#pdata{ watching = G}};
 
-handle_cast({protocol, R = #unwatch{game = G}}, Data = #pdata{watching = W}) when W /= G->
+handle_cast({protocol, #unwatch{game = G}}, Data = #pdata{watching = W}) when W /= G->
   {noreply, Data};
 
 handle_cast({protocol, #unwatch{game = G}}, Data) ->
@@ -50,10 +50,10 @@ handle_cast(P = {protocol, #join{ game = G}}, Data = #pdata{watching = W}) when 
   game:watch(G, self()),
   handle_cast(P, Data#pdata{watching = G});
 
-handle_cast({protocol, R = #join { game = G}}, Data = #pdata{watching = W}) when W /= G ->
+handle_cast({protocol, #join { game = G}}, Data = #pdata{watching = W}) when W /= G ->
   {noreply, Data};
 
-handle_cast({protocol, R = #join { seat = Seat, game = Game}}, Data = #pdata{}) ->
+handle_cast({protocol, #join { seat = Seat, game = Game}}, Data = #pdata{}) ->
   game:join(Game, Seat, self()),
   {noreply, Data};
 
@@ -143,7 +143,7 @@ handle_info({'EXIT', _Pid, _Reason}, Data) ->
     %% child exit?
     {noreply, Data};
 
-handle_info(Info, Data) ->
+handle_info(_Info, Data) ->
   {noreply, Data}.
 
 code_change(_OldVsn, Data, _Extra) ->
@@ -178,10 +178,14 @@ stop(Identity) when is_list(Identity) ->
   gen_server:cast(?PLAYER(Identity), stop).
 
 stop(Identity, Reason) when is_list(Identity) ->
-    gen_server:cast(?PLAYER(Identity), {stop, Reason}).
+  gen_server:cast(?PLAYER(Identity), {stop, Reason}).
 
-notify(Identity, R) ->
-  gen_server:cast(?PLAYER(Identity), {notify, R}).
+notify(Identity, R) when is_list(Identity) ->
+  notify(?LOOKUP_PLAYER(Identity), R);
+notify(Player, R) when is_pid(Player) ->
+  gen_server:cast(Player, {notify, R});
+notify(Socket, R) when Socket /= ?UNDEF ->
+  Socket ! {send, list_to_binary(pp:write(R))}.
 
 cast(Identity, R) ->
   gen_server:cast(?PLAYER(Identity), {protocol, R}).
@@ -193,8 +197,8 @@ cast(Identity, R) ->
 create_runtime(PID, Process) when is_number(PID), is_pid(Process) ->
   mnesia:dirty_write(#tab_player{ pid = PID, process = Process }).
 
-forward_to_client(_, Data = #pdata{socket = S}) when S =:= ?UNDEF -> ok;
-forward_to_client(R, Data = #pdata{socket = S}) -> S ! {packet, R}.
+forward_to_client(_, #pdata{socket = Socket}) when Socket =:= ?UNDEF -> undef_socket;
+forward_to_client(R, #pdata{socket = Socket}) -> notify(Socket, R).
 
 %%%
 %%% unit test

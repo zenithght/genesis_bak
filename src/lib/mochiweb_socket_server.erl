@@ -3,23 +3,21 @@
 -behaviour(gen_server).
 
 -export([start/1, stop/1]).
--export([init/1, handle_call/3, handle_cast/2, terminate/2, code_change/3,
-    handle_info/2]).
+-export([init/1, handle_call/3, handle_cast/2, terminate/2, code_change/3, handle_info/2]).
 -export([get/2]).
 
 -export([acceptor_loop/1]).
 
--include("common.hrl").
-
--record(mochiweb_socket_server,
-  {port,
+-record(mochiweb_socket_server, {
+    port,
     loop,
     name=undefined,
     max=2048,
     ip=any,
     listen=null,
     acceptor=null,
-    backlog=128}).
+    backlog=128
+  }).
 
 start(State=#mochiweb_socket_server{}) ->
   start_server(State);
@@ -181,7 +179,6 @@ acceptor_loop({Server, Listen, Loop}) ->
       exit({error, accept_failed})
   end.
 
-
 do_get(port, #mochiweb_socket_server{port=Port}) ->
   Port.
 
@@ -229,7 +226,7 @@ handle_info({'EXIT', _LoopPid, Reason},
     normal ->
       ok;
     _ ->
-      ?LOG([{exit, Reason}])
+      error_logger:error_report([{exit, Reason}])
   end,
   State1 = State#mochiweb_socket_server{max=Max + 1},
   State2 = case Pid of

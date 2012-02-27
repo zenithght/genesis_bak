@@ -1,329 +1,182 @@
 -module(server).
 -behaviour(gen_server).
 
--export([init/1, handle_call/3, handle_cast/2, 
-         handle_info/2, terminate/2, code_change/3]).
--export([reset/0, start/0, start/1, start/2, start/3, stop/1, test/0]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
+-export([start/0, start/2, stop/0]).
 
 -include("common.hrl").
 -include("protocol.hrl").
 -include("schema.hrl").
 
--record(server, {
-          port,
-          host,
-          test_mode
-         }).
+-record(pdata, { port, host }).
+-record(client, { server = global:whereis_name(server), player = ?UNDEF }).
 
--record(client, {
-          server = none,
-          player = none
-         }).
+%%%
+%%% callback
+%%%
 
-reset() ->
-  schema:install(),
-  start().
+init([Host, Port]) ->
+  process_flag(trap_exit, true), 
+  {ok, _} = mochiweb_websocket:start(Host, Port, fun loop/3),
+  game:start(),
+  {ok, #pdata{ host = Host, port = Port }}.
+
+handle_cast(stop, Data) ->
+  {stop, normal, Data};
+
+handle_cast(Msg, Data) ->
+  ?LOG([{cast, Msg}]),
+  {noreply, Data}.
+
+handle_call({info, server}, _From, Data = #pdata{host = Host, port = Port}) ->
+  {reply, {Host, Port}, Data};
+
+handle_call({info, users}, _From, Data) ->
+  {reply, 0, Data};
+
+handle_call(Msg, _From, Data) ->
+  ?LOG([{call, Msg}]),
+  {noreply, Data}.
+
+handle_info({'EXIT', Pid, Reason}, Data) ->
+  ?LOG([{exit, Pid}, {reason, Reason}]),
+  {noreply, Data};
+
+handle_info(Msg, Data) ->
+  ?LOG([{info, Msg}]),
+  {noreply, Data}.
+
+code_change(_OldVsn, Server, _Extra) ->
+  {ok, Server}.
+
+terminate(_, #pdata{port = Port}) ->
+  mochiweb_websocket:stop(Port),
+  game:stop().
+
+%process_login(Client, Socket, Usr, Pass) ->
+  %case login:login(Usr, Pass, self()) of
+    %{error, Error} ->
+      %ok = ?tcpsend(Socket, #bad{ cmd = ?CMD_LOGIN, error = Error}),
+      %Client;
+    %{ok, Player} ->
+      %if
+        %Client#client.player /= none ->
+          %%% disconnect visitor
+          %gen_server:cast(Client#client.player, 'DISCONNECT');
+        %true ->
+          %ok
+      %end,
+      %PID = gen_server:call(Player, 'ID'),
+      %ok = ?tcpsend(Socket, #you_are{ player = PID }),
+      %Client#client{ player = Player }
+  %end.
+
+%process_logout(Client, _Socket) ->
+    %gen_server:cast(Client#client.player, #logout{}),
+    %%% replace player process with a visitor
+    %{ok, Visitor} = visitor:start(self()),
+    %Client#client{ player = Visitor }.
+
+%process_ping(Client, Socket, R) ->
+    %ok = ?tcpsend(Socket, #pong{ orig_send_time = R#ping.send_time }),
+    %Client.
+
+%process_pong(Client, _Socket, R) ->
+    %R1 = R#pong{ recv_time = now() },
+    %gen_server:cast(Client#client.server, {'PONG', R1}),
+    %Client.
+
+%process_test_start_game(Client, Socket, R) ->
+    %case gen_server:call(Client#client.server, 'TEST MODE') of
+        %true ->
+            %ok = ?tcpsend(Socket, start_test_game(R));
+        %_ ->
+            %ok
+    %end,
+    %Client.
+
+%process_game_query(Client, Socket, Q) 
+  %when is_record(Q, game_query) ->
+    %find_games(Socket, 
+               %Q#game_query.game_type, 
+               %Q#game_query.limit_type,
+               %Q#game_query.expected,
+               %Q#game_query.joined,
+               %Q#game_query.waiting),
+    %Client.
+
+%process_event(Client, _Socket, Event) ->
+  %Client1 = if 
+    %Client#client.player == none ->
+      %%% start a proxy
+      %{ok, Visitor} = visitor:start(self()),
+      %Client#client{ player = Visitor };
+    %true ->
+      %Client
+  %end,
+  %gen_server:cast(Client1#client.player, Event),
+  %Client1.
+
+%parse_packet(Socket, tcp_closed, Client) ->
+  %process_logout(Client, Socket);
+
+%parse_packet(Socket, {packet, Packet}, Client) ->
+%mochiweb_websocket:send(Socket, list_to_binary(pp:write(Packet))),
+  %ok = ?tcpsend(Socket, Packet),
+  %{loop_data, Client};
+
+%parse_packet(Socket, {socket, Packet}, Client) ->
+  %Data = (catch pp:read(Packet)),
+  %case Data of
+    %#ping{} -> opps;
+    %#seat_query{} -> opps;
+    %_ -> ok
+  %end,
+
+  %Client1 = case Data of 
+    %{'EXIT', Error} ->
+      %Client;
+    %#login{ usr = Usr, pass = Pass} ->
+      %process_login(Client, Socket, Usr, Pass);
+    %#logout{} ->
+      %process_logout(Client, Socket);
+    %R = #ping{} ->
+      %process_ping(Client, Socket, R);
+    %R = #pong{} ->
+      %process_pong(Client, Socket, R);
+    %R = #start_game{ rigged_deck = [_|_] } ->
+      %process_test_start_game(Client, Socket, R);
+    %R when is_record(R, game_query) ->
+      %process_game_query(Client, Socket, R);
+    %Event ->
+      %process_event(Client, Socket, Event)
+  %end,
+  %{loop_data, Client1};
+
+%parse_packet(_Socket, Event, Client) ->
+  %{loop_data, Client}.
+
+
+%%%
+%%% client
+%%%
 
 start() ->
   start("127.0.0.1", 8002).
 
-start([Port, Host])
-  when is_atom(Port),
-       is_atom(Host) ->
-    Port1 = list_to_integer(atom_to_list(Port)),
-    Host1 = atom_to_list(Host),
-    start(Host1, Port1).
-
 start(Host, Port) ->
-    start(Host, Port, false).
+  {ok, _Pid} = gen_server:start({global, server}, [Host, Port], []).
 
-start(Host, Port, TestMode) ->
-    db:start(),
-    case db:wait_for_tables([tab_game_config, tab_game_xref], 10000) of 
-        ok ->
-            case gen_server:start(server, [Host, Port, TestMode], []) of
-                {ok, Pid} ->
-                    %%io:format("server:start: pid ~w~n", [Pid]),
-                    pg2:create(?GAME_SERVERS),
-                    ok = pg2:join(?GAME_SERVERS, Pid),
-                    {ok, Pid};
-                Result ->
-                    error_logger:error_report(
-                      [{module, ?MODULE},
-                       {line, ?LINE},
-                       {message, "Unexpected result"},
-                       {call, 'gen_server:start(server)'}, 
-                       {result, Result},
-                       {port, Port},
-                       {now, now()}]),
-                    Result
-            end;
-        Other ->
-            error_logger:error_report(
-              [{module, ?MODULE},
-               {line, ?LINE},
-               {message, "Unexpected result"},
-               {result, Other},
-               {call, 'db:wait_for_tables'}, 
-               {now, now()}]),
-            Other
-    end.
+stop() ->
+  gen_server:cast({global, server}, stop).
 
-init([Host, Port, TestMode]) -> %% {{{ gen_server callback
-    process_flag(trap_exit, true), 
-    %%error_logger:logfile({open, "/tmp/" 
-    %%      ++ atom_to_list(node()) 
-    %%      ++ ".log"}),
-    Client = #client{ server = self() },
-    if
-        not TestMode ->
-            start_games();
-        true ->
-            ok
-    end,
-    F = fun(Socket, Packet, LoopData) -> 
-        case LoopData of
-          none ->
-            parse_packet(Socket, Packet, Client);
-          {loop_data, Client1} ->
-            parse_packet(Socket, Packet, Client1)
-        end
-    end, 
-    mochiweb_websocket:stop(Port),
-    {ok, _} = mochiweb_websocket:start(Host, Port, F),
-    Server = #server{
-      host = Host,
-      port = Port,
-      test_mode = TestMode
-     },
-    {ok, Server}.
+%%% private 
 
-stop(Server) ->
-    gen_server:cast(Server, stop).
+%% handshake successful, init socket loop data
+loop(S, handshake, ?UNDEF) -> #client{};
 
-terminate(normal, Server) ->
-    kill_games(),
-    mochiweb_websocket:stop(Server#server.port),
-    ok.
+loop(S, {recv, Bin}, C= #client{}) when is_binary(Bin) ->
+  loop(S, {recv, pp:read(Bin)}, C);
 
-handle_cast({'BUMP', _Size}, Server) ->
-    %%stats:sum(packets_in, 1),
-    %%stats:sum(bytes_in, Size),
-    {noreply, Server};
-
-handle_cast({'PONG', R = #pong{}}, Server) ->
-    TC = timer:now_diff(R#pong.send_time, R#pong.orig_send_time),
-    TS = timer:now_diff(R#pong.recv_time, R#pong.send_time),
-    stats:avg(time_to_client, TC),
-    stats:avg(time_to_server, TS),
-    stats:max(max_time_to_client, TC),
-    stats:max(max_time_to_server, TS),
-    {noreply, Server};
-
-handle_cast(stop, Server) ->
-    {stop, normal, Server};
-
-handle_cast(Event, Server) ->
-    error_logger:info_report([{module, ?MODULE}, 
-                              {line, ?LINE},
-                              {self, self()}, 
-                              {message, Event}]),
-    {noreply, Server}.
-
-
-handle_call('WHERE', _From, Server) ->
-    {reply, {Server#server.host, Server#server.port}, Server};
-%%     {ok, [{X, _, _}|_]} = inet:getif(),
-%%     io:format("Server address: ~w~n", [X]),
-%%     Host = io_lib:format("~.B.~.B.~.B.~.B", 
-%%       [element(1, X),
-%%        element(2, X),
-%%        element(3, X),
-%%        element(4, X)]),
-%%     {reply, {Host, Server#server.port}, Server};
-
-handle_call('USER COUNT', _From, Server) ->
-    Children = tcp_server:children(Server#server.port),
-    {reply, length(Children), Server};
-
-handle_call('TEST MODE', _From, Server) ->
-    {reply, Server#server.test_mode, Server};
-
-handle_call(Event, From, Server) ->
-    error_logger:info_report([{module, ?MODULE}, 
-                              {line, ?LINE},
-                              {self, self()}, 
-                              {message, Event}, 
-                              {from, From}]),
-    {noreply, Server}.
-
-handle_info({'EXIT', Pid, Reason}, Server) ->
-  {noreply, Server};
-
-handle_info(Info, Server) ->
-    error_logger:info_report([{module, ?MODULE}, 
-                              {line, ?LINE},
-                              {self, self()}, 
-                              {message, Info}]),
-    {noreply, Server}.
-
-code_change(_OldVsn, Server, _Extra) ->
-  {ok, Server}. %% }}}
-
-process_login(Client, Socket, Usr, Pass) -> %% {{{ socket connection processer
-  case login:login(Usr, Pass, self()) of
-    {error, Error} ->
-      ok = ?tcpsend(Socket, #bad{ cmd = ?CMD_LOGIN, error = Error}),
-      Client;
-    {ok, Player} ->
-      if
-        Client#client.player /= none ->
-          %% disconnect visitor
-          gen_server:cast(Client#client.player, 'DISCONNECT');
-        true ->
-          ok
-      end,
-      PID = gen_server:call(Player, 'ID'),
-      ok = ?tcpsend(Socket, #you_are{ player = PID }),
-      Client#client{ player = Player }
-  end.
-
-process_logout(Client, _Socket) ->
-    gen_server:cast(Client#client.player, #logout{}),
-    %% replace player process with a visitor
-    {ok, Visitor} = visitor:start(self()),
-    Client#client{ player = Visitor }.
-
-process_ping(Client, Socket, R) ->
-    ok = ?tcpsend(Socket, #pong{ orig_send_time = R#ping.send_time }),
-    Client.
-
-process_pong(Client, _Socket, R) ->
-    R1 = R#pong{ recv_time = now() },
-    gen_server:cast(Client#client.server, {'PONG', R1}),
-    Client.
-
-process_test_start_game(Client, Socket, R) ->
-    case gen_server:call(Client#client.server, 'TEST MODE') of
-        true ->
-            ok = ?tcpsend(Socket, start_test_game(R));
-        _ ->
-            ok
-    end,
-    Client.
-
-process_game_query(Client, Socket, Q) 
-  when is_record(Q, game_query) ->
-    find_games(Socket, 
-               Q#game_query.game_type, 
-               Q#game_query.limit_type,
-               Q#game_query.expected,
-               Q#game_query.joined,
-               Q#game_query.waiting),
-    Client.
-
-process_event(Client, _Socket, Event) ->
-  Client1 = if 
-    Client#client.player == none ->
-      %% start a proxy
-      {ok, Visitor} = visitor:start(self()),
-      Client#client{ player = Visitor };
-    true ->
-      Client
-  end,
-  gen_server:cast(Client1#client.player, Event),
-  Client1.
-
-parse_packet(Socket, tcp_closed, Client) ->
-  process_logout(Client, Socket);
-
-parse_packet(Socket, {packet, Packet}, Client) ->
-  ok = ?tcpsend(Socket, Packet),
-  {loop_data, Client};
-
-parse_packet(Socket, {socket, Packet}, Client) ->
-  Data = (catch pp:read(Packet)),
-  case Data of
-    #ping{} -> opps;
-    #seat_query{} -> opps;
-    _ -> ok
-  end,
-
-  Client1 = case Data of 
-    {'EXIT', Error} ->
-      Client;
-    #login{ usr = Usr, pass = Pass} ->
-      process_login(Client, Socket, Usr, Pass);
-    #logout{} ->
-      process_logout(Client, Socket);
-    R = #ping{} ->
-      process_ping(Client, Socket, R);
-    R = #pong{} ->
-      process_pong(Client, Socket, R);
-    R = #start_game{ rigged_deck = [_|_] } ->
-      process_test_start_game(Client, Socket, R);
-    R when is_record(R, game_query) ->
-      process_game_query(Client, Socket, R);
-    Event ->
-      process_event(Client, Socket, Event)
-  end,
-  {loop_data, Client1};
-
-parse_packet(_Socket, Event, Client) ->
-  {loop_data, Client}.
-
-
-%%%
-%%% Handlers
-%%%
-
-%%%
-%%% Utility
-%%% {{{ 
-
-send_games(_, [], _) ->
-    ok;
-
-send_games(Socket, [H|T], C) ->
-    N = H#game_info{game_count = C},
-    ?tcpsend(Socket, N),
-    send_games(Socket, T, C).
-
-find_games(Socket, 
-           GameType, LimitType,
-           #query_op{ op = ExpOp, val = Expected }, 
-           #query_op{ op = JoinOp, val = Joined },
-           #query_op{ op = WaitOp, val = Waiting }) ->
-    {atomic, L} = g:find(GameType, LimitType,
-                         ExpOp, Expected, 
-                         JoinOp, Joined,
-                         WaitOp, Waiting),
-    
-    send_games(Socket, L, lists:flatlength(L)).
-
-kill_games() ->
-    {atomic, Games} = db:find(tab_game_xref),
-    kill_games(Games).
-
-kill_games([]) ->
-    ok;
-
-kill_games([H|T]) ->
-    gen_server:cast(H#tab_game_xref.process, stop),
-    kill_games(T).
-
-start_test_game(R) ->
-    {ok, Game} = game:start(R),
-    GID = game:call(Game, 'ID'),
-    #your_game{ game = GID }.
-
-%% }}}
-
-%% 
-%% Test suite
-%%
-
-test() ->
-    ok.
-
-%% vim: fdm=marker
+loop(S, {recv, #login{}}, #client{player = P}) when P =:= ?UNDEF ->
+  #client{player = new_player_process}.
