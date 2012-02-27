@@ -5,7 +5,7 @@
 
 -include("common.hrl").
 -include("game.hrl").
--include("pp.hrl").
+-include("protocol.hrl").
 -include("schema.hrl").
 -include("texas/ctx.hrl").
 

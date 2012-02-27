@@ -7,7 +7,7 @@
 -include("common.hrl").
 -include("schema.hrl").
 -include("game.hrl").
--include("pp.hrl").
+-include("protocol.hrl").
 
 -include_lib("eunit/include/eunit.hrl").
 

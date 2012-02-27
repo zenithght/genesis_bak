@@ -6,7 +6,7 @@
 -export([start/1, stop/1, test/0]).
 
 -include("common.hrl").
--include("pp.hrl").
+-include("protocol.hrl").
 -include("schema.hrl").
 
 -record(vis, {

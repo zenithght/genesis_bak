@@ -1,17 +1,12 @@
 -module(server).
 -behaviour(gen_server).
 
-%%% 
-%%% OpenPoker server instance
-%%%
-
 -export([init/1, handle_call/3, handle_cast/2, 
          handle_info/2, terminate/2, code_change/3]).
-
 -export([reset/0, start/0, start/1, start/2, start/3, stop/1, test/0]).
 
 -include("common.hrl").
--include("pp.hrl").
+-include("protocol.hrl").
 -include("schema.hrl").
 
 -record(server, {

@@ -6,7 +6,7 @@
 
 -include("common.hrl").
 -include("bot.hrl").
--include("pp.hrl").
+-include("protocol.hrl").
 
 -record(dumbo, {
           actions,

@@ -8,7 +8,7 @@
 -export([id_to_player/1, id_to_game/1, id_to_tourney/1]).
 
 -include("common.hrl").
--include("pp.hrl").
+-include("protocol.hrl").
 -include("schema.hrl").
 
 -import(pickle, [pickle/2, unpickle/2, byte/0, 

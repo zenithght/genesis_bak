@@ -1,5 +1,5 @@
 -include("../common.hrl").
--include("../pp.hrl").
+-include("../protocol.hrl").
 -include("../game.hrl").
 -include("../schema.hrl").
 -include("../lang.hrl").

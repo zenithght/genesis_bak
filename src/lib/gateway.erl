@@ -7,7 +7,7 @@
 -export([start/3, start/1]).
 
 -include("common.hrl").
--include("pp.hrl").
+-include("protocol.hrl").
 
 start([Node, Port, MaxPlayers]) 
   when is_atom(Node),

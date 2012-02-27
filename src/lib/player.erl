@@ -9,7 +9,7 @@
 -include_lib("eunit/include/eunit.hrl").
 
 -include("common.hrl").
--include("pp.hrl").
+-include("protocol.hrl").
 -include("schema.hrl").
 
 -define(PLAYER(Identity), {global, {player, Identity}}).

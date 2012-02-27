@@ -15,7 +15,7 @@
 
 -include("common.hrl").
 -include("ircdb.hrl").
--include("pp.hrl").
+-include("protocol.hrl").
 -include("schema.hrl").
 
 -record(stats, {

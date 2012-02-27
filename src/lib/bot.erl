@@ -11,7 +11,7 @@
 -export([start/4, stop/1, send/2, watch/2, join/6]).
 
 -include("common.hrl").
--include("pp.hrl").
+-include("protocol.hrl").
 -include("bot.hrl").
 
 -record(bot, {

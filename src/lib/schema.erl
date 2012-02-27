@@ -88,25 +88,26 @@ setup_counters()->
   ok.
 
 setup_games() ->
-  g:setup(?GT_IRC_TEXAS, 20, 
-    #limit{ type = ?LT_FIXED_LIMIT, low = 10, high = 20}, 
-    ?START_DELAY, ?PLAYER_TIMEOUT,
-    10),
-  g:setup(?GT_TEXAS_HOLDEM, 10, 
-    #limit{ type = ?LT_FIXED_LIMIT, low = 10, high = 20}, 
-    ?START_DELAY, ?PLAYER_TIMEOUT,
-    50),
-  g:setup(?GT_TEXAS_HOLDEM, 10, 
-    #limit{ type = ?LT_NO_LIMIT, low = 10, high = 20}, 
-    ?START_DELAY, ?PLAYER_TIMEOUT,
-    50),
-  g:setup(?GT_TEXAS_HOLDEM, 10, 
-    #limit{ type = ?LT_POT_LIMIT, low = 10, high = 20}, 
-    ?START_DELAY, ?PLAYER_TIMEOUT,
-    50),
-  g:setup(?GT_TEXAS_HOLDEM, 9,
-    #limit{ type = ?LT_NO_LIMIT, low = 5, high = 10, min = 100, max = 2000 },
-    6000, 150000, 1). 
+  ok.
+  %g:setup(?GT_IRC_TEXAS, 20, 
+    %#limit{ type = ?LT_FIXED_LIMIT, low = 10, high = 20}, 
+    %?START_DELAY, ?PLAYER_TIMEOUT,
+    %10),
+  %g:setup(?GT_TEXAS_HOLDEM, 10, 
+    %#limit{ type = ?LT_FIXED_LIMIT, low = 10, high = 20}, 
+    %?START_DELAY, ?PLAYER_TIMEOUT,
+    %50),
+  %g:setup(?GT_TEXAS_HOLDEM, 10, 
+    %#limit{ type = ?LT_NO_LIMIT, low = 10, high = 20}, 
+    %?START_DELAY, ?PLAYER_TIMEOUT,
+    %50),
+  %g:setup(?GT_TEXAS_HOLDEM, 10, 
+    %#limit{ type = ?LT_POT_LIMIT, low = 10, high = 20}, 
+    %?START_DELAY, ?PLAYER_TIMEOUT,
+    %50),
+  %g:setup(?GT_TEXAS_HOLDEM, 9,
+    %#limit{ type = ?LT_NO_LIMIT, low = 5, high = 10, min = 100, max = 2000 },
+    %6000, 150000, 1). 
 
 setup_agent() ->
   Root = #tab_agent{ aid = counter:bump(agent), identity = "root", password = erlang:md5("password"), root = true, parent = nil, cash = 100 * 10000 },
