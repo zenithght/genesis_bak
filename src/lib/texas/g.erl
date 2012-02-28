@@ -97,14 +97,12 @@ is_empty(Game) ->
     (Game#game.observers == []) and (Seats == []).
 
 notify_start_game(Game) ->
-    %Msg = lang:msg(?GAME_STARTING),
     Game1 = reset(Game),
     GID = Game1#game.gid,
     %Game2 = broadcast(Game1, #chat{ game = GID, message = Msg }),
     broadcast(Game1, #notify_start_game{ game = GID }).
 
 notify_cancel_game(Game) ->
-    %Msg = lang:msg(?GAME_CANCELLED),
     GID = Game#game.gid,
     %Game1 = broadcast(Game, #chat{ game = GID, message = Msg }),
     broadcast(Game, #notify_cancel_game{ game = GID }).
