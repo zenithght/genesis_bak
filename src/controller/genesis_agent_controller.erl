@@ -2,7 +2,7 @@
 -compile(export_all).
 
 -include("controller.hrl").
--include("../lib/schema.hrl").
+-include("schema.hrl").
 
 before_(_Act) -> authreq:require_login(Req, SessionID).
 

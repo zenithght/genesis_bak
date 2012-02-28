@@ -7,7 +7,6 @@
 -export([start/3, stop/2, cast/2, call/2]).
 
 -include("common.hrl").
-
 -include_lib("eunit/include/eunit.hrl").
 
 -record(pdata, {

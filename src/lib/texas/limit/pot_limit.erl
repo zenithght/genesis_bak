@@ -3,7 +3,7 @@
 
 -export([raise/5, blinds/2]).
 
--include("../../common.hrl").
+-include("texas.hrl").
 
 raise(Low, _, Pot, _, Stage)
   when ?GS_PREFLOP == Stage ->

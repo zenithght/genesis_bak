@@ -1,7 +1,7 @@
 -module(genesis_admin_controller, [Req, SessionID]).
 -compile(export_all).
 
--include("../lib/schema.hrl").
+-include("schema.hrl").
 -define(ROOT, "/admin/").
 
 before_(Act) when Act =:= "login" -> {ok, []};
