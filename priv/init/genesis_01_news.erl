@@ -8,12 +8,11 @@
 init() ->
   case init:get_argument(sname) of
     {ok, [["dev"]]} ->
-      io:format("test", []),
-      schema:uninstall(),
-      schema:install(),
-      mnesia:start(),
-      schema:load_default_data(),
-      agent:start();
+      %schema:uninstall(),
+      %schema:install(),
+      %mnesia:start(),
+      %schema:load_default_data(),
+      server:start();
     _ ->
       ok
   end,

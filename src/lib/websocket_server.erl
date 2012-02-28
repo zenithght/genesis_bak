@@ -1,4 +1,4 @@
--module(mochiweb_websocket).
+-module(websocket_server).
 
 -export([start/3, stop/1, loop/2]).
 -export([generate_websocket_accept/1]).
@@ -14,10 +14,10 @@
 start(Host, Port, Loop) when is_list(Host), is_integer(Port) ->
   Fun = fun (Socket) -> ?MODULE:loop(Socket, Loop) end,
   Options = [{ip, Host}, {loop, Fun}, {port, Port}, {name, ?MODULE}],
-  mochiweb_socket_server:start(Options).
+  socket_server:start(Options).
 
 stop(Port) when is_integer(Port) ->
-  mochiweb_socket_server:stop(?MODULE).
+  socket_server:stop(?MODULE).
 
 loop(Socket, Fun) ->
   handshake(Socket, Fun).
@@ -90,7 +90,8 @@ get_header([], _FindKey) ->
   ok.
 
 loop(Socket, Fun, ?UNDEF) ->
-  Fun(Socket, handshake, ?UNDEF);
+  LoopData = Fun(Socket, handshake, ?UNDEF),
+  loop(Socket, Fun, LoopData);
 loop(Socket, Fun, LoopData) ->
   NewLoopData = receive
     {tcp_closed, Socket} -> 

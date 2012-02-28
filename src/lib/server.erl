@@ -17,8 +17,7 @@
 
 init([Host, Port]) ->
   process_flag(trap_exit, true), 
-  {ok, _} = mochiweb_websocket:start(Host, Port, fun loop/3),
-  game:start(),
+  {ok, _} = websocket_server:start(Host, Port, fun loop/3),
   {ok, #pdata{ host = Host, port = Port }}.
 
 handle_cast(stop, Data) ->
@@ -50,8 +49,7 @@ code_change(_OldVsn, Server, _Extra) ->
   {ok, Server}.
 
 terminate(_, #pdata{port = Port}) ->
-  mochiweb_websocket:stop(Port),
-  game:stop().
+  websocket_server:stop(Port).
 
 %process_login(Client, Socket, Usr, Pass) ->
   %case login:login(Usr, Pass, self()) of
@@ -165,7 +163,7 @@ start() ->
   start("127.0.0.1", 8002).
 
 start(Host, Port) ->
-  {ok, _Pid} = gen_server:start({global, server}, [Host, Port], []).
+  {ok, _Pid} = gen_server:start({global, server}, server, [Host, Port], []).
 
 stop() ->
   gen_server:cast({global, server}, stop).
