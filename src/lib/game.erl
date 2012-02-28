@@ -23,7 +23,13 @@ init(GID, R = #tab_game_config{}) ->
   create_runtime(GID, R),
   #texas { 
     gid = GID, 
-    start_delay = R#tab_game_config.start_delay
+    seats = seat:new(R#tab_game_config.seat_count),
+    limit = R#tab_game_config.limit,
+    timeout = ?PLAYER_TIMEOUT,
+    start_delay = R#tab_game_config.start_delay,
+    xref = gb_trees:empty(),
+    pot = pot:new(),
+    deck = deck:new()
   }.
 
 stop(#texas{gid = GID, timer = Timer}) ->

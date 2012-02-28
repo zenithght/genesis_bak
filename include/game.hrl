@@ -1,3 +1,7 @@
+-ifndef(UNDEF).
+  -define(UNDEF, undefined).
+-endif.
+
 -define(PLAYER_TIMEOUT, 15000).
 -define(PLAYER_OUT_TIMEOUT, 15000).
 -define(START_DELAY, 6000).
@@ -162,6 +166,7 @@
   }).
 
 -record(seat, {
+    sn = ?UNDEF,
     pid = ?UNDEF,               %% player id
     player = ?UNDEF,            %% player process
     hand = [],                  %% cards
