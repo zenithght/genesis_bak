@@ -4,7 +4,7 @@
 %%% Card deck
 %%%
 
--export([new/0, new/1, reset/1, draw/1, test/0]).
+-export([new/0, new/1, reset/1, draw/1]).
 
 -include("texas.hrl").
 -compile([export_all]).
@@ -73,6 +73,3 @@ shuffle(Cards) ->
   Temp = lists:map(fun(X) -> {random:uniform(), X} end, Cards),
   Temp1 = lists:keysort(1, Temp),
   lists:map(fun(X) -> element(2, X) end, Temp1).
-
-test() ->
-    ok.

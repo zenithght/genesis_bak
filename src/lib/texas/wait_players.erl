@@ -1,42 +1,21 @@
 -module(wait_players).
+-export([start/2, wait_for_players/2]).
 
--export([start/3, wait_for_players/3]).
+-include("common.hrl").
+-include("game.hrl").
 
--include("texas.hrl").
--include_lib("eunit/include/eunit.hrl").
+start(_Params, Ctx = #texas{start_delay = StartDelay}) ->
+  Timer = erlang:start_timer(StartDelay, self(), ?MODULE),
+  {next, wait_for_players, Ctx#texas{ timer = Timer }}.
 
-start(Game, Ctx, [Delay]) ->
-  Game1 = g:restart_timer(Game, Delay),
-  %% reset call amount
-  Ctx1 = Ctx#texas{ call = 0 },
-  {next, wait_for_players, Game1, Ctx1}.
+wait_for_players({timeout, _, ?MODULE}, Ctx = #texas{required = R, joined = J}) when J < R ->
+  ?LOG([{texas, wait_for_players}, {not_required_players, J, R}]),
+  {repeat, Ctx};
 
-wait_for_players(Game, Ctx, {timeout, _, _}) ->
-  Ready = g:get_seats(Game, ?PS_READY),
-  ReqCount = Game#game.required_player_count,
-  Start = (length(Ready) >= ReqCount),
-  Empty = g:is_empty(Game),
-  if
-    Start ->
-      Game1 = g:notify_start_game(Game),
-      {stop, Game1, Ctx};
-    Empty ->
-      {repeat, Game, Ctx};
-    true ->
-      Game1 = g:notify_cancel_game(Game),
-      {repeat, Game1, Ctx}
-  end;
+wait_for_players({timeout, _, ?MODULE}, Ctx = #texas{}) ->
+  ?LOG([{texas, wait_for_players}, {start_playing, J, R}]),
+  {stop, Ctx};
 
-wait_for_players(Game, Ctx, R = #join{}) ->
-  Game1 = g:join(Game, R#join { state = ?PS_PLAY }),
-  {continue, Game1, Ctx};
-
-wait_for_players(Game, Ctx, R = #leave{}) ->
-  Game1 = g:leave(Game, R#leave { state = ?PS_ANY }),
-  {continue, Game1, Ctx};
-
-wait_for_players(Game, Ctx, _R = #raise{}) ->
-  {continue, Game, Ctx};
-
-wait_for_players(Game, Ctx, _) ->
-  {skip, Game, Ctx}.
+wait_for_players(_, Ctx) ->
+  ?LOG([{texas, {wait_for_players, skip}}]),
+  {skip, Ctx}.

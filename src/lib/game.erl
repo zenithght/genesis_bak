@@ -3,13 +3,14 @@
 
 -export([id/0, init/2, stop/1, dispatch/2, call/2]).
 -export([start/0, start/1, start/2]).
+-export([join/1]).
 
 -include("common.hrl").
 -include("schema.hrl").
 -include("game.hrl").
 -include("protocol.hrl").
 
--include_lib("eunit/include/eunit.hrl").
+-define(LOOKUP_GAME(Id), global:whereis_name({game, Id})).
 
 %%%
 %%% callback
@@ -20,10 +21,9 @@ id() ->
 
 init(GID, R = #tab_game_config{}) ->
   create_runtime(GID, R),
-  #texas {
-    gid = GID,
-    limit = R#tab_game_config.limit,
-    seats = seat:new(R#tab_game_config.seat_count)
+  #texas { 
+    gid = GID, 
+    start_delay = R#tab_game_config.start_delay
   }.
 
 stop(#texas{gid = GID, timer = Timer}) ->
@@ -33,11 +33,8 @@ stop(#texas{gid = GID, timer = Timer}) ->
 call(_, Ctx) ->
   {ok, ok, Ctx}.
 
-dispatch({timeout, _, _Msg}, Ctx) ->
-  Ctx;
-
-dispatch(#join{}, Ctx) ->
-  Ctx;
+dispatch(join, Ctx = #texas{joined = Joined}) ->
+  Ctx#texas{joined = Joined + 1};
 
 dispatch(#leave{}, Ctx) ->
   Ctx;
@@ -63,20 +60,29 @@ start() ->
   ok = mnesia:wait_for_tables([tab_game_config], ?WAIT_TABLE),
   {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, nil, tab_game_config) end).
 
-start(Conf) ->
+start(Mods) when is_list(Mods)->
+  Conf = #tab_game_config{id = 1, module = game, mods = Mods, limit = no_limit, seat_count = 9, start_delay = 3000, required = 2, timeout = 1000, max = 1},
+  start(Conf, 1);
+start(Conf) when is_record(Conf, tab_game_config)->
   start(Conf, 1).
 
 start(_Conf, 0) -> ok;
-start(Conf = #tab_game_config{module = Module}, N) ->
-  exch:start(Module, [Conf, texas_holdem_mods()]),
-  start(Conf, N - 1).
+start(Conf = #tab_game_config{module = Module, mods = Mods}, N) when is_list(Mods) ->
+  exch:start(Module, Conf, Mods),
+  start(Conf, N - 1);
+start(Conf = #tab_game_config{}, N) ->
+  start(Conf#tab_game_config{mods = default_mods()}, N).
+
+join(Id) ->
+  gen_server:cast(?LOOKUP_GAME(Id), join).
+  
 
 %%%
 %%% private
 %%%
 
 create_runtime(GID, R) ->
-  ok = mnesia:dirty_write(#tab_game_xref {
+  mnesia:dirty_write(#tab_game_xref {
       gid = GID,
       process = self(),
       module = R#tab_game_config.module,
@@ -89,8 +95,9 @@ create_runtime(GID, R) ->
 clear_runtime(GID) ->
   ok = mnesia:dirty_delete(tab_game_xref, GID).
 
-core_texas_mods() ->
+default_mods() ->
   [
+    {wait_players, []},
     %% blind rules
     {blinds, []},
     %% deal 2 cards to each player
@@ -114,26 +121,10 @@ core_texas_mods() ->
     %% river
     {betting, [?MAX_RAISES, ?GS_RIVER]}, 
     %% showdown
-    {showdown, []}
+    {showdown, []},
+    {restart, []}
   ].
 
-texas_holdem_mods() ->
-  [ {wait_players, []} ] 
-  ++ core_texas_mods() 
-  ++ [ {restart, []} ].
-
-%%%
-%%% unit test
-%%%
-
-start_test() ->
-  setup(),
-  ok.
-
-setup() ->
-  schema:uninstall(),
-  schema:install(),
-  schema:load_default_data().
 
 %%% TODO search game
 
@@ -169,3 +160,23 @@ setup() ->
     %gen_server:cast(H#tab_game_xref.process, stop),
     %kill_games(T).
 
+%%%
+%%% unit test
+%%%
+
+-include_lib("eunit/include/eunit.hrl").
+
+start_test() ->
+  setup(),
+  game:start([{wait_players, []}, {restart, []}]),
+  ?assert(is_pid(?LOOKUP_GAME(1))),
+  timer:sleep(2000),
+  game:join(1),
+  timer:sleep(500),
+  game:join(1),
+  timer:sleep(5000).
+
+setup() ->
+  schema:uninstall(),
+  schema:install(),
+  schema:load_default_data().

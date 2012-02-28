@@ -140,8 +140,8 @@
 					limit,
 					seat_count,
 					required = 2,
-					start_delay = ?START_DELAY,
-					player_timeout = ?PLAYER_TIMEOUT,
+					start_delay = 0,
+					player_timeout = 0,
 					rigged_deck = [],
 					barrier
 				 }).

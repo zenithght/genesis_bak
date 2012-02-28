@@ -1,4 +1,0 @@
--include("common.hrl").
--include("protocol.hrl").
--include("schema.hrl").
--include("game.hrl").

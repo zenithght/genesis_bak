@@ -56,6 +56,7 @@
 -record(tab_game_config, {
     id,
     module,
+    mods,
     limit,
     seat_count,
     start_delay,

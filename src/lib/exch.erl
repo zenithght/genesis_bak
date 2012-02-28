@@ -7,7 +7,8 @@
 -export([start/3, stop/2, cast/2, call/2]).
 
 -include("common.hrl").
--include_lib("eunit/include/eunit.hrl").
+-include("schema.hrl").
+-include("game.hrl").
 
 -record(pdata, {
     id,
@@ -33,7 +34,7 @@ behaviour_info(callbacks) -> [
 
 start(Module, Conf, Mods) ->
   Id = Module:id(),
-  gen_server:start({global, {Module, Id}}, [Module, Id, Conf, Mods], []).
+  gen_server:start({global, {Module, Id}}, exch, [Module, Id, Conf, Mods], []).
 
 stop(Module, Id) when is_number(Id) ->
   gen_server:cast({global, {Module, Id}}, stop).
@@ -50,23 +51,22 @@ cast(Exch, Event) ->
 
 init([Module, Id, Conf, Mods]) ->
   process_flag(trap_exit, true),
-
-  Context = Module:init(Id, Conf),
+  Ctx = Module:init(Id, Conf),
 
   Data = #pdata{
     id = Id,
     module = Module,
     mods = Mods,
     stack = Mods,
-    ctx = Context,
+    ctx = Ctx,
     conf = Conf
   },
 
-  case init(Conf, Data) of
-    {stop, _, Exch1} ->
-      {stop, Exch1};
-    {noreply, Exch1} ->
-      {ok, Exch1}
+  case init(?UNDEF, Data) of
+    {stop, _, NewData} ->
+      {stop, NewData};
+    {noreply, NewData} ->
+      {ok, NewData}
   end.
 
 handle_cast(stop, Data) ->
@@ -80,8 +80,9 @@ handle_call(Msg, _From, Data = #pdata{module = Module, ctx = Context}) ->
   {ok, Result, NewContext} = Module:call(Msg, Context),
   {reply, Result, Data#pdata{ctx = NewContext}}.
 
-terminate(_Reason, #pdata{module = Module, ctx = Context}) ->
-  Module:stop(Context).
+terminate(Reason, #pdata{module = Module, ctx = Ctx}) ->
+  ?LOG([{exch, stop}, {reason, Reason}, {ctx, Ctx}]),
+  Module:stop(Ctx).
 
 handle_info(Msg, Data) ->
   handle_cast(Msg, Data).
@@ -94,7 +95,7 @@ code_change(_OldVsn, Data, _Extra) ->
 %%%
 
 init(Msg, Data = #pdata{ stack = [{Mod, Params}|_], ctx = Ctx }) ->
-  advance(Mod:start(Ctx, Params), Msg, Data#pdata{ state = none }).
+  advance(Mod:start(Params, Ctx), Msg, Data#pdata{ state = ?UNDEF }).
 
 advance({continue, Data, Ctx}, _Msg, Data = #pdata{}) ->
   {noreply, Data#pdata{ ctx = Ctx }};
