@@ -13,7 +13,7 @@ wait_for_players({timeout, _, ?MODULE}, Ctx = #texas{required = R, joined = J}) 
   {repeat, Ctx};
 
 wait_for_players({timeout, _, ?MODULE}, Ctx = #texas{}) ->
-  ?LOG([{texas, wait_for_players}, {start_playing, J, R}]),
+  ?LOG([{texas, wait_for_players}, {state, playing}]),
   {stop, Ctx};
 
 wait_for_players(_, Ctx) ->

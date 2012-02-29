@@ -1,9 +1,8 @@
 -module(pot_limit).
 -behaviour(limit).
-
 -export([raise/5, blinds/2]).
 
--include("texas.hrl").
+-include("game.hrl").
 
 raise(Low, _, Pot, _, Stage)
   when ?GS_PREFLOP == Stage ->

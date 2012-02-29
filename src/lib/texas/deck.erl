@@ -6,7 +6,7 @@
 
 -export([new/0, new/1, reset/1, draw/1]).
 
--include("texas.hrl").
+-include("game.hrl").
 -compile([export_all]).
 
 -record(deck, {

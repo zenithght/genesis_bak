@@ -1,7 +1,8 @@
 -module(restart).
 -export([start/2]).
 
--include("texas.hrl").
+-include("common.hrl").
+-include("game.hrl").
 
 start([], Ctx) ->
   ?LOG([{texas, restart}]),

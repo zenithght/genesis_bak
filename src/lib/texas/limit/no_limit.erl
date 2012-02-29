@@ -3,7 +3,7 @@
 
 -export([raise/5, blinds/2]).
 
--include("texas.hrl").
+-include("game.hrl").
 
 raise(Low, _, _, Inplay, Stage)
   when ?GS_PREFLOP == Stage ->

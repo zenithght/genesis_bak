@@ -3,7 +3,7 @@
 
 -export([id/0, init/2, stop/1, dispatch/2, call/2]).
 -export([start/0, start/1, start/2]).
--export([join/1]).
+-export([join/1, bet/2, broadcast/2, broadcast/3]).
 
 -include("common.hrl").
 -include("schema.hrl").
@@ -82,22 +82,24 @@ start(Conf = #tab_game_config{}, N) ->
 join(Id) ->
   gen_server:cast(?LOOKUP_GAME(Id), join).
 
-cost({S = #seat{inplay = Inplay, pid = PID}, Amt}, Ctx = #texas{seats = Seats}) when Amt =< Inplay ->
+bet({_S, Amt}, _Ctx) when Amt =< 0 -> exit(amt_zero);
+bet({#seat{inplay = Inplay}, Amt}, _Ctx) when Amt > Inplay -> exit(amt_more_inplay);
+bet({S = #seat{inplay = Inplay, bet = Bet, pid = PID}, Amt}, Ctx = #texas{pot = Pot, seats = Seats}) ->
+  {State, AllIn} = case Amt < Inplay of 
+    true -> {?PS_BET, false}; 
+    _ -> {?PS_ALL_IN, true} 
+  end,
   NewInplay = mnesia:dirty_update_counter(tab_inplay, PID, 0 - Amt),
-  case NewInplay =:= (Inplay - Amt) of
-    true ->
-      NewSeats = seat:set(S#seat{inplay = NewInplay}, Seats),
-      Ctx#texas{seats = NewSeats};
-    _ ->
-      exit({inplay_error, {seat, S}, {cost, Amt}})
-  end.
+  NewSeats = seat:set(S#seat{inplay = NewInplay, state = State, bet = Bet + Amt}, Seats),
+  NewPot = pot:add(Pot, PID, Amt, AllIn),
+  Ctx#texas{seats = NewSeats, pot = NewPot}.
 
 broadcast(Msg, #texas{observers = Obs}, []) ->
   broadcast(Msg, Obs);
 broadcast(Msg, Ctx = #texas{observers = Obs}, [H|T]) ->
   broadcast(Msg, Ctx#texas{observers = proplists:delete(H, Obs)}, T).
 
-broadcast(Msg, []) -> ok;
+broadcast(_Msg, []) -> ok;
 broadcast(Msg, #texas{observers = Obs}) -> 
   broadcast(Msg, Obs);
 broadcast(Msg, [{_, Process}|T]) ->
@@ -131,22 +133,22 @@ default_mods() ->
     {deal_cards, [2, private]}, 
     {ranking, []}, 
     %% start after BB, 3 raises
-    {betting, [?MAX_RAISES, ?GS_PREFLOP, true]}, 
+    {betting, [?GS_PREFLOP]}, 
     %% show 3 shared cards
     {deal_cards, [3, shared]}, 
     {ranking, []}, 
     %% flop
-    {betting, [?MAX_RAISES, ?GS_FLOP]}, 
+    {betting, [?GS_FLOP]}, 
     %% show 1 more shared card
     {deal_cards, [1, shared]}, 
     {ranking, []}, 
     %% turn
-    {betting, [?MAX_RAISES, ?GS_TURN]}, 
+    {betting, [?GS_TURN]}, 
     %% show 1 more shared card
     {deal_cards, [1, shared]}, 
     {ranking, []}, 
     %% river
-    {betting, [?MAX_RAISES, ?GS_RIVER]}, 
+    {betting, [?GS_RIVER]}, 
     %% showdown
     {showdown, []},
     {restart, []}

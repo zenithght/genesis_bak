@@ -14,14 +14,10 @@
 
 %%% Game stage
 
--define(GS_CANCEL, 254).
 -define(GS_PREFLOP, 0).
 -define(GS_FLOP, 1).
 -define(GS_TURN, 2).
 -define(GS_RIVER, 3).
--define(GS_DELAYED_START, 4).
--define(GS_BLINDS, 5).
--define(GS_SHOWDOWN, 6).
 
 %%% Game type
 
@@ -58,52 +54,24 @@
 
 -define(PS_EMPTY, 0).
 -define(PS_PLAY, 1).
--define(PS_FOLD, 2).
--define(PS_WAIT_BB, 4).
--define(PS_SIT_OUT, 8).
--define(PS_MAKEUP_BB, 16).
--define(PS_ALL_IN, 32).
--define(PS_BET, 64). 
--define(PS_RESERVED, 128). % reserved seat
--define(PS_AUTOPLAY, 256).
--define(PS_MUCK, 512). % will show cards
--define(PS_OUT, 1024). % can't play anymore
+-define(PS_BET, 2). 
+-define(PS_ALL_IN, 4).
+-define(PS_FOLD, 8).
 
 -define(PS_ANY, 
   ?PS_PLAY bor
-  ?PS_FOLD bor
-  ?PS_WAIT_BB bor
-  ?PS_SIT_OUT bor
-  ?PS_MAKEUP_BB bor
+  ?PS_BET bor
   ?PS_ALL_IN bor
-  ?PS_BET bor 
-  ?PS_AUTOPLAY).
+  ?PS_FOLD).
 
--define(PS_ACTIVE, 
-  ?PS_PLAY bor 
-  ?PS_MAKEUP_BB).
-
--define(PS_BB_ACTIVE, 
+-define(PS_STANDING,
   ?PS_PLAY bor
-  ?PS_WAIT_BB bor
-  ?PS_MAKEUP_BB).
+  ?PS_BET bor
+  ?PS_ALL_IN).
 
 -define(PS_READY,
   ?PS_STANDING bor
-  ?PS_BB_ACTIVE bor
   ?PS_FOLD).
-
--define(PS_STANDING, 
-  ?PS_PLAY bor
-  ?PS_ALL_IN bor
-  ?PS_BET).
-
--define(PS_CAN_LEAVE,
-  ?PS_FOLD bor
-  ?PS_OUT bor
-  ?PS_WAIT_BB bor
-  ?PS_SIT_OUT bor
-  ?PS_MAKEUP_BB).
 
 %%% Face
 
@@ -189,14 +157,12 @@
     headsup = false,
     sb_amt = 0,
     bb_amt = 0,
-    raise_count = 0,            %% number of raises so far
     call = 0,
-    exp_player = none,          %% expecting player
     exp_seat = none,            %% expecting seat
     exp_amt = 0,                %% expecting amount
     exp_min = 0,                %% expecting min amount
     exp_max = 0,                %% expecting max amount
-    stage = ?GS_CANCEL,         %% current stage
+    stage = ?UNDEF,             %% current stage
     winners = []                %% last winners
   }).
 

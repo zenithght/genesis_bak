@@ -47,7 +47,7 @@ advance_blinds(B, #texas{seats = S}) ->
 
 blind([], Ctx) -> Ctx;
 blind([{Seat = #seat{pid = PId, sn = SN}, Amt}|T], Ctx = #texas{gid = Id}) ->
-  NewCtx = game:cost(Seat, Amt, Ctx),
-  game:notify(#notify_blind{ game = Id, player = PId, call = Amt }, NewCtx),
-  game:notify_state(SN, NewCtx),
-  blind(T, NewCtx).
+  NewCtx = game:bet({Seat, Amt}, Ctx),
+  RecoverSeats = seat:set(SN, ?PS_PLAY, NewCtx#texas.seats),
+  game:broadcast(#notify_blind{ game = Id, player = PId, call = Amt }, NewCtx),
+  blind(T, NewCtx#texas{seats = RecoverSeats}).

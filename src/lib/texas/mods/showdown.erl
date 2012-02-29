@@ -2,8 +2,12 @@
 
 -export([start/3]).
 
--include("texas.hrl").
--include_lib("eunit/include/eunit.hrl").
+-include("common.hrl").
+-include("game.hrl").
+
+%%%
+%%% callback
+%%%
 
 start(Game, Ctx, []) ->
   g:show_cards(Game, Ctx#texas.b),
@@ -26,7 +30,7 @@ start(Game, Ctx, []) ->
   {stop, Game2, Ctx1}.
 
 %%%
-%%% Utility
+%%% private
 %%%
 
 notify_hands(_, []) ->

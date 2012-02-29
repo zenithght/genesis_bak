@@ -16,7 +16,7 @@ start([N, shared], Ctx) ->
 %%%
 %%% private
 %%%
-player
+
 draw([], Ctx) -> Ctx;
 draw([H = #seat{hand = Hand, pid = PId, process = P}|T], Ctx = #texas{gid = Id, deck = D, seats = S}) ->
   {ND, Card} = deck:draw(D),

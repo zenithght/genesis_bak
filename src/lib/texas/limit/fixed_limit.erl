@@ -1,9 +1,8 @@
 -module(fixed_limit).
 -behaviour(limit).
-
 -export([blinds/2, raise/5]).
 
--include("texas.hrl").
+-include("game.hrl").
 
 raise(Low, _, _, _, Stage) 
   when ?GS_PREFLOP == Stage; 

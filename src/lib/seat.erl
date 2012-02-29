@@ -1,5 +1,5 @@
 -module(seat).
--export([new/1, set/2, lookup/2, lookup/3]).
+-export([new/1, set/2, set/3, lookup/2, lookup/3]).
 
 -include("common.hrl").
 -include("game.hrl").
@@ -18,6 +18,11 @@ lookup(Mask, Seats) ->
 
 set(Seat = #seat{sn = SN}, Seats) ->
   setelement(SN, Seats, Seat).
+
+set(#seat{sn = SN}, State, Seats) -> set(SN, State, Seats);
+set(SN, State, Seats) when is_integer(SN) ->
+  S = element(SN, Seats),
+  setelement(SN, Seats, S#seat{state = State}).
 
 %%%
 %%% private
@@ -60,6 +65,11 @@ new_test() ->
   Last = element(4, R),
   ?assertEqual(1, First#seat.sn),
   ?assertEqual(4, Last#seat.sn).
+
+set_test() ->
+  R = set(#seat{sn = 3}, ?PS_PLAY, new(4)),
+  [R1] = seat:lookup(?PS_PLAY, R),
+  ?assertEqual(?PS_PLAY, R1#seat.state).
 
 lookup_test() ->
   All = new(5),
