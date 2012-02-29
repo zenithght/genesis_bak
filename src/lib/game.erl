@@ -129,22 +129,22 @@ default_mods() ->
     {blinds, []},
     %% deal 2 cards to each player
     {deal_cards, [2, private]}, 
-    {rank, []}, 
+    {ranking, []}, 
     %% start after BB, 3 raises
     {betting, [?MAX_RAISES, ?GS_PREFLOP, true]}, 
     %% show 3 shared cards
     {deal_cards, [3, shared]}, 
-    {rank, []}, 
+    {ranking, []}, 
     %% flop
     {betting, [?MAX_RAISES, ?GS_FLOP]}, 
     %% show 1 more shared card
     {deal_cards, [1, shared]}, 
-    {rank, []}, 
+    {ranking, []}, 
     %% turn
     {betting, [?MAX_RAISES, ?GS_TURN]}, 
     %% show 1 more shared card
     {deal_cards, [1, shared]}, 
-    {rank, []}, 
+    {ranking, []}, 
     %% river
     {betting, [?MAX_RAISES, ?GS_RIVER]}, 
     %% showdown

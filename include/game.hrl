@@ -93,11 +93,6 @@
   ?PS_BB_ACTIVE bor
   ?PS_FOLD).
 
--define(PS_SHOWDOWN, 
-  ?PS_PLAY bor
-  ?PS_BET bor
-  ?PS_ALL_IN).
-
 -define(PS_STANDING, 
   ?PS_PLAY bor
   ?PS_ALL_IN bor
@@ -148,8 +143,6 @@
 -define(HC_STRAIGHT_FLUSH, 8).
 
 -record(hand, {
-    player = none,
-    pid = none,
     cards = [], 
     rank = none,
     high1 = none,

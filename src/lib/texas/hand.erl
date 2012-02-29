@@ -1,27 +1,13 @@
 -module(hand).
-
-%%%
-%%% Poker hand
-%%%
-
--export([new/2, new/3, add/2, rank/1]).
-
+-export([new/0, new/1, add/2, rank/1, merge/2]).
 -export([make_card/1, make_card/2, make_cards/1, print_bin/1, 
          print_rep/1, to_string/1, player_hand/1, card_to_string/1]).
 
+-include("game.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
--include("texas.hrl").
-
-new(Player, PID) ->
-    new(Player, PID, []).
-
-new(Player, PID, Cards) ->
-    #hand{ 
-     player = Player, 
-     pid = PID,
-     cards = Cards 
-    }.
+new() -> new([]).
+new(Cards) -> #hand{ cards = Cards }.
 
 add(Hand, Card) ->
     Hand#hand{ cards = [Card|Hand#hand.cards] }.
@@ -55,6 +41,11 @@ rank(Hand, [], Rep) ->
   Mask = make_mask(Rep),
   High = bits:clear_extra_bits(Mask, 5),
   Hand#hand{ rank = ?HC_HIGH_CARD, high1 = High, score = 0 }.
+
+merge(Hand, []) -> Hand;
+merge(Hand, [H|T]) ->
+  merge(add(Hand, H), T).
+
 
 is_straight_flush(Hand, Rep) ->
     Mask = make_mask(Rep),
@@ -442,7 +433,7 @@ make_rep_test() ->
   = make_rep(make_cards("4D JH 5D 8C QD TD 7H")).
 
 rank_test_hand(Cards) ->
-    Hand = new(0, 0, make_cards(Cards)),
+    Hand = new(make_cards(Cards)),
     rank(Hand).
 
 rank_test_player_hand(Cards) ->
@@ -875,6 +866,3 @@ print_rep({C, D, H, S}) ->
     io:format("D: ~14.2.0B~n", [D]),
     io:format("H: ~14.2.0B~n", [H]),
     io:format("S: ~14.2.0B~n", [S]).
-
-
-    
