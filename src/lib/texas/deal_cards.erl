@@ -1,17 +1,31 @@
 -module(deal_cards).
+-export([start/2]).
 
--export([start/3]).
+-include("game.hrl").
+-include("protocol.hrl").
 
--include("texas.hrl").
+start([0, private], Ctx) -> {stop, Ctx};
+start([N, private], Ctx = #texas{b = B, seats = S}) ->
+  Seats = seat:lookup(?PS_STANDING, B, S),
+  start([N-1, private], draw(Seats, Ctx));
 
-start(Game, Ctx, [N, Type]) ->
-    Ctx1 = Ctx#texas{ deal_type = Type, deal_count = N },
-    Game1 = case Type of
-                private ->
-                    B = Ctx1#texas.b,
-                    Seats = g:get_seats(Game, B, ?PS_STANDING),
-                    g:draw(Game, Seats, N);
-                shared ->
-                    g:draw_shared(Game, N)
-            end,
-    {stop, Game1, Ctx1}.
+start([0, shared], Ctx) -> {stop, Ctx};
+start([N, shared], Ctx) ->
+  start([N-1, shared], draw_shared(Ctx)).
+
+%%%
+%%% private
+%%%
+player
+draw([], Ctx) -> Ctx;
+draw([H = #seat{hand = Hand, pid = PId, process = P}|T], Ctx = #texas{gid = Id, deck = D, seats = S}) ->
+  {ND, Card} = deck:draw(D),
+  NS = H#seat{ hand = hand:add(Hand, Card) },
+  game:broadcast(#notify_draw{game = Id, player = PId, card = 0}, Ctx),
+  player:notify(P, #notify_private{game = Id, player = PId, card = Card}),
+  draw(T, Ctx#texas{ seats = seat:set(NS, S), deck = ND}).
+
+draw_shared(Ctx = #texas{gid = Id, deck = D, board = B}) ->
+  {ND, Card} = deck:draw(D),
+  game:broadcast(#notify_shared{ game = Id, card = Card }, Ctx),
+  Ctx#texas{ board = [Card|B], deck = ND }.

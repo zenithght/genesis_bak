@@ -1,183 +1,53 @@
 -module(blinds).
--export([start/3, small_blind/3, big_blind/3]).
+-export([start/2]).
 
--include("texas.hrl").
+-include("common.hrl").
+-include("schema.hrl").
+-include("game.hrl").
+-include("protocol.hrl").
 
-start(Game, Ctx, []) ->
-  start(Game, Ctx, [normal]);
+%%%
+%%% callback
+%%%
 
-start(Game, Ctx, [Type]) ->
-  {Small, Big} = (Game#game.limit):blinds(Game#game.low, Game#game.high),
+start([], Ctx = #texas{gid = Id, limit = Limit}) ->
+  {SmallAmt, BigAmt} = limit:blinds(Limit),
 
-  Ctx1 = Ctx#texas{
-    sb_amt = Small, bb_amt = Big, sb_bet = 0.0,
-    no_sb = false, sb_all_in = false, blind_type = Type 
-  },
+  Button = advance_button(Ctx),
+  game:notify(#notify_button{ game = Id, button = Button#seat.sn }, Ctx),
 
-  %% advance button and broadcast position
-  Button = advance_button(Game, Ctx1),
-  Game1 = g:broadcast(Game, 
-    #notify_button{ game = Game#game.gid, button = Button }
-  ),
+  {Small, Big, Headsup} = advance_blinds(Button, Ctx),
+  game:notify(#notify_sb{ game = Id, sb = Small#seat.sn }, Ctx),
+  game:notify(#notify_bb{ game = Id, bb = Big#seat.sn }, Ctx),
 
-  %% 确定大小盲并下盲注
-  AllPlayers = g:get_seats(Game1, Button, ?PS_ACTIVE),
-  L = length(AllPlayers),
-  HeadsUp = (L == 2), %% 除庄家外只有一个玩家
+  BlindedCtx = blind([{Small, SmallAmt}, {Big, BigAmt}], Ctx),
+  ?LOG([{exch, blind}, {button, Button}, {small, Small}, {big, Big}]),
 
-  if
-    L < 2 ->
-      {goto, top, Game1, Ctx1};
-    HeadsUp ->
-      %% 一对一时特殊规则生效
-      %% 庄家下小盲注，对家下大盲注
-      %% 首次行动由庄家先叫，之后每次都为对家先叫
-      Ctx2 = Ctx1#texas{ b = Button, headsup = true },
-      ask_for_blind(Game1, Ctx2, Button, Ctx2#texas.sb_amt, small_blind);
-    true ->
-      Ctx2 = Ctx1#texas{ b = Button, sb = hd(AllPlayers) },
-      ask_for_blind(Game1, Ctx2, Ctx2#texas.sb, Ctx2#texas.sb_amt, small_blind)
-  end.
-
-%% small blind state
-small_blind(Game, Ctx, #raise{ player = Player }) 
-  when Ctx#texas.exp_player /= Player ->
-    {continue, Game, Ctx};
-
-small_blind(Game, Ctx, R = #raise{ raise = Raise }) when Raise == 0.0 ->
-  post_sb(Game, Ctx, R);
-
-small_blind(Game, Ctx, R = #join{}) ->
-  join(Game, Ctx, R);
-
-small_blind(Game, Ctx, R = #leave{}) ->
-  leave(Game, Ctx, R, small_blind);
-
-small_blind(Game, Ctx, R) when 
-  is_record(R, sit_out); 
-  is_record(R, come_back) ->
-    {skip, Game, Ctx};
-
-small_blind(Game, Ctx, _Event) ->
-  {continue, Game, Ctx}.
-
-%%% big blind
-big_blind(Game, Ctx, #raise{ player = Player }) when 
-  Ctx#texas.exp_player /= Player ->
-    {continue, Game, Ctx};
-
-big_blind(Game, Ctx, R = #raise{ raise = Raise }) when Raise == 0.0 ->
-  post_bb(Game, Ctx, R);
-
-big_blind(Game, Ctx, R) when
-  is_record(R, sit_out); 
-  is_record(R, come_back) ->
-    {skip, Game, Ctx};
-
-big_blind(Game, Ctx, R = #join{}) ->
-  join(Game, Ctx, R);
-
-big_blind(Game, Ctx, R = #leave{}) ->
-  leave(Game, Ctx, R, big_blind);
-
-big_blind(Game, Ctx, _Event) ->
-  {continue, Game, Ctx}.
+  {stop, BlindedCtx#texas{
+      sb_amt = SmallAmt, bb_amt = BigAmt,
+      b = Button, sb = Small, bb = Big, headsup = Headsup
+  }}.
 
 %%
-%% Utility
+%% private
 %%
-advance_button(Game, Ctx) ->
-  case Ctx#texas.b of
-    none ->
-      %% 新的牌局开始时庄家自动选择
-      AllPlayers = g:get_seats(Game, ?PS_PLAY),
-      lists:last(AllPlayers);
-    _ ->
-      Players = g:get_seats(Game, Ctx#texas.b, ?PS_PLAY),
-      hd(Players)
+
+advance_button(#texas{b = B, seats = S}) when B =:= ?UNDEF ->
+  [H|_] = seat:lookup(?PS_PLAY, S), H;
+advance_button(#texas{b = B, seats = S}) ->
+  [H|_] = seat:lookup(?PS_PLAY, B, S), H.
+
+advance_blinds(B, #texas{seats = S}) ->
+  case seat:lookup(?PS_PLAY, B, S) of
+    [Hb] -> % headsup game whit two player (button is small)
+      {B, Hb, true};
+    [Hs|[Hb|_]] ->
+      {Hs, Hb, false}
   end.
 
-ask_for_blind(Game, Ctx, N, Amount, State) ->
-  Seat = g:get_seat(Game, N),
-  Player = Seat#seat.player,
-  Ctx1 = Ctx#texas{ exp_player = Player, exp_seat = N, exp_amt = Amount },
-
-  %% 每局自动下盲注
-  R = #raise{ player = Player, raise = 0.0 },
-  Game1 = g:cancel_timer(Game),
-
-  case State of
-    small_blind -> 
-      g:broadcast(Game1, _ = #notify_sb{sb = N, game = Game1#game.gid}),
-      post_sb(Game1, Ctx1, R);
-    big_blind ->
-      g:broadcast(Game1, _ = #notify_bb{bb = N, game = Game1#game.gid}),
-      post_bb(Game1, Ctx1, R)
-  end.
-
-post_sb(Game, Ctx, #raise{ player = Player, raise = 0.0 }) ->
-  N = Ctx#texas.exp_seat,
-  Amt = Ctx#texas.exp_amt,
-  Seat = g:get_seat(Game, N),
-
-  %% 为玩家下小盲注
-  Ctx1 = Ctx#texas{ sb = N, sb_bet = Amt },
-  Game1 = g:add_bet(Game, Player, Amt),
-  Game2 = g:broadcast(Game1, #notify_blind { 
-      game = Game1#game.gid, 
-      player = Seat#seat.pid,
-      call = Amt
-    }),
-
-  Game3 = g:notify_state(Game2, N),
-
-  %% 问玩家下大盲注
-  BBPlayers = g:get_seats(Game3, N, ?PS_ACTIVE),
-  ask_for_blind(Game3, Ctx1, hd(BBPlayers), Ctx1#texas.bb_amt, big_blind).
-
-post_bb(Game, Ctx, #raise{ player = Player, raise = 0.0 }) ->
-  N = Ctx#texas.exp_seat,
-  Amt = Ctx#texas.exp_amt,
-  Seat = g:get_seat(Game, N),
-
-  Ctx1 = Ctx#texas{ bb = N, call = Amt,
-    %% 由其他模块决定谁应该行动
-    exp_seat = none,
-    exp_player = none,
-    exp_amt = 0.0
-  },
-
-  %% 为玩家下小盲注
-  Game1 = g:add_bet(Game, Player, Amt),
-  Game2 = g:broadcast(Game1, #notify_blind { 
-      game = Game1#game.gid, 
-      player = Seat#seat.pid,
-      call = Amt
-    }
-  ),
-  Game3 = g:notify_state(Game2, N),
-
-  %% 结束盲注
-  {stop, Game3, Ctx1}.
-
-join(Game, Ctx, R) ->
-  join(Game, Ctx, R, ?PS_MAKEUP_BB).
-
-join(Game, Ctx, R, State) ->
-  Game1 = g:join(Game, R#join{ state = State }),
-  {continue, Game1, Ctx}.
-
-leave(Game, Ctx, R, State) ->
-  Player = R#leave.player,
-  {Seat, _} = g:get_seat(Game, Player),
-  PS = if
-    (State == big_blind) and (Seat == Ctx#texas.sb) ->
-      %% fold and leave next time 
-      %% a bet is requested from us
-      ?PS_CAN_LEAVE;
-    true ->
-      %% leave now
-      ?PS_ANY
-  end,
-  Game1 = g:leave(Game, R#leave{ state = PS }),
-  {continue, Game1, Ctx}.
+blind([], Ctx) -> Ctx;
+blind([{Seat = #seat{pid = PId, sn = SN}, Amt}|T], Ctx = #texas{gid = Id}) ->
+  NewCtx = game:cost(Seat, Amt, Ctx),
+  game:notify(#notify_blind{ game = Id, player = PId, call = Amt }, NewCtx),
+  game:notify_state(SN, NewCtx),
+  blind(T, NewCtx).

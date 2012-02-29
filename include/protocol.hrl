@@ -1,6 +1,10 @@
-%%% Copyright (C) 2005-2008 Wager Labs, SA
+-ifndef(ERR_UNKNOWN).
+  -define(ERR_UNKNOWN, 0).
+-endif.
 
+%%%
 %%% Commands
+%%%
 
 -define(CMD_BAD, 255).
 

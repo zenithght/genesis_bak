@@ -19,7 +19,6 @@ lookup(Mask, Seats) ->
 set(Seat = #seat{sn = SN}, Seats) ->
   setelement(SN, Seats, Seat).
 
-
 %%%
 %%% private
 %%%

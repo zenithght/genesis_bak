@@ -168,7 +168,7 @@
 -record(seat, {
     sn = ?UNDEF,
     pid = ?UNDEF,               %% player id
-    player = ?UNDEF,            %% player process
+    process = ?UNDEF,            %% player process
     hand = [],                  %% cards
     bet = 0,                    %% total bet
     inplay = 0,                 %% inplay balance
@@ -185,7 +185,7 @@
     pot,            %% pot structure
     deck,          %% card deck
     board = [],                 %% shared cards list
-    observers = [],             %% game observers
+    observers = [],             %% game observers [{pid, process}] -> proplists
     required = 2,               %% players required to start a game
     joined = 0,
     b = ?UNDEF,                 %% button

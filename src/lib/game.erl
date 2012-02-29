@@ -81,7 +81,28 @@ start(Conf = #tab_game_config{}, N) ->
 
 join(Id) ->
   gen_server:cast(?LOOKUP_GAME(Id), join).
-  
+
+cost({S = #seat{inplay = Inplay, pid = PID}, Amt}, Ctx = #texas{seats = Seats}) when Amt =< Inplay ->
+  NewInplay = mnesia:dirty_update_counter(tab_inplay, PID, 0 - Amt),
+  case NewInplay =:= (Inplay - Amt) of
+    true ->
+      NewSeats = seat:set(S#seat{inplay = NewInplay}, Seats),
+      Ctx#texas{seats = NewSeats};
+    _ ->
+      exit({inplay_error, {seat, S}, {cost, Amt}})
+  end.
+
+broadcast(Msg, #texas{observers = Obs}, []) ->
+  broadcast(Msg, Obs);
+broadcast(Msg, Ctx = #texas{observers = Obs}, [H|T]) ->
+  broadcast(Msg, Ctx#texas{observers = proplists:delete(H, Obs)}, T).
+
+broadcast(Msg, []) -> ok;
+broadcast(Msg, #texas{observers = Obs}) -> 
+  broadcast(Msg, Obs);
+broadcast(Msg, [{_, Process}|T]) ->
+  player:notify(Process, Msg),
+  broadcast(Msg, T).
 
 %%%
 %%% private
