@@ -41,7 +41,9 @@ lookup(Mask, Seats, Size, At, N, Acc) ->
 
 check(?PS_EMPTY, ?PS_EMPTY) -> true;
 check(_, ?PS_EMPTY) -> false;
-check(State, Mask) -> (State band Mask) =:= Mask.
+check(?PS_EMPTY, _) -> false;
+check(State, Mask) -> 
+  (State band Mask) =:= State.
 
   
 
@@ -82,6 +84,11 @@ lookup_at_test() ->
 
 lookup_mask_test() ->
   S = #seat{sn = 3, state = ?PS_PLAY},
+  
   R = seat:lookup(?PS_EMPTY, seat:set(S, new(5))),
   ?assertEqual(4, length(R)),
-  ?assertEqual(4, (lists:nth(3, R))#seat.sn).
+  ?assertEqual(4, (lists:nth(3, R))#seat.sn),
+
+  R1 = seat:lookup(?PS_STANDING, seat:set(S, new(5))),
+  ?assertEqual(1, length(R1)),
+  ?assertEqual(3, (lists:nth(1, R1))#seat.sn).
