@@ -9,7 +9,6 @@
 -include("schema.hrl").
 
 -record(pdata, { port, host }).
--record(client, { server = global:whereis_name(server), player = ?UNDEF }).
 
 %%%
 %%% callback
@@ -17,7 +16,7 @@
 
 init([Host, Port]) ->
   process_flag(trap_exit, true), 
-  {ok, _} = websocket_server:start(Host, Port, fun loop/3),
+  {ok, _} = websocket_server:start(Host, Port, fun client:loop/2),
   {ok, #pdata{ host = Host, port = Port }}.
 
 handle_cast(stop, Data) ->
@@ -167,15 +166,3 @@ start(Host, Port) ->
 
 stop() ->
   gen_server:cast({global, server}, stop).
-
-%%% private 
-
-%% handshake successful, init socket loop data
-loop(Client, handshake, ?UNDEF) -> #client{};
-loop(Client, disconnected, #client{}) -> ok;
-
-loop(Client, {recv, Data}, C = #client{}) when is_binary(Data) ->
-  loop(Client, {recv, pp:read(Data)}, C);
-
-loop(Client, {recv, #login{}}, #client{player = P}) when P =:= ?UNDEF ->
-  #client{player = new_player_process}.
