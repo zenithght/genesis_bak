@@ -1,6 +1,7 @@
 -module(betting).
 -export([start/2, betting/2]).
 
+-include("common.hrl").
 -include("game.hrl").
 -include("protocol.hrl").
 
@@ -22,35 +23,49 @@ betting({timeout, _, ?MODULE}, Ctx = #texas{exp_seat = Exp}) ->
   NotTimerCtx = cancel_timer(Ctx),
   betting(#fold{ player = Exp#seat.pid }, NotTimerCtx);
 
-% raise amount is invalid
-% e.g: R < 0; R > I; I =< 0;
+%%%
+%%% raise invalid case
+%%%
+
 betting(#raise{ player = P, raise = R }, Ctx) when R < 0 -> 
+  ?LOG([{betting, raise_error}, {raise, R}]),
   betting(#fold{ player = P }, Ctx);
-
 betting(#raise{ player = P, raise = R}, Ctx = #texas{exp_amt = Amt, exp_seat = Exp})
-when (R + Amt) > Exp#seat.inplay -> 
+when (R + Amt) > Exp#seat.inplay; R < Ctx#texas.exp_min; R > Ctx#texas.exp_max -> 
+  ?LOG([{betting, raise_error}, {raise, R}, {exp_amt, Amt}, {exp_min, Ctx#texas.exp_min}, {exp_max, Ctx#texas.exp_max}]),
   betting(#fold{ player = P }, Ctx);
-
 betting(#raise{ player = P }, Ctx = #texas{exp_seat = Exp})
 when Exp#seat.inplay =< 0 -> 
+  ?LOG([{betting, raise_error}, {inplay, Exp#seat.inplay}]),
   betting(#fold{ player = P }, Ctx);
 
-% raise normal case
+%%%
+%%% raise normal case
+%%%
+
 betting(#raise{ raise = 0 }, Ctx = #texas{exp_seat = Exp, exp_amt = 0}) ->        % check
-  check;
+  CheckedCtx = game:bet({Exp, 0}, Ctx),
+  next_turn(Exp, CheckedCtx);
 betting(#raise{ raise = 0 }, Ctx = #texas{exp_seat = Exp, exp_amt = Amt})         % poor all_in
 when Exp#seat.inplay < Amt ->
-  all_in;
-betting(#raise{ raise = 0 }, Ctx = #texas{exp_seat = Exp, exp_amt = Amt}) ->      % call
-  call;
+  PooredCtx = game:bet({Exp, Exp#seat.inplay}, Ctx),
+  next_turn(Exp, PooredCtx);
+betting(#raise{ raise = 0 }, Ctx = #texas{exp_seat = Exp, exp_amt = Amt}) ->      % call & check
+  CalledCtx = game:bet({Exp, Amt}, Ctx),
+  next_turn(Exp, CalledCtx);
+betting(#raise{ raise = R }, Ctx = #texas{exp_seat = Exp, exp_amt = Amt}) ->      % raise & all_in
+  BettedCtx = game:bet({Exp, R + Amt}, Ctx),
+  Fun = fun(Seat) when Exp#seat.sn /= Seat#seat.sn ->
+      Seat#seat{state = ?PS_PLAY}
+  end,
+  RecoverSeats = lists:map(Fun, seat:lookup(?PS_BET, BettedCtx#texas.seats)),
+  RaisedCtx = BettedCtx#texas{call = R + Amt, seats = RecoverSeats},
+  next_turn(Exp, RaisedCtx);
 
-betting(#raise{ raise = R }, Ctx = #texas{exp_seat = Exp, exp_amt = Amt})         % raise all_in
-when (R + Amt) =:= Exp#seat.inplay  ->
-  all_in;
-betting(#raise{ raise = R }, Ctx = #texas{exp_seat = Exp, exp_amt = Amt}) ->      % raise
-  raise;
+%%%
+%%% fold
+%%%
 
-% fold
 betting(#fold{player = P}, Ctx = #texas{exp_seat = Exp}) when Exp#seat.pid /= P ->
   {continue, Ctx};
 betting(#fold{}, Ctx = #texas{seats = S, exp_seat = Exp}) ->
@@ -62,16 +77,15 @@ betting(#fold{}, Ctx = #texas{seats = S, exp_seat = Exp}) ->
 betting(_Msg, Ctx) ->
   {skip, Ctx}.
 
-
 %%%
 %%% private
 %%%
 
 ask(At = #seat{}, Ctx = #texas{seats = S}) ->
   ask(seat:lookup(?PS_PLAY, S, At), Ctx);
-ask([_H], Ctx = #texas{seats = S}) ->
+ask([_H], Ctx = #texas{}) ->
   {stop, Ctx};
-ask([H|_], Ctx = #texas{seats = S}) ->
+ask([H|_], Ctx = #texas{}) ->
   ask_for_bet(H, Ctx).
   
 ask_for_bet(H = #seat{inplay = I, sn = SN, bet = B}, Ctx = #texas{gid = Id, call = C, pot = Pot, limit = L, stage = S}) ->

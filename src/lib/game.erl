@@ -82,8 +82,6 @@ start(Conf = #tab_game_config{}, N) ->
 join(Id) ->
   gen_server:cast(?LOOKUP_GAME(Id), join).
 
-bet({_S, Amt}, _Ctx) when Amt =< 0 -> exit(amt_zero);
-bet({#seat{inplay = Inplay}, Amt}, _Ctx) when Amt > Inplay -> exit(amt_more_inplay);
 bet({S = #seat{inplay = Inplay, bet = Bet, pid = PID}, Amt}, Ctx = #texas{pot = Pot, seats = Seats}) ->
   {State, AllIn} = case Amt < Inplay of 
     true -> {?PS_BET, false}; 
