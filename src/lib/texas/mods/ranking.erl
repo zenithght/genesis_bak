@@ -1,6 +1,6 @@
 -module(ranking).
 -export([start/2]).
--export([notify/1]).
+-export([rank/1, notify/1]).
 
 -include("game.hrl").
 -include("protocol.hrl").
@@ -17,10 +17,12 @@ start([], Ctx) ->
 %%% client
 %%%
 
-notify(Ctx = #texas{seats = S, board = Cards}) ->
+rank(#texas{seats = S, board = Cards}) ->
   Seats = seat:lookup(?PS_STANDING, S),
-  RankedSeats = rank(Seats, Cards, []),
-  notify(RankedSeats, Ctx).
+  rank(Seats, Cards, []).
+
+notify(Ctx) ->
+  notify(rank(Ctx), Ctx).
 
 %%% 
 %%% private

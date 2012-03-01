@@ -53,25 +53,26 @@
 %%% Player state
 
 -define(PS_EMPTY, 0).
--define(PS_PLAY, 1).
--define(PS_BET, 2). 
--define(PS_ALL_IN, 4).
--define(PS_FOLD, 8).
+-define(PS_PLAY, 1).      %% player is not bet or other player is raised
+-define(PS_BET, 2).       %% player was betted
+-define(PS_ALL_IN, 4).    %% player inplay all in pot
+-define(PS_FOLD, 8).      %% player fold
+-define(PS_OUT, 16).      %% player out when inplay not enough
+-define(PS_LEAVE, 32).    %% player is leave but game is not over
 
--define(PS_ANY, 
-  ?PS_PLAY bor
-  ?PS_BET bor
-  ?PS_ALL_IN bor
-  ?PS_FOLD).
-
--define(PS_STANDING,
+-define(PS_STANDING,      %% player is survive game
   ?PS_PLAY bor
   ?PS_BET bor
   ?PS_ALL_IN).
 
--define(PS_READY,
+-define(PS_READY,         %% player ready to play game again
   ?PS_STANDING bor
   ?PS_FOLD).
+
+-define(PS_ANY, 
+  ?PS_STANDING bor
+  ?PS_FOLD bor
+  ?PS_LEAVE).
 
 %%% Face
 
@@ -111,19 +112,21 @@
 -define(HC_STRAIGHT_FLUSH, 8).
 
 -record(hand, {
+    pid = ?UNDEF,
+    seat_sn = ?UNDEF,
     cards = [], 
-    rank = none,
-    high1 = none,
-    high2 = none,
-    suit = ?CS_NONE,
+    rank = ?UNDEF,
+    high1 = ?UNDEF,
+    high2 = ?UNDEF,
+    suit = ?UNDEF,
     score = 0
   }).
 
 -record(player_hand, {
     rank = ?HC_HIGH_CARD,
-    high1 = ?CF_NONE,
-    high2 = ?CF_NONE,
-    suit = ?CS_NONE
+    high1 = ?UNDEF,
+    high2 = ?UNDEF,
+    suit = ?UNDEF
   }).
 
 -record(seat, {

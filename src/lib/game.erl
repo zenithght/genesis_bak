@@ -3,7 +3,7 @@
 
 -export([id/0, init/2, stop/1, dispatch/2, call/2]).
 -export([start/0, start/1, start/2]).
--export([join/1, bet/2, broadcast/2, broadcast/3]).
+-export([join/1, bet/2, reward/3, broadcast/2, broadcast/3]).
 
 -include("common.hrl").
 -include("schema.hrl").
@@ -92,9 +92,15 @@ bet({S = #seat{inplay = Inplay, bet = Bet, pid = PID}, Amt}, Ctx = #texas{pot = 
   NewPot = pot:add(Pot, PID, Amt, AllIn),
   Ctx#texas{seats = NewSeats, pot = NewPot}.
 
+reward(#hand{seat_sn = SN, pid = PId}, Amt, Ctx = #texas{seats = S}) when Amt > 0 ->
+  NewInplay = mnesia:dirty_update_counter(tab_inplay, PId, Amt),
+  Seat = seat:get(SN, S),
+  RewardedSeats = seat:set(Seat#seat{inplay = NewInplay}, S),
+  Ctx#texas{seats = RewardedSeats}.
+
 broadcast(Msg, #texas{observers = Obs}, []) ->
   broadcast(Msg, Obs);
-broadcast(Msg, Ctx = #texas{observers = Obs}, [H|T]) ->
+broadcast(Msg, Ctx = #texas{observers = Obs}, _Exclude = [H|T]) ->
   broadcast(Msg, Ctx#texas{observers = proplists:delete(H, Obs)}, T).
 
 broadcast(_Msg, []) -> ok;

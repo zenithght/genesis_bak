@@ -1,78 +1,75 @@
 -module(showdown).
-
--export([start/3]).
+-export([start/2]).
 
 -include("common.hrl").
 -include("game.hrl").
+-include("protocol.hrl").
 
 %%%
 %%% callback
 %%%
 
-start(Game, Ctx, []) ->
-  g:show_cards(Game, Ctx#texas.b),
+start([], Ctx = #texas{gid = Id, seats = S, pot = P}) ->
+  RankedSeats = ranking:rank(Ctx),
+  Winners = winners(RankedSeats, pot:pots(P)),
 
-  Ranks = g:rank_hands(Game),
-  notify_hands(Game, Ranks),
+  show_cards(seat:lookup(?PS_ANY, S), Ctx),
 
-  Pots = g:pots(Game),
-  Winners = gb_trees:to_list(winners(Ranks, Pots)),
-  Game1 = notify_winners(Game, Winners),
+  broadcast_ranks(RankedSeats, Ctx),
+  broadcast_winners(Winners, Ctx),
 
-  %% TODO 将所有金额不足的玩家重新设置状态
-  {_, Big} = (Game1#game.limit):blinds(Game1#game.low, Game1#game.high),
-  Game2 = check_inplay(g:get_seats(Game, ?PS_ANY), Big, Game1),
+  RewardedCtx = reward_winners(Winners, Ctx),
+  RewardedSeats = RewardedCtx#texas.seats,
+  KickedCtx = kick_poor_players(set:lookup(?PS_READY, RewardedSeats), RewardedCtx),
 
-  %% 游戏结束
-  g:broadcast(Game2, #notify_end_game{ game = Game2#game.gid }),
-  Ctx1 = Ctx#texas{ winners = Winners },
+  game:broadcast(#notify_end_game{ game = Id }, KickedCtx),
 
-  {stop, Game2, Ctx1}.
+  {stop, KickedCtx}.
 
 %%%
 %%% private
 %%%
 
-notify_hands(_, []) ->
-    ok;
+show_cards([], _Ctx) -> ok;
+show_cards([#seat{pid = PId, hand = Hand}|T], Ctx = #texas{gid = Id}) ->
+  game:broadcast(#show_cards{ game = Id, player = PId, cards = Hand#hand.cards}, Ctx, [PId]),
+  show_cards(T, Ctx).
 
-notify_hands(Game, [H|T]) ->
-    Hand = hand:player_hand(H),
-    Event = #notify_hand{
-      player = H#hand.pid,
-      game = Game#game.gid,
-      hand = Hand
-     },
-    Game1 = g:broadcast(Game, Event),
-    notify_hands(Game1, T).
+reward_winners([], Ctx) -> Ctx;
+reward_winners([{H = #hand{}, Amt}|T], Ctx) -> 
+  reward_winners(T, game:reward(H, Amt, Ctx)).
 
-notify_winners(Game, []) ->
-    Game;
+kick_poor_players([], Ctx) -> Ctx;
+kick_poor_players([#seat{sn = SN, inplay = Inplay}|T], Ctx = #texas{seats = S, limit = L})
+when L#limit.min > Inplay ->
+  kick_poor_players(T, Ctx#texas{seats = seat:set(SN, ?PS_OUT, S)}).
+      
+broadcast_ranks([], _Ctx) -> ok;
+broadcast_ranks([#seat{pid = PId, hand = Hand}|T], Ctx = #texas{gid = Id}) ->
+  PH = hand:player_hand(Hand),
+  game:broadcast(#notify_hand{ player = PId, game = Id, hand = PH }, Ctx),
+  broadcast_ranks(T, Ctx).
 
-notify_winners(Game, [{H, Amount}|T]) ->
-    Player = H#hand.player,
-    PID = H#hand.pid,
-    Cost = trunc(Amount * 0.02),
-    Game1 = g:inplay_plus(Game, Player, Amount - Cost),
-    Event = #notify_win{ 
-      game = Game1#game.gid, 
-      player = PID, 
-      amount = Amount,
-      cost = Cost
-     },
-    g:broadcast(Game1, Event),
-    notify_winners(Game1, T).
+broadcast_winners([], _Ctx) -> ok;
+broadcast_winners([{#hand{pid = PId}, Amt}|T], Ctx = #texas{gid = Id}) ->
+  game:broadcast(#notify_win{ game = Id, player = PId, amount = Amt }),
+  broadcast_winners(T, Ctx).
 
-winners(Ranks, Pots) ->
-    winners(Ranks, Pots, gb_trees:empty()).
+%% fuck code is here, winners comput to depend on record field position
+%% e.g lists:keysort(5, M) is sort by hand record five point field rank
+%% TODO use lists:sort(Fun, List) rework winners function
 
-winners(_Ranks, [], Winners) ->
-    Winners;
+winners(RankedSeats, Pots) ->
+  %% to cope fuck winners, set pid and process every seat hand
+  Fun = fun(#seat{pid = PId, sn = SN, hand = Hand}) -> 
+      Hand#hand{seat_sn = SN, pid = PId}
+  end, 
+  FuckedHands = list:map(Fun, RankedSeats),
+  gb_trees:to_list(winners(FuckedHands, Pots, gb_trees:empty())).
 
+winners(_Ranks, [], Winners) -> Winners;
 winners(Ranks, [{Total, Members}|Rest], Winners) ->
-    M = lists:filter(fun(Hand) -> 
-                             gb_trees:is_defined(Hand#hand.player, Members) 
-                     end, Ranks),
+    M = lists:filter(fun(#hand{pid = PId}) -> gb_trees:is_defined(PId, Members) end, Ranks),
     %% sort by rank and leave top ranks only
     M1 = lists:reverse(lists:keysort(5, M)),
     TopRank = element(5, hd(M1)),
@@ -94,10 +91,8 @@ winners(Ranks, [{Total, Members}|Rest], Winners) ->
 
 update_winners([], _Amount, Tree) ->
     Tree;
-
 update_winners([Player|Rest], Amount, Tree) ->
-    update_winners(Rest, Amount, 
-                   update_counter(Player, Amount, Tree)).
+  update_winners(Rest, Amount, update_counter(Player, Amount, Tree)).
 
 update_counter(Key, Amount, Tree) ->
     case gb_trees:lookup(Key, Tree) of
@@ -107,19 +102,3 @@ update_counter(Key, Amount, Tree) ->
         none ->
             gb_trees:insert(Key, Amount, Tree)
     end.
-
-check_inplay([], _Big, Game) ->
-  Game;
-
-check_inplay([SeatNum|T], Big, Game) -> 
-  Seat = element(SeatNum, Game#game.seats),
-  Inplay = Seat#seat.inplay,
-  PID = Seat#seat.pid,
-  Game1 = if
-    Inplay =< Big ->
-      erlang:start_timer(?PLAYER_OUT_TIMEOUT, self(), {out, SeatNum, PID}),
-      g:set_state(Game, SeatNum, ?PS_OUT);
-    true ->
-      Game
-  end,
-  check_inplay(T, Big, Game1).

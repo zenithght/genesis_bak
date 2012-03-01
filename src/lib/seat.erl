@@ -19,6 +19,9 @@ lookup(Mask, Seats) ->
 set(Seat = #seat{sn = SN}, Seats) ->
   setelement(SN, Seats, Seat).
 
+get(SN, Seats) ->
+  element(SN, Seats).
+
 set(#seat{sn = SN}, State, Seats) -> set(SN, State, Seats);
 set(SN, State, Seats) when is_integer(SN) ->
   S = element(SN, Seats),
