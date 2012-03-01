@@ -179,9 +179,9 @@ acceptor_loop({Server, Listen, Loop}) ->
       exit({error, accept_failed})
   end.
 
-do_get(port, #socket_server{port=Port}) ->
-  Port.
-
+do_get(port, #socket_server{port=Port}) -> Port;
+do_get(max, #socket_server{max=Max}) -> Max.
+  
 handle_call({get, Property}, _From, State) ->
   Res = do_get(Property, State),
   {reply, Res, State};
