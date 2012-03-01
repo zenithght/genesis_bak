@@ -90,22 +90,27 @@ get_header([], _FindKey) ->
   ok.
 
 loop(Socket, Fun, ?UNDEF) ->
-  LoopData = Fun(self(), handshake, ?UNDEF),
+  LoopData = Fun(handshake, ?UNDEF),
   loop(Socket, Fun, LoopData);
 loop(Socket, Fun, LoopData) ->
   NewLoopData = receive
+    close ->
+      gen_tcp:close(Socket),
+      exit(normal);
     {tcp, Socket, Bin} ->
       case decode(Bin) of
         tcp_closed ->
-          Fun(self(), disconnected, LoopData),
+          Fun(disconnected, LoopData),
           gen_tcp:close(Socket),
           exit(normal);
         Data ->
-          Fun(self(), {recv, Data}, LoopData)
+          Fun({recv, Data}, LoopData)
       end;
     {send, Bin} when is_binary(Bin) ->
       gen_tcp:send(Socket, encode(Bin)), 
-      LoopData
+      LoopData;
+    Msg ->
+      Fun({msg, Msg}, LoopData)
   end,
   loop(Socket, Fun, NewLoopData).
 
