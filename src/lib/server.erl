@@ -171,10 +171,11 @@ stop() ->
 %%% private 
 
 %% handshake successful, init socket loop data
-loop(S, handshake, ?UNDEF) -> #client{};
+loop(Client, handshake, ?UNDEF) -> #client{};
+loop(Client, disconnected, #client{}) -> ok;
 
-loop(S, {recv, Bin}, C= #client{}) when is_binary(Bin) ->
-  loop(S, {recv, pp:read(Bin)}, C);
+loop(Client, {recv, Data}, C = #client{}) when is_binary(Data) ->
+  loop(Client, {recv, pp:read(Data)}, C);
 
-loop(S, {recv, #login{}}, #client{player = P}) when P =:= ?UNDEF ->
+loop(Client, {recv, #login{}}, #client{player = P}) when P =:= ?UNDEF ->
   #client{player = new_player_process}.

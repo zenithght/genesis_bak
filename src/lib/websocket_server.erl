@@ -90,15 +90,20 @@ get_header([], _FindKey) ->
   ok.
 
 loop(Socket, Fun, ?UNDEF) ->
-  LoopData = Fun(Socket, handshake, ?UNDEF),
+  LoopData = Fun(self(), handshake, ?UNDEF),
   loop(Socket, Fun, LoopData);
 loop(Socket, Fun, LoopData) ->
   NewLoopData = receive
-    {tcp_closed, Socket} -> 
-      Fun(Socket, {tcp_closed}, LoopData);
-    {tcp, Socket, Bin} -> 
-      Fun(Socket, {recv, decode(Bin)}, LoopData);
-    {send, Bin} when is_binary(Bin) -> 
+    {tcp, Socket, Bin} ->
+      case decode(Bin) of
+        tcp_closed ->
+          Fun(self(), disconnected, LoopData),
+          gen_tcp:close(Socket),
+          exit(normal);
+        Data ->
+          Fun(self(), {recv, Data}, LoopData)
+      end;
+    {send, Bin} when is_binary(Bin) ->
       gen_tcp:send(Socket, encode(Bin)), 
       LoopData
   end,
@@ -114,14 +119,13 @@ encode(Bin) ->
 
 decode(Bin) ->
   case Data = decoding_data(Bin) of
-    {tcp_closed} ->
-      {tcp_closed};
+    tcp_closed ->
+      tcp_closed;
     _ ->
       base64:decode(Data)
   end.
 
-decoding_data(<<_Fin:1, _Rsv:3, 8:4, _/binary>>) ->
-  {tcp_closed};
+decoding_data(<<_Fin:1, _Rsv:3, 8:4, _/binary>>) -> tcp_closed;
 decoding_data(<<_Fin:1, _Rsv:3, _Opcode:4, _Mask:1, 126:7, _Size:16, MaskKey:32, Msg/binary>>) ->
   unmask_data(binary_to_list(Msg), <<MaskKey:32>>, 4, []);
 decoding_data(<<_Fin:1, _Rsv:3, _Opcode:4, _Mask:1, _Size:7, MaskKey:32, Msg/binary>>) ->
