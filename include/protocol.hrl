@@ -1,6 +1,7 @@
--ifndef(ERR_UNKNOWN).
-  -define(ERR_UNKNOWN, 0).
--endif.
+-define(ERR_UNKNOWN, 0).
+-define(ERR_BAD_LOGIN, 1).
+-define(ERR_ACCOUNT_DISABLED, 2).
+-define(ERR_START_DISABLED, 3).
 
 %%%
 %%% Commands

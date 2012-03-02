@@ -90,7 +90,7 @@ get_header([], _FindKey) ->
   ok.
 
 loop(Socket, Fun, ?UNDEF) ->
-  LoopData = Fun(handshake, ?UNDEF),
+  LoopData = Fun(connected, ?UNDEF),
   loop(Socket, Fun, LoopData);
 loop(Socket, Fun, LoopData) ->
   NewLoopData = receive

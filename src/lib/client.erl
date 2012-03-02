@@ -4,10 +4,15 @@
 -include("common.hrl").
 -include("game.hrl").
 -include("protocol.hrl").
--record(pdata, { timer = ?UNDEF, server = global:whereis_name(server), player = ?UNDEF }).
 
-loop(handshake, ?UNDEF) -> 
-  #pdata{timer = erlang:start_timer(3000, self(), ?MODULE)}.
+-record(pdata, { 
+    timer = ?UNDEF, 
+    server = global:whereis_name(server),
+    player = ?UNDEF 
+  }).
+
+loop(connected, ?UNDEF) -> 
+  #pdata{timer = erlang:start_timer(?CONNECT_TIMEOUT, self(), ?MODULE)};
 
 loop(disconnected, Data = #pdata{}) ->
   %% logout
