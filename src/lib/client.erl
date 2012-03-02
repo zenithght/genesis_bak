@@ -17,7 +17,7 @@ loop(connected, ?UNDEF) ->
 loop(disconnected, _Data = #pdata{}) -> ok;
 
 loop({recv, Bin}, Data = #pdata{}) when is_binary(Bin) ->
-  case catch pp:read(Data) of
+  case catch pp:read(Bin) of
     {'EXIT', {Reason, Stack}} ->
       ?LOG([{recv, Bin}, {error, {Reason, Stack}}]),
       err(?ERR_DATA);
@@ -26,7 +26,7 @@ loop({recv, Bin}, Data = #pdata{}) when is_binary(Bin) ->
   end;
 
 % cancel connection timer when remote client first send protocol must #login
-loop({protocol, R = #login{}}, Data = #pdata{timer = T}) ->
+loop({protocol, R = #login{}}, Data = #pdata{timer = T}) when T /= ?UNDEF ->
   catch erlang:cancel_timer(T),
   loop({protocol, R}, Data#pdata{timer = ?UNDEF});
 
@@ -59,8 +59,7 @@ loop({protocol, R}, Data = #pdata{player = Player}) when is_pid(Player) ->
   Data;
 
 loop({msg, {timeout, _, ?MODULE}}, _Data) ->
-  %err(?ERR_CONNECTION_TIMEOUT).
-  close_connection().
+  err(?ERR_CONNECTION_TIMEOUT).
 
 %%%
 %%% client
@@ -76,9 +75,8 @@ send(PID, R) when is_pid(PID), is_tuple(R) ->
 %%% private
 %%%
 
-
 err(Code) when is_integer(Code) ->
-  send(#bad{error = Code}),
+  send(#bad{cmd = 0, error = Code}),
   close_connection().
 
 close_connection() ->

@@ -1,7 +1,8 @@
 -module(sim_client).
--export([start/1, loop/1, box/1, head/1]).
+-export([start/1, loop/2, box/0, box/1, head/1]).
 
 -include("common.hrl").
+-include("protocol.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
 -record(pdata, {
@@ -14,7 +15,7 @@
 %%%
 
 start(Id) when is_atom(Id) ->
-  PID = spawn(?MODULE, loop, [fun client:loop/2]),
+  PID = spawn(?MODULE, loop, [fun client:loop/2, self()]),
   true = register(Id, PID),
   PID.
 
@@ -35,12 +36,20 @@ box(Id) ->
     1000 -> exit(request_timeout)
   end.
 
+box() ->
+  receive 
+    Box -> 
+      Box
+  after
+    1000 -> exit(request_timeout)
+  end.
+
 %%%
 %%% callback
 %%%
 
-loop(Fun) ->
-  loop(Fun, ?UNDEF, #pdata{}).
+loop(Fun, Host) ->
+  loop(Fun, ?UNDEF, #pdata{host = Host}).
 
 %%%
 %%% private
@@ -52,8 +61,11 @@ loop(Fun, ?UNDEF, Data = #pdata{}) ->
 
 loop(Fun, LoopData, Data = #pdata{box = Box}) ->
   receive
+    kill ->
+      exit(normal);
     %% clien module callback close connection.
     close ->
+      Data#pdata.host ! Box,
       exit(normal);
     %% clien module callback send bianry to remote client.
     {send, Bin} when is_binary(Bin) ->
