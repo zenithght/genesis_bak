@@ -4,7 +4,7 @@
 -export([init/1, handle_call/3, handle_cast/2, 
          handle_info/2, terminate/2, code_change/3]).
 
--export([start/0, start/1, stop/1, stop/2, notify/2, cast/2]).
+-export([start/1, stop/1, stop/2, notify/2, cast/2, auth/2]).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -153,26 +153,12 @@ code_change(_OldVsn, Data, _Extra) ->
 %%% clinet function
 %%% 
 
-start() ->
-  Fun = fun(R = #tab_player_info{identity = Identity}, _Acc) when is_list(Identity) ->
-      case ?LOOKUP_PLAYER(Identity) of
-        undefined -> {ok, _Pid} = gen_server:start(?PLAYER(Identity), player, [R], []);
-        _ -> ok
-      end
-  end, 
-
-  ok = mnesia:wait_for_tables([tab_player_info], ?WAIT_TABLE),
-  {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, nil, tab_player_info) end).
-  
-start(Identity) when is_binary(Identity) ->
-  start(binary_to_list(Identity));
 start(Identity) when is_list(Identity) ->
-    case mnesia:dirty_index_read(tab_player_info, Identity, identity) of
-        [R] ->
-          gen_server:start(?PLAYER(Identity), player, [R], []);
-        _ ->
-          {error, not_found_player}
-    end.
+  [R] = mnesia:dirty_index_read(tab_player_info, Identity, identity),
+  start(R);
+  
+start(R = #tab_player_info{identity = Identity}) ->
+  gen_server:start(?PLAYER(Identity), player, [R], []).
 
 stop(Identity) when is_list(Identity) ->
   gen_server:cast(?PLAYER(Identity), stop).
@@ -188,12 +174,39 @@ notify(Player, R) when is_pid(Player) ->
 cast(Identity, R) ->
   gen_server:cast(?PLAYER(Identity), {protocol, R}).
 
+auth(Identity, Password) when is_list(Identity), is_list(Password) ->
+  ok = mnesia:wait_for_tables([tab_player_info], ?WAIT_TABLE),
+  case mnesia:dirty_index_read(tab_player_info, Identity, identity) of
+    [Info] ->
+      auth(Info, Password);
+    _ ->
+      {ok, unauth}
+  end;
+
+auth(Info = #tab_player_info{password = Pwd}, Password) when is_list(Password) ->
+  %% password processed by phash, result is a integer
+  case erlang:phash2(Password, 1 bsl 32) =:= Pwd of
+    true -> auth(Info, player_disable);
+    _ -> {ok, unauth}
+  end;
+
+auth(Info = #tab_player_info{disabled = Disabled}, player_disable) ->
+  case Disabled of
+    false -> auth(Info, agent_disable);
+    _ -> {ok, player_disable}
+  end;
+
+auth(Info = #tab_player_info{agent = _Agent}, agent_disable) ->
+  %% TODO: auth agnet is alive and disable
+  {ok, pass, Info}.
+
 %%%
-%%% private function
+%%% private
 %%%
 
 create_runtime(PID, Process) when is_number(PID), is_pid(Process) ->
   mnesia:dirty_write(#tab_player{ pid = PID, process = Process }).
+
 
 forward_to_client(_, #pdata{client = Client}) when Client =:= ?UNDEF -> ?UNDEF;
 forward_to_client(R, #pdata{client = Client}) -> Client ! {send, list_to_binary(pp:write(R))}.
@@ -202,9 +215,12 @@ forward_to_client(R, #pdata{client = Client}) -> Client ! {send, list_to_binary(
 %%% unit test
 %%%
 
+-define(DEF_PWD, "def_pwd").
+-define(DEF_HASH_PWD, erlang:phash2(?DEF_PWD, 1 bsl 32)).
+  
 start_all_test() ->
   setup(),
-  start(),
+  start("player_1"),
   ?assertEqual(true, erlang:is_process_alive(?LOOKUP_PLAYER("player_1"))),
   Pdata = pdata("player_1"),
   ?assertEqual("player1", Pdata#pdata.nick),
@@ -223,7 +239,19 @@ start_test() ->
   [Xref] = mnesia:dirty_read(tab_player, Pdata#pdata.pid),
   ?assertEqual(Pdata#pdata.self, Xref#tab_player.process),
   ?assertEqual(undefined, Xref#tab_player.socket).
-  
+
+auth_test() ->
+  setup(),
+  [R] = mnesia:dirty_index_read(tab_player_info, "player_1", identity),
+  ?assertEqual({ok, pass, R}, player:auth("player_1", ?DEF_PWD)),
+  ?assertEqual({ok, unauth}, player:auth("player_nil", ?DEF_PWD)),
+  ?assertEqual({ok, unauth}, player:auth("player_1", "bad_pwd")),
+
+  Info = #tab_player_info{identity = "player_1", password = ?DEF_HASH_PWD, disabled = false},
+  ?assertEqual({ok, pass, Info}, player:auth(Info, ?DEF_PWD)),
+  ?assertEqual({ok, unauth}, player:auth(Info, "bad_pwd")),
+  ?assertEqual({ok, player_disable}, player:auth(Info#tab_player_info{disabled = true}, ?DEF_PWD)).
+
 setup() ->
   schema:uninstall(),
   schema:install(),
@@ -233,6 +261,7 @@ setup() ->
     #tab_player_info {
       pid = counter:bump(player),
       identity = "player_1",
+      password = ?DEF_HASH_PWD,
       nick = "player1",
       photo = "default1",
       agent = "root"
