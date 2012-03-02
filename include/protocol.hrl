@@ -1,6 +1,10 @@
 -define(ERR_UNAUTH, 1).
--define(ERR_PROTOCOL, 2).
--define(ERR_START_DISABLED, 3).
+-define(ERR_DATA, 2).
+-define(ERR_PROTOCOL, 3).
+-define(ERR_START_DISABLED, 4).
+-define(ERR_CONNECTION_TIMEOUT, 5).
+-define(ERR_AGENT_DISABLE, 6).
+-define(ERR_PLAYER_DISABLE, 7).
 
 %%%
 %%% Commands

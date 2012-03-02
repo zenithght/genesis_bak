@@ -4,7 +4,7 @@
 -export([init/1, handle_call/3, handle_cast/2, 
          handle_info/2, terminate/2, code_change/3]).
 
--export([start/1, stop/1, stop/2, notify/2, cast/2, auth/2]).
+-export([start/1, stop/1, stop/2, notify/2, cast/2, auth/2, logout/1]).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -32,46 +32,39 @@ init([R = #tab_player_info{pid = PID, nick = Nick, photo = Photo}]) ->
   ok = create_runtime(PID, self()),
   {ok, #pdata{ pid = PID, self = self(), nick = Nick, photo = Photo, record = R}}.
 
-handle_cast({protocol, #watch{}}, Data = #pdata{watching = W}) when W /= ?UNDEF ->
+handle_cast(#watch{}, Data = #pdata{watching = W}) when W /= ?UNDEF ->
   {noreply, Data};
 
-handle_cast({protocol, #watch{game = G}}, Data) ->
+handle_cast(#watch{game = G}, Data) ->
   game:watch(G, self()),
   {noreply, Data#pdata{ watching = G}};
 
-handle_cast({protocol, #unwatch{game = G}}, Data = #pdata{watching = W}) when W /= G->
+handle_cast(#unwatch{game = G}, Data = #pdata{watching = W}) when W /= G->
   {noreply, Data};
 
-handle_cast({protocol, #unwatch{game = G}}, Data) ->
+handle_cast(#unwatch{game = G}, Data) ->
   game:unwatch(G, player = self()),
   {noreply, Data#pdata{ watching = ?UNDEF}};
 
-handle_cast(P = {protocol, #join{ game = G}}, Data = #pdata{watching = W}) when W =:= ?UNDEF ->
+handle_cast(R = #join{ game = G}, Data = #pdata{watching = W}) when W =:= ?UNDEF ->
   game:watch(G, self()),
-  handle_cast(P, Data#pdata{watching = G});
+  handle_cast(R, Data#pdata{watching = G});
 
-handle_cast({protocol, #join { game = G}}, Data = #pdata{watching = W}) when W /= G ->
+handle_cast(#join { game = G}, Data = #pdata{watching = W}) when W /= G ->
   {noreply, Data};
 
-handle_cast({protocol, #join { seat = Seat, game = Game}}, Data = #pdata{}) ->
+handle_cast(#join { seat = Seat, game = Game}, Data = #pdata{}) ->
   game:join(Game, Seat, self()),
   {noreply, Data};
 
-handle_cast({protocol, #leave{game = G}}, Data = #pdata{playing = P}) when G /= P ->
+handle_cast(#leave{game = G}, Data = #pdata{playing = P}) when G /= P ->
   {noreply, Data};
 
-handle_cast({protocol, #leave{game = G}}, Data) ->
+handle_cast(#leave{game = G}, Data) ->
   game:leave(G, self()),
   {noreply, Data};
 
-handle_cast({protocol, #logout{}}, Data = #pdata{playing = P}) when P =:= ?UNDEF  ->
-  handle_cast(stop, Data);
-
-handle_cast({protocol, #logout{}}, Data = #pdata{playing = P}) ->
-  game:leave(P, self()),
-  {noreply, Data};
-
-handle_cast({protocol, #player_query{ player = P }}, Data = #pdata{pid = PID}) when P =:= PID ->
+handle_cast(#player_query{ player = P }, Data = #pdata{pid = PID}) when P =:= PID ->
   R = #player_info{
     player = PID,
     nick = Data#pdata.nick,
@@ -79,7 +72,7 @@ handle_cast({protocol, #player_query{ player = P }}, Data = #pdata{pid = PID}) w
   },
   handle_cast({notify, R}, Data);
 
-handle_cast({protocol, #seat_query{ game = G }}, Data = #pdata{watching = W, playing = P}) when W =:= ?UNDEF, P =:= ?UNDEF ->
+handle_cast(#seat_query{ game = G }, Data = #pdata{watching = W, playing = P}) when W =:= ?UNDEF, P =:= ?UNDEF ->
   L = game:seat_query(G),
   F = fun(R = #seat_state{}) ->
       forward_to_client(R, Data)
@@ -87,11 +80,11 @@ handle_cast({protocol, #seat_query{ game = G }}, Data = #pdata{watching = W, pla
   lists:foreach(F, L),
   {noreply, Data};
       
-handle_cast({protocol, #balance_query{}}, Data) ->
+handle_cast(#balance_query{}, Data) ->
   R = #balance{ amount = 0, inplay = 0 },
   handle_cast({notify, R}, Data);
 
-handle_cast({protocol, R}, Data = #pdata{playing = Playing}) ->
+handle_cast(R, Data = #pdata{playing = Playing}) ->
   Game = element(2, R),
   case Game of
     Playing ->
@@ -171,8 +164,8 @@ notify(Identity, R) when is_list(Identity) ->
 notify(Player, R) when is_pid(Player) ->
   gen_server:cast(Player, {notify, R}).
 
-cast(Identity, R) ->
-  gen_server:cast(?PLAYER(Identity), {protocol, R}).
+cast(Player, R) when is_pid(Player) ->
+  gen_server:cast(Player, R).
 
 auth(Identity, Password) when is_list(Identity), is_list(Password) ->
   ok = mnesia:wait_for_tables([tab_player_info], ?WAIT_TABLE),
@@ -199,6 +192,9 @@ auth(Info = #tab_player_info{disabled = Disabled}, player_disable) ->
 auth(Info = #tab_player_info{agent = _Agent}, agent_disable) ->
   %% TODO: auth agnet is alive and disable
   {ok, pass, Info}.
+
+logout(Player) when is_pid(Player) ->
+  gen_server:call(Player, logout).
 
 %%%
 %%% private
