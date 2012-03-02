@@ -18,7 +18,7 @@
 -record(pdata, {
     pid,
     self,
-    socket = ?UNDEF,
+    client = ?UNDEF,
     playing = ?UNDEF,
     watching = ?UNDEF,
     nick = ?UNDEF,
@@ -123,8 +123,8 @@ handle_cast(R, Data) ->
   error_logger:info_report([{module, ?MODULE}, {process, self()}, {unknown_cast, R}]),
   {noreply, Data}.
 
-handle_call({socket, Socket}, _From, Data) ->
-  {reply, ok, Data#pdata{ socket = Socket }};
+handle_call({client, Client}, _From, Data) ->
+  {reply, ok, Data#pdata{ client = Client}};
 
 handle_call(kill, _From, Data) ->
   {stop, normal, ok, Data};
@@ -183,9 +183,7 @@ stop(Identity, Reason) when is_list(Identity) ->
 notify(Identity, R) when is_list(Identity) ->
   notify(?LOOKUP_PLAYER(Identity), R);
 notify(Player, R) when is_pid(Player) ->
-  gen_server:cast(Player, {notify, R});
-notify(Socket, R) when Socket /= ?UNDEF ->
-  Socket ! {send, list_to_binary(pp:write(R))}.
+  gen_server:cast(Player, {notify, R}).
 
 cast(Identity, R) ->
   gen_server:cast(?PLAYER(Identity), {protocol, R}).
@@ -197,8 +195,8 @@ cast(Identity, R) ->
 create_runtime(PID, Process) when is_number(PID), is_pid(Process) ->
   mnesia:dirty_write(#tab_player{ pid = PID, process = Process }).
 
-forward_to_client(_, #pdata{socket = Socket}) when Socket =:= ?UNDEF -> undef_socket;
-forward_to_client(R, #pdata{socket = Socket}) -> notify(Socket, R).
+forward_to_client(_, #pdata{client = Client}) when Client =:= ?UNDEF -> ?UNDEF;
+forward_to_client(R, #pdata{client = Client}) -> Client ! {send, list_to_binary(pp:write(R))}.
 
 %%%
 %%% unit test

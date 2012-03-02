@@ -11,7 +11,7 @@
     player = ?UNDEF 
   }).
 
-loop(connected, ?UNDEF) -> 
+loop(connected, ?UNDEF) ->
   #pdata{timer = erlang:start_timer(?CONNECT_TIMEOUT, self(), ?MODULE)};
 
 loop(disconnected, Data = #pdata{}) ->
@@ -19,7 +19,7 @@ loop(disconnected, Data = #pdata{}) ->
   Data;
 
 loop({msg, {timeout, _, ?MODULE}}, Data) ->
-  self() ! close,
+  close_connection(),
   Data;
 
 loop({recv, Data}, C = #pdata{}) when is_binary(Data) ->
@@ -27,3 +27,10 @@ loop({recv, Data}, C = #pdata{}) when is_binary(Data) ->
 
 loop({recv, #login{}}, #pdata{player = P}) when P =:= ?UNDEF ->
   #pdata{player = new_player_process}.
+
+%%%
+%%% private
+%%%
+
+close_connection() ->
+  self() ! close.
