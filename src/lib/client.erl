@@ -1,5 +1,5 @@
 -module(client).
--export([loop/2]).
+-export([loop/2, send/2]).
 
 -include("common.hrl").
 -include("game.hrl").
@@ -14,19 +14,41 @@
 loop(connected, ?UNDEF) ->
   #pdata{timer = erlang:start_timer(?CONNECT_TIMEOUT, self(), ?MODULE)};
 
-loop(disconnected, Data = #pdata{}) ->
-  %% logout
-  Data;
+loop(disconnected, _Data = #pdata{}) -> ok;
 
-loop({msg, {timeout, _, ?MODULE}}, Data) ->
-  close_connection(),
-  Data;
+loop({recv, Bin}, Data = #pdata{}) when is_binary(Bin) ->
+  case catch pp:read(Data) of
+    {'EXIT', {Reason, Stack}} ->
+      ?LOG([{recv, Bin}, {error, {Reason, Stack}}]),
+      close_connection();
+    R ->
+      loop({protocol, R}, Data)
+  end;
 
-loop({recv, Data}, C = #pdata{}) when is_binary(Data) ->
-  loop({recv, pp:read(Data)}, C);
+% cancel connection timer when remote client first send protocol must #login
+loop({protocol, R = #login{}}, Data = #pdata{timer = T}) ->
+  catch erlang:cancel_timer(T),
+  loop({protocol, R}, Data#pdata{timer = ?UNDEF});
 
-loop({recv, #login{}}, #pdata{player = P}) when P =:= ?UNDEF ->
-  #pdata{player = new_player_process}.
+loop({protocol, #login{usr = Identity, pass = Password}}, Data) ->
+  case player:auth(binary_to_list(Identity), binary_to_list(Password)) of
+    {ok, unauth} ->
+      send(#bad{error = ?ERR_UNAUTH}),
+      close_connection();
+    {ok, pass} ->
+      {ok, Player} = player:start(Identity),
+      Data#pdata{player = Player}
+  end;
+
+loop({msg, {timeout, _, ?MODULE}}, _Data) ->
+  close_connection().
+
+%%%
+%%% client
+%%%
+
+send(PID, Msg) when is_pid(PID) ->
+  self() ! {send, Msg}.
 
 %%%
 %%% private
@@ -34,3 +56,6 @@ loop({recv, #login{}}, #pdata{player = P}) when P =:= ?UNDEF ->
 
 close_connection() ->
   self() ! close.
+
+send(Msg) ->
+  send(self(), {send, Msg}).

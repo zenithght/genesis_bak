@@ -1,6 +1,5 @@
--define(ERR_UNKNOWN, 0).
--define(ERR_BAD_LOGIN, 1).
--define(ERR_ACCOUNT_DISABLED, 2).
+-define(ERR_UNAUTH, 1).
+-define(ERR_PROTOCOL, 2).
 -define(ERR_START_DISABLED, 3).
 
 %%%
@@ -11,7 +10,7 @@
 
 -record(bad, {
 					cmd, 
-					error = ?ERR_UNKNOWN
+					error
 				 }).
 
 -define(CMD_GOOD, 0).
