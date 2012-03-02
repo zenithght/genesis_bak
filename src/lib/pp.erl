@@ -5,7 +5,7 @@
 %%%
 
 -export([read/1, write/1]).
--export([id_to_player/1, id_to_game/1, id_to_tourney/1]).
+-export([id_to_player/1, id_to_game/1]).
 
 -include("common.hrl").
 -include("protocol.hrl").
@@ -26,32 +26,6 @@ internal() ->
     {fun(Acc, _) -> Acc end, 
      fun(Bin) -> {undefined, Bin} end}.
 
-year() ->
-    int().
-
-month() ->
-    byte().
-
-day() ->
-    byte().
-
-date_() ->
-    tuple({year(), month(), day()}).
-
-hour() ->
-    byte().
-
-minute() ->
-    byte().
-
-second() ->
-    byte().
-
-time_() ->
-    tuple({hour(), minute(), second()}).
-
-datetime() ->
-    tuple({date_(), time_()}).
 
 timestamp() ->
     tuple({int(), int(), int()}).
@@ -70,9 +44,6 @@ pass() ->
 message() ->
     string().
 
-location() ->
-    string().
-
 host() ->
     string().
 
@@ -80,9 +51,6 @@ port() ->
     short().
 
 game_type() ->
-    byte().
-
-tourney_type() ->
     byte().
 
 table_name() ->
@@ -174,7 +142,7 @@ player_hand() ->
              rank(),
              face(),
              face(),
-             byte()
+             suit()
             }).
 
 limit_type() ->
@@ -237,22 +205,6 @@ player(true) ->
 
 player(_) ->
   wrap({fun player_to_id/1, fun id_to_player/1}, int()).
-
-tourney_to_id(TID) 
-  when is_integer(TID) ->
-    TID.
-
-id_to_tourney(TID) ->
-    global:whereis_name({tourney, TID}).
-
-tourney() ->
-    tourney(get(pass_through)).
-
-tourney(true) ->
-    int();
-
-tourney(_) ->
-    wrap({fun tourney_to_id/1, fun id_to_tourney/1}, int()).
 
 seat() ->
     byte().
@@ -590,44 +542,6 @@ show_cards() ->
              cards()
             }).
 
-tourney_watch() ->
-    record(tourney_watch, {
-             tourney(),
-             player()
-            }).
-
-tourney_unwatch() ->
-    record(tourney_unwatch, {
-             tourney(),
-             player()
-            }).
-
-tourney_join() ->
-    record(tourney_join, {
-             tourney(),
-             player(),
-             amount()
-            }).
-
-notify_tourney_join() ->
-    record(notify_tourney_join, {
-             tourney(),
-             player(),
-             amount()
-            }).
-
-tourney_leave() ->
-    record(tourney_leave, {
-             tourney(),
-             player()
-            }).
-
-notify_tourney_leave() ->
-    record(notify_tourney_leave, {
-             tourney(),
-             player()
-            }).
-
 notify_unwatch() ->
     record(notify_unwatch, {
              game()
@@ -655,26 +569,6 @@ notify_game_detail() ->
       price(),
       price()
     }).
-
-tourney_query() ->
-    record(tourney_query, {
-            }).
-
-tourney_info() ->
-    record(tourney_info, {
-             tourney(),
-             tourney_type(),
-             seat_count(),
-             int(),
-             int(),
-             datetime(), 
-             amount(),
-             amount(),
-             amount(),
-             amount(),
-             byte(),
-             byte()
-            }).
 
 ping() ->
     record(ping, {
@@ -1005,9 +899,6 @@ read(<<?CMD_SHOW_CARDS, Bin/binary>>) ->
     unpickle(show_cards(), Bin);
 
 read(<<?CMD_NOTIFY_GAME_DETAIL, Bin/binary>>) ->
-  unpickle(notify_game_detail(), Bin);
-
-read(<<?CMD_NOTIFY_GAME_DETAIL, Bin/binary>>) ->
   unpickle(notify_seat_detail(), Bin);
 
 read(<<?CMD_PING, Bin/binary>>) ->
@@ -1016,29 +907,29 @@ read(<<?CMD_PING, Bin/binary>>) ->
 read(<<?CMD_PONG, Bin/binary>>) ->
     unpickle(pong(), Bin).
 
-ping(_, _, false) ->
-    ok;
+%year() ->
+    %int().
 
-ping(Socket, _Size, true) ->
-    Bin = list_to_binary(write(#ping{})),
-    case catch gen_tcp:send(Socket, Bin) of
-        ok ->
-            ok;
-        {error, closed} ->
-            ok;
-        {error,econnaborted} ->
-            ok;
-        Any ->
-            error_logger:error_report([
-                                       {message, "gen_tcp:ping error"},
-                                       {module, ?MODULE}, 
-                                       {line, ?LINE},
-                                       {socket, Socket}, 
-                                       {port_info, erlang:port_info(Socket, connected)},
-                                       {bin, Bin},
-                                       {error, Any}
-                                      ])
-    end,
-    %%stats:sum(packets_out, 2),
-    %%stats:sum(bytes_out, Size + size(Bin)),
-    ok.
+%month() ->
+    %byte().
+
+%day() ->
+    %byte().
+
+%date_() ->
+    %tuple({year(), month(), day()}).
+
+%hour() ->
+    %byte().
+
+%minute() ->
+    %byte().
+
+%second() ->
+    %byte().
+
+%time_() ->
+    %tuple({hour(), minute(), second()}).
+
+%datetime() ->
+    %tuple({date_(), time_()}).

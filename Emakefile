@@ -6,3 +6,4 @@
 {'src/lib/texas/*',[debug_info, {outdir, "ebin"}, {i, "include"}]}.
 {'src/lib/texas/mods/*',[debug_info, {outdir, "ebin"}, {i, "include"}]}.
 {'src/lib/texas/limit/*',[debug_info, {outdir, "ebin"}, {i, "include"}]}.
+{'src/lib/sim/*',[debug_info, {outdir, "ebin"}, {i, "include"}]}.

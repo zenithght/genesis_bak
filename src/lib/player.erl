@@ -205,7 +205,7 @@ create_runtime(PID, Process) when is_number(PID), is_pid(Process) ->
 
 
 forward_to_client(_, #pdata{client = Client}) when Client =:= ?UNDEF -> ?UNDEF;
-forward_to_client(R, #pdata{client = Client}) -> Client ! {send, list_to_binary(pp:write(R))}.
+forward_to_client(R, #pdata{client = Client}) -> client:send(Client, R).
 
 %%%
 %%% unit test
@@ -292,30 +292,3 @@ setup() ->
 
 pdata(Identity) ->
   gen_server:call(?PLAYER(Identity), pdata).
-
-% seat_state);
-% bet_req);
-% player_info);
-% photo_info);
-% game_stage);
-% notify_start_game);
-% notify_end_game);
-% notify_cancel_game);
-% notify_join);
-% notify_unwatch);
-% notify_draw);
-% notify_actor);
-% notify_private);
-% notify_shared);
-% notify_leave);
-% notify_raise);
-% notify_blind);
-% notify_win);
-% notify_hand);
-% show_cards);
-% notify_button);
-% notify_sb);
-% notify_game_detail);
-% limit);
-% notify_seat_detail);
-% notify_bb) ->

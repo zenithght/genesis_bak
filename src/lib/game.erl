@@ -158,41 +158,6 @@ default_mods() ->
     {restart, []}
   ].
 
-
-%%% TODO search game
-
-%send_games(_, [], _) ->
-  %ok;
-
-%send_games(Socket, [H|T], C) ->
-  %N = H#game_info{game_count = C},
-  %?tcpsend(Socket, N),
-  %send_games(Socket, T, C).
-
-%find_games(Socket, 
-           %GameType, LimitType,
-           %#query_op{ op = ExpOp, val = Expected }, 
-           %#query_op{ op = JoinOp, val = Joined },
-           %#query_op{ op = WaitOp, val = Waiting }) ->
-    %{atomic, L} = g:find(GameType, LimitType,
-                         %ExpOp, Expected, 
-                         %JoinOp, Joined,
-                         %WaitOp, Waiting),
-    
-    %send_games(Socket, L, lists:flatlength(L)).
-
-  %%% TODO kill games
-%kill_games() ->
-    %{atomic, Games} = db:find(tab_game_xref),
-    %kill_games(Games).
-
-%kill_games([]) ->
-    %ok;
-
-%kill_games([H|T]) ->
-    %gen_server:cast(H#tab_game_xref.process, stop),
-    %kill_games(T).
-
 %%%
 %%% unit test
 %%%

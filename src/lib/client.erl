@@ -47,19 +47,20 @@ loop({protocol, #login{usr = Identity, pass = Password}}, Data) ->
       end
   end;
 
-loop({protocol, #logout{}}, Data = #pdata{player = Player}) when is_pid(Player) ->
+loop({protocol, #logout{}}, #pdata{player = Player}) when is_pid(Player) ->
   {ok, logout} = player:logout(Player),
   close_connection();
 
-loop({protocol, #logout{}}, Data) ->
+loop({protocol, #logout{}}, _Data) ->
   err(?ERR_PROTOCOL);
 
 loop({protocol, R}, Data = #pdata{player = Player}) when is_pid(Player) ->
-  player:cast(Plyaer, R),
+  player:cast(Player, R),
   Data;
 
 loop({msg, {timeout, _, ?MODULE}}, _Data) ->
-  err(?ERR_CONNECTION_TIMEOUT).
+  %err(?ERR_CONNECTION_TIMEOUT).
+  close_connection().
 
 %%%
 %%% client
@@ -68,8 +69,8 @@ loop({msg, {timeout, _, ?MODULE}}, _Data) ->
 send(Msg) ->
   send(self(), Msg).
 
-send(PID, Msg) when is_pid(PID) ->
-   PID ! {send, Msg}.
+send(PID, R) when is_pid(PID), is_tuple(R) ->
+  PID ! {send, list_to_binary(pp:write(R))}.
 
 %%%
 %%% private
