@@ -1,5 +1,5 @@
 -module(sim_client).
--export([start/1, loop/2, box/0, box/1, head/1]).
+-export([start/1, loop/2, box/0, box/1, kill/1, head/1, loopdata/0, where/1, send/2, flush/0]).
 
 -include("common.hrl").
 -include("protocol.hrl").
@@ -19,6 +19,9 @@ start(Id) when is_atom(Id) ->
   true = register(Id, PID),
   PID.
 
+kill(Id) ->
+  catch Id ! kill.
+
 head(Id) ->
   Id ! {head, self()},
   receive 
@@ -28,6 +31,21 @@ head(Id) ->
     1000 -> exit(request_timeout)
   end.
 
+where(Id) ->
+  whereis(Id).
+
+send(Id, R) ->
+  Id ! {send, R}.
+
+flush() ->
+	receive 
+		_Any ->
+			flush()
+	after 
+		0 ->
+			true
+	end.
+
 box(Id) ->
   Id ! {box, self()},
   receive 
@@ -35,6 +53,16 @@ box(Id) ->
   after
     1000 -> exit(request_timeout)
   end.
+
+
+loopdata() ->
+  player ! {loopdata, self()},
+  receive 
+    Data -> Data
+  after
+    1000 -> exit(request_timeout)
+  end.
+  
 
 box() ->
   receive 
@@ -88,6 +116,9 @@ loop(Fun, LoopData, Data = #pdata{box = Box}) ->
     {box, From} when is_pid(From) ->
       From ! Box,
       loop(Fun, LoopData, Data#pdata{box = []});
+    {loopdata, From} when is_pid(From) ->
+      From ! LoopData,
+      loop(Fun, LoopData, Data);
     Msg ->
       ND = Fun({msg, Msg}, LoopData),
       loop(Fun, ND, Data)
