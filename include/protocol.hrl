@@ -178,7 +178,7 @@
 
 -record(player_info, {
 					player,
-					total_inplay, 
+					inplay, 
 					nick,
 				  photo	
 				 }).

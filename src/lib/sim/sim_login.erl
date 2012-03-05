@@ -1,4 +1,4 @@
--module(sim_test).
+-module(sim_login).
 -compile([export_all]).
 
 -include("common.hrl").
@@ -60,7 +60,14 @@ login_successful_test() ->
         ?assertEqual(true, is_pid(where())),
         send(#login{usr = <<"player">>, pass = <<"def_pwd">>}),
         Data = sim_client:loopdata(),
-        ?assertEqual(true, is_pid(Data#pdata.player))
+        ?assertEqual(true, is_pid(Data#pdata.player)),
+        ?SLEEP,
+        #player_info{nick = Nick, photo = Photo} = head(),
+        ?assertEqual(<<"player">>, Nick),
+        ?assertEqual(<<"default">>, Photo),
+        #balance{amount = Balance, inplay = Inplay} = head(),
+        ?assertEqual(0, Balance),
+        ?assertEqual(0, Inplay)
     end).
 
 %%%
@@ -79,6 +86,8 @@ run_by_def(Fun) ->
     { player, #tab_player_info{
       pid = 1, 
       identity = "player", 
+      nick = "player",
+      photo = "default",
       password = ?DEF_HASH_PWD,
       disabled = false }}],
 
@@ -93,3 +102,6 @@ where() ->
 
 send(R) ->
   sim_client:send(player, R).
+
+head() ->
+  sim_client:head(player).

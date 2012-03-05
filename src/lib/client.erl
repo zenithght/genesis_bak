@@ -43,6 +43,9 @@ loop({protocol, #login{usr = Identity, pass = Password}}, Data) ->
       % receive {'EXIT'} when player process error
       case player:start(Info) of
         {ok, Player} when is_pid(Player) ->
+          player:client(Player),
+          player:info(Player),
+          player:balance(Player),
           Data#pdata{player = Player}
       end
   end;

@@ -20,7 +20,9 @@ start(Id) when is_atom(Id) ->
   PID.
 
 kill(Id) ->
-  catch Id ! kill.
+  PID = whereis(Id),
+  catch PID ! kill,
+  timer:sleep(500).
 
 head(Id) ->
   Id ! {head, self()},
@@ -90,14 +92,14 @@ loop(Fun, ?UNDEF, Data = #pdata{}) ->
 loop(Fun, LoopData, Data = #pdata{box = Box}) ->
   receive
     kill ->
-      exit(normal);
+      exit(kill);
     %% clien module callback close connection.
     close ->
       Data#pdata.host ! Box,
       exit(normal);
     %% clien module callback send bianry to remote client.
     {send, Bin} when is_binary(Bin) ->
-      NB = [pp:read(Bin) | Box], %% insert new message to box
+      NB = Box ++ [pp:read(Bin)], %% insert new message to box
       loop(Fun, LoopData, Data#pdata{box = NB});
     %% send protocol record to clinet module.
     {send, R} when is_tuple(R) ->
@@ -120,6 +122,7 @@ loop(Fun, LoopData, Data = #pdata{box = Box}) ->
       From ! LoopData,
       loop(Fun, LoopData, Data);
     Msg ->
+      ?LOG([{recv_msg, Msg}]),
       ND = Fun({msg, Msg}, LoopData),
       loop(Fun, ND, Data)
   end.
@@ -129,4 +132,6 @@ loop(Fun, LoopData, Data = #pdata{box = Box}) ->
 %%%
 
 start_test() ->
+  ?assert(is_pid(sim_client:start(test))),
+  kill(test),
   ?assert(is_pid(sim_client:start(test))).

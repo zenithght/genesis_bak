@@ -86,17 +86,11 @@ player_timeout() ->
 start_delay() ->
     int().
 
-amount_to_int(Amount) ->
-    trunc(Amount * 10000).
-
-int_to_amount(Int) ->    
-    Int / 10000.0.
-
 amount() ->
-    wrap({fun amount_to_int/1, fun int_to_amount/1}, int()).
+  int().
 
-total_inplay_amount() ->
-    amount().
+inplay_amount() ->
+  amount().
 
 call_amount() ->
     amount().
@@ -404,7 +398,7 @@ photo_info() ->
 player_info() ->
     record(player_info, {
              player(),
-             total_inplay_amount(), 
+             inplay_amount(), 
              nick(),
              photo()
             }).

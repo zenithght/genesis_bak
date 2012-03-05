@@ -6,6 +6,8 @@
 
 -export([start/1, stop/1, stop/2, notify/2, cast/2, auth/2, logout/1]).
 
+-export([client/1, info/1, balance/1]).
+
 -include_lib("eunit/include/eunit.hrl").
 
 -include("common.hrl").
@@ -23,6 +25,7 @@
     watching = ?UNDEF,
     nick = ?UNDEF,
     photo = ?UNDEF,
+    inplay = 0,
     record,
     zombie 
   }).
@@ -30,7 +33,7 @@
 init([R = #tab_player_info{pid = PID, nick = Nick, photo = Photo}]) ->
   process_flag(trap_exit, true),
   ok = create_runtime(PID, self()),
-  {ok, #pdata{ pid = PID, self = self(), nick = Nick, photo = Photo, record = R}}.
+  {ok, #pdata{ pid = PID, self = self(), nick = list_to_binary(Nick), photo = list_to_binary(Photo), record = R}}.
 
 handle_cast(#watch{}, Data = #pdata{watching = W}) when W /= ?UNDEF ->
   {noreply, Data};
@@ -64,9 +67,10 @@ handle_cast(#leave{game = G}, Data) ->
   game:leave(G, self()),
   {noreply, Data};
 
-handle_cast(#player_query{ player = P }, Data = #pdata{pid = PID}) when P =:= PID ->
+handle_cast(#player_query{}, Data = #pdata{}) ->
   R = #player_info{
-    player = PID,
+    player = Data#pdata.pid,
+    inplay = Data#pdata.inplay,
     nick = Data#pdata.nick,
     photo = Data#pdata.photo
   },
@@ -83,16 +87,6 @@ handle_cast(#seat_query{ game = G }, Data = #pdata{watching = W, playing = P}) w
 handle_cast(#balance_query{}, Data) ->
   R = #balance{ amount = 0, inplay = 0 },
   handle_cast({notify, R}, Data);
-
-handle_cast(R, Data = #pdata{playing = Playing}) ->
-  Game = element(2, R),
-  case Game of
-    Playing ->
-      game:action(Game, self(), R),
-      {noreply, Data};
-    _ ->
-      {noreply, Data}
-  end;
 
 handle_cast({notify, R = #notify_join{proc = G, player = P}}, Data = #pdata{pid = PID}) when P =:= PID ->
   forward_to_client(R, Data),
@@ -112,12 +106,22 @@ handle_cast(stop, Data) ->
 handle_cast({stop, Reason}, Data) ->
   {stop, Reason, Data};
 
+handle_cast(R, Data = #pdata{playing = Playing}) ->
+  Game = element(2, R),
+  case Game of
+    Playing ->
+      game:action(Game, self(), R),
+      {noreply, Data};
+    _ ->
+      {noreply, Data}
+  end;
+
 handle_cast(R, Data) ->
-  error_logger:info_report([{module, ?MODULE}, {process, self()}, {unknown_cast, R}]),
+  ?LOG([{unknown_cast, R}]),
   {noreply, Data}.
 
-handle_call({client, Client}, _From, Data) ->
-  {reply, ok, Data#pdata{ client = Client}};
+handle_call({client, Client}, _From, Data) when is_pid(Client) ->
+  {reply, Client, Data#pdata{ client = Client}};
 
 handle_call(kill, _From, Data) ->
   {stop, normal, ok, Data};
@@ -152,6 +156,9 @@ start(Identity) when is_list(Identity) ->
   
 start(R = #tab_player_info{identity = Identity}) ->
   gen_server:start(?PLAYER(Identity), player, [R], []).
+
+stop({kill, Identity}) when is_list(Identity) ->
+  catch ok = gen_server:call(?PLAYER(Identity), kill);
 
 stop(Identity) when is_list(Identity) ->
   gen_server:cast(?PLAYER(Identity), stop).
@@ -196,6 +203,16 @@ auth(Info = #tab_player_info{agent = _Agent}, agent_disable) ->
 logout(Player) when is_pid(Player) ->
   gen_server:call(Player, logout).
 
+info(Player) when is_pid(Player) ->
+  gen_server:cast(Player, #player_query{}).
+
+balance(Player) when is_pid(Player) ->
+  gen_server:cast(Player, #balance_query{}).
+
+client(Player) when is_pid(Player) ->
+  Client = self(),
+  Client = gen_server:call(Player, {client, Client}).
+
 %%%
 %%% private
 %%%
@@ -203,8 +220,7 @@ logout(Player) when is_pid(Player) ->
 create_runtime(PID, Process) when is_number(PID), is_pid(Process) ->
   mnesia:dirty_write(#tab_player{ pid = PID, process = Process }).
 
-
-forward_to_client(_, #pdata{client = Client}) when Client =:= ?UNDEF -> ?UNDEF;
+forward_to_client(_, #pdata{client = Client}) when Client =:= ?UNDEF -> exit(undefined_client);
 forward_to_client(R, #pdata{client = Client}) -> client:send(Client, R).
 
 %%%
@@ -219,8 +235,8 @@ start_all_test() ->
   start("player_1"),
   ?assertEqual(true, erlang:is_process_alive(?LOOKUP_PLAYER("player_1"))),
   Pdata = pdata("player_1"),
-  ?assertEqual("player1", Pdata#pdata.nick),
-  ?assertEqual("default1", Pdata#pdata.photo),
+  ?assertEqual(<<"player1">>, Pdata#pdata.nick),
+  ?assertEqual(<<"default1">>, Pdata#pdata.photo),
   [Xref] = mnesia:dirty_read(tab_player, Pdata#pdata.pid),
   ?assertEqual(Pdata#pdata.self, Xref#tab_player.process),
   ?assertEqual(undefined, Xref#tab_player.socket).
@@ -230,8 +246,8 @@ start_test() ->
   {ok, _Pid} = start("player_1"),
   ?assertEqual(true, erlang:is_process_alive(?LOOKUP_PLAYER("player_1"))),
   Pdata = pdata("player_1"),
-  ?assertEqual("player1", Pdata#pdata.nick),
-  ?assertEqual("default1", Pdata#pdata.photo),
+  ?assertEqual(<<"player1">>, Pdata#pdata.nick),
+  ?assertEqual(<<"default1">>, Pdata#pdata.photo),
   [Xref] = mnesia:dirty_read(tab_player, Pdata#pdata.pid),
   ?assertEqual(Pdata#pdata.self, Xref#tab_player.process),
   ?assertEqual(undefined, Xref#tab_player.socket).
