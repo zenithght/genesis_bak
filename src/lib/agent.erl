@@ -69,7 +69,7 @@ handle_call({create, R = #tab_player_info{identity = Identity}, {Credit, Cash}},
 
             ok = mnesia:write(NewRecord),
             ok = mnesia:write(JoinedData#pdata.record),
-            db:update_balance(tab_balance, NewRecord#tab_player_info.pid, Cash),
+            mnesia:dirty_update_counter(tab_balance, NewRecord#tab_player_info.pid, Cash),
 
             {ok, JoinedData};
           _ ->
@@ -243,12 +243,12 @@ create_player_test() ->
   ?assertEqual(repeat_identity, create("agent_1", #tab_player_info{identity = "player_1", agent = "agent_1"}, {0, 1000})),
   ?assertEqual(less_balance, create("agent_1", #tab_player_info{identity = "player_new", agent = "agent_1"}, {1, 10000})),
   ?assertEqual(10000, balance("agent_1")),
-  ?assertEqual(ok, create("agent_1", #tab_player_info{identity = "player_new", agent = "agent_1"}, {1000, 1000})),
+  ?assertEqual(ok, create("agent_1", #tab_player_info{identity = "player_new", agent = "agent_1", password = "def_pwd"}, {1000, 1000})),
   ?assertEqual(8000, balance("agent_1")),
   ?assertEqual(["player_3", "player_new"], players("agent_1")),
   [NewPlayer] = mnesia:dirty_index_read(tab_player_info, "player_new", identity),
   [Balance] = mnesia:dirty_read(tab_balance, NewPlayer#tab_player_info.pid),
-  ?assertEqual(1000 * 10000, Balance#tab_balance.amount).
+  ?assertEqual(1000, Balance#tab_balance.amount).
 
 create_test() ->
   setup(),

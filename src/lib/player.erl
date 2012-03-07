@@ -134,7 +134,7 @@ handle_call(R, From, Data) ->
   {noreply, Data}.
 
 terminate(_Reason, Data) ->
-  ok = db:delete(tab_player, Data#pdata.pid).
+  ok = mnesia:dirty_delete(tab_player, Data#pdata.pid).
 
 handle_info({'EXIT', _Pid, _Reason}, Data) ->
     %% child exit?
