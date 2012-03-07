@@ -17,7 +17,7 @@ loop(connected, ?UNDEF) ->
 loop(disconnected, _Data = #pdata{}) -> ok;
 
 loop({recv, Bin}, Data = #pdata{}) when is_binary(Bin) ->
-  case catch pp:read(Bin) of
+  case catch protocol:read(Bin) of
     {'EXIT', {Reason, Stack}} ->
       ?LOG([{recv, Bin}, {error, {Reason, Stack}}]),
       err(?ERR_DATA);
@@ -77,7 +77,7 @@ send(Msg) ->
   send(self(), Msg).
 
 send(PID, R) when is_pid(PID), is_tuple(R) ->
-  PID ! {send, list_to_binary(pp:write(R))}.
+  PID ! {send, list_to_binary(protocol:write(R))}.
 
 %%%
 %%% private

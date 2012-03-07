@@ -99,11 +99,11 @@ loop(Fun, LoopData, Data = #pdata{box = Box}) ->
       exit(normal);
     %% clien module callback send bianry to remote client.
     {send, Bin} when is_binary(Bin) ->
-      NB = Box ++ [pp:read(Bin)], %% insert new message to box
+      NB = Box ++ [protocol:read(Bin)], %% insert new message to box
       loop(Fun, LoopData, Data#pdata{box = NB});
     %% send protocol record to clinet module.
     {send, R} when is_tuple(R) ->
-      ND = Fun({recv, list_to_binary(pp:write(R))}, LoopData),
+      ND = Fun({recv, list_to_binary(protocol:write(R))}, LoopData),
       loop(Fun, ND, Data); %% sim socket binary data
     %% host process get message box head one.
     {head, From} when is_pid(From) ->

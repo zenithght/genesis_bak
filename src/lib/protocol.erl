@@ -1,4 +1,4 @@
--module(pp).
+-module(protocol).
 
 %%%
 %%% OpenPoker protocol

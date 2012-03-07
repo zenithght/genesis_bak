@@ -217,10 +217,10 @@ info_test() ->
   ?assertEqual(5, C).
 
 game_query_test() ->
-  ?assert(is_list(pp:write(#game_query{}))).
+  ?assert(is_list(protocol:write(#game_query{}))).
 
 game_info_test() ->
-  ?assert(is_list(pp:write(#game_info{
+  ?assert(is_list(protocol:write(#game_info{
       game = 1,
       table_name = <<"TEXAS_TABLE">>,
       limit = #limit{min = 10, max = 400, small = 5, big = 10},
