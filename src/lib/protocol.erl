@@ -170,7 +170,7 @@ player_to_id(PID)
     PID.
 
 id_to_player(0) ->
-    undefined;
+  undefined;
 
 id_to_player(PID) ->
   global:whereis_name({player, PID}).
@@ -902,3 +902,27 @@ read(<<?CMD_PONG, Bin/binary>>) ->
 
 %datetime() ->
     %tuple({date_(), time_()}).
+
+-include_lib("eunit/include/eunit.hrl").
+
+id_to_game_test() ->
+  PID = spawn(fun loop_fun/0),
+  yes = global:register_name({game, 1}, PID),
+  ?assertEqual(PID, protocol:id_to_game(1)),
+  Data = protocol:write(#watch{game = 1}),
+  R = protocol:read(list_to_binary(Data)),
+  ?assertEqual(PID, R#watch.game).
+
+id_to_player_test() ->
+  PID = spawn(fun loop_fun/0),
+  yes = global:register_name({player, 1}, PID),
+  ?assertEqual(PID, protocol:id_to_player(1)),
+  Data = protocol:write(#player_query{player = 1}),
+  R = protocol:read(list_to_binary(Data)),
+  ?assertEqual(PID, R#player_query.player).
+
+loop_fun() ->
+  receive
+    _ ->
+      loop_fun()
+  end.
