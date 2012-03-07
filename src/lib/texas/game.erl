@@ -3,7 +3,7 @@
 
 -export([id/0, init/2, stop/1, dispatch/2, call/2]).
 -export([start/0, start/1, start/2]).
--export([join/1, bet/2, reward/3, broadcast/2, broadcast/3]).
+-export([join/1, bet/2, reward/3, broadcast/2, broadcast/3, info/1, list/0]).
 
 -include("common.hrl").
 -include("schema.hrl").
@@ -27,6 +27,7 @@ init(GID, R = #tab_game_config{}) ->
     limit = R#tab_game_config.limit,
     timeout = ?PLAYER_TIMEOUT,
     start_delay = R#tab_game_config.start_delay,
+    required = R#tab_game_config.required,
     xref = gb_trees:empty(),
     pot = pot:new(),
     deck = deck:new()
@@ -35,6 +36,17 @@ init(GID, R = #tab_game_config{}) ->
 stop(#texas{gid = GID, timer = Timer}) ->
   catch erlang:cancel_timer(Timer),
   clear_runtime(GID).
+
+call(info, Ctx = #texas{gid = GId, joined = Joined, required = Required, seats = Seats, limit = Limit}) ->
+  {ok, #game_info{
+      game = GId,
+      table_name = "TEXAS_TABLE",
+      type = "TEXAS",
+      limit = Limit,
+      seat_count = seat:info(size, Seats),
+      required = Required,
+      joined = Joined
+    }, Ctx};
 
 call(_, Ctx) ->
   {ok, ok, Ctx}.
@@ -69,8 +81,9 @@ start() ->
 start(Mods) when is_list(Mods)->
   Conf = #tab_game_config{id = 1, module = game, mods = Mods, limit = no_limit, seat_count = 9, start_delay = 3000, required = 2, timeout = 1000, max = 1},
   start(Conf, 1);
-start(Conf) when is_record(Conf, tab_game_config)->
-  start(Conf, 1).
+
+start(Conf = #tab_game_config{max = Max}) ->
+  start(Conf, Max).
 
 start(_Conf, 0) -> ok;
 start(Conf = #tab_game_config{module = Module, mods = Mods}, N) when is_list(Mods) ->
@@ -109,6 +122,16 @@ broadcast(Msg, #texas{observers = Obs}) ->
 broadcast(Msg, [{_, Process}|T]) ->
   player:notify(Process, Msg),
   broadcast(Msg, T).
+
+info(Game) when is_pid(Game) ->
+  gen_server:call(Game, info).
+
+list() ->
+  Fun = fun(#tab_game_xref{process = Game}, Acc) ->
+      [info(Game) | Acc]
+  end,
+  {atomic, Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, [], tab_game_xref) end),
+  Result.
 
 %%%
 %%% private
@@ -167,14 +190,40 @@ default_mods() ->
 start_test() ->
   setup(),
   game:start([{wait_players, []}, {restart, []}]),
+  ?assert(is_pid(?LOOKUP_GAME(1))).
+
+id_test() ->
+  setup(),
+  ?assertEqual(1, game:id()),
+  ?assertEqual(2, game:id()),
+  ?assertEqual(3, game:id()).
+
+list_test() ->
+  setup(),
+  Conf = #tab_game_config{module = game, mods = [{wait_players, []}], limit = no_limit, seat_count = 9, start_delay = 3000, required = 2, timeout = 1000, max = 2},
+  game:start(Conf),
   ?assert(is_pid(?LOOKUP_GAME(1))),
-  timer:sleep(2000),
-  game:join(1),
-  timer:sleep(500),
-  game:join(1),
-  timer:sleep(5000).
+  ?assert(is_pid(?LOOKUP_GAME(2))),
+  timer:sleep(1000),
+
+  [#game_info{}|[#game_info{}|[]]] = game:list().
+
+info_test() ->
+  setup(),
+  Conf = #tab_game_config{module = game, mods = [{wait_players, []}], limit = no_limit, seat_count = 5, start_delay = 3000, required = 3, timeout = 1000, max = 1},
+  game:start(Conf),
+  ?assert(is_pid(?LOOKUP_GAME(1))),
+  #game_info{required = R, seat_count = C} = game:info(?LOOKUP_GAME(1)),
+  ?assertEqual(3, R),
+  ?assertEqual(5, C).
 
 setup() ->
+  catch mnesia:transaction(fun() ->
+        mnesia:foldl(fun(#tab_game_xref{process = Game}, _Acc) ->
+              gen_server:call(Game, kill)
+          end, [], tab_game_xref)
+    end
+  ),
   schema:uninstall(),
   schema:install(),
   schema:load_default_data().

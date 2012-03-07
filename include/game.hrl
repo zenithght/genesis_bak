@@ -31,11 +31,13 @@
 -define(LT_POT_LIMIT, 2).
 
 -record(limit, {
-    type,
-    low,
-    high,
-    min,
-    max
+    type,        % no_limit, pot_limit, fixed_limit
+    small,       % small blind
+    big,         % big blind
+    low,         % betting low limit
+    high,        % betting high limit
+    min,         % min buyin
+    max          % max buyin
   }).
 
 %%% Query operator
@@ -155,17 +157,16 @@
     b = ?UNDEF,                 %% button
     sb = ?UNDEF,                %% small blind
     bb = ?UNDEF,                %% big blind
-    timer = ?UNDEF,
-    have_blinds = false, 
-    headsup = false,
     sb_amt = 0,
     bb_amt = 0,
-    call = 0,
+    headsup = false,
+    max_betting = 0,
     exp_seat = none,            %% expecting seat
-    exp_amt = 0,                %% expecting amount
-    exp_min = 0,                %% expecting min amount
-    exp_max = 0,                %% expecting max amount
+    exp_call = 0,               %% expecting call amount
+    exp_min = 0,                %% expecting raise min amount
+    exp_max = 0,                %% expecting raise max amount
     stage = ?UNDEF,             %% current stage
-    winners = []                %% last winners
+    winners = [],               %% last winners
+    timer = ?UNDEF
   }).
 

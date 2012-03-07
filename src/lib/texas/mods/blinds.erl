@@ -11,7 +11,7 @@
 %%%
 
 start([], Ctx = #texas{gid = Id, limit = Limit}) ->
-  {SmallAmt, BigAmt} = limit:blinds(Limit),
+  {SmallAmt, BigAmt} = {Limit#limit.small, Limit#limit.big},
 
   Button = advance_button(Ctx),
   game:notify(#notify_button{ game = Id, button = Button#seat.sn }, Ctx),

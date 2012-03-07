@@ -31,7 +31,7 @@ game_query_test() ->
         ok
     end).
 
-game_query2_test() ->
+game_info_test() ->
   run_by_login(fun() ->
         ok
     end).

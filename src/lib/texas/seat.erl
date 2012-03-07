@@ -1,5 +1,5 @@
 -module(seat).
--export([new/1, set/2, set/3, lookup/2, lookup/3]).
+-export([new/1, set/2, set/3, get/2, lookup/2, lookup/3, info/2]).
 
 -include("common.hrl").
 -include("game.hrl").
@@ -26,6 +26,9 @@ set(#seat{sn = SN}, State, Seats) -> set(SN, State, Seats);
 set(SN, State, Seats) when is_integer(SN) ->
   S = element(SN, Seats),
   setelement(SN, Seats, S#seat{state = State}).
+
+info(size, Seats) ->
+  size(Seats).
 
 %%%
 %%% private

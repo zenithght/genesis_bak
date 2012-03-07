@@ -76,10 +76,14 @@ handle_cast(Msg, Data = #pdata{stack = Stack, ctx = Ctx, state = State}) ->
   {Mod, _} = hd(Stack),
   advance(Mod:State(Msg, Ctx), Msg, Data).
 
+handle_call(kill, _From, Data) ->
+  {stop, normal, ok, Data};
 handle_call(Msg, _From, Data = #pdata{module = Module, ctx = Context}) ->
   {ok, Result, NewContext} = Module:call(Msg, Context),
   {reply, Result, Data#pdata{ctx = NewContext}}.
 
+terminate(normal, #pdata{module = Module, ctx = Ctx}) ->
+  Module:stop(Ctx);
 terminate(Reason, #pdata{module = Module, ctx = Ctx}) ->
   ?LOG([{exch, stop}, {reason, Reason}, {ctx, Ctx}]),
   Module:stop(Ctx).
