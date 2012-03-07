@@ -34,7 +34,7 @@ validate_repassword(_, _) ->
 validate(String, MinLen, MaxLen, _Regexp) when length(String) > MaxLen; length(String) < MinLen ->
     invalidate;
 validate(String, _MinLen, _MaxLen, Regexp) ->
-  case regexp:match(String, Regexp) of
+  case re:run(String, Regexp) of
     nomatch ->
       invalidate;
     _ ->
@@ -87,7 +87,7 @@ validate_amount(Cash, Credit) when is_integer(Cash), is_integer(Credit) ->
       ok
   end.
 
-check_request(Req, [], Errors) -> Errors;
+check_request(_Req, [], Errors) -> Errors;
 check_request(Req, [H|T], Errors) ->
   case H(Req) of
     ok ->
