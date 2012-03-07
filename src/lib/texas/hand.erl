@@ -787,7 +787,7 @@ rank_player_pair_test() ->
     {"4D 3S 3H", ?CF_THREE}, 
     {"AD 4S 9H 8D 9S 2D TS", ?CF_NINE}
   ],
-  gr([{Cards, ?HC_PAIR, High1, ?CF_NONE, ?CS_NONE} || {Cards, High1} <- L]).
+  gr([{Cards, ?HC_PAIR, High1, ?UNDEF, ?UNDEF} || {Cards, High1} <- L]).
 
 rank_player_two_pair_test() ->
   L = [
@@ -796,7 +796,7 @@ rank_player_two_pair_test() ->
     {"4H 4C 8D AS AD 8S", ?CF_ACE, ?CF_EIGHT},
     {"KH KC 8D AS AD 8S 7D", ?CF_ACE, ?CF_KING}
   ],
-  gr([{Cards, ?HC_TWO_PAIR, High1, High2, ?CS_NONE} || {Cards, High1, High2} <- L]).
+  gr([{Cards, ?HC_TWO_PAIR, High1, High2, ?UNDEF} || {Cards, High1, High2} <- L]).
 
 rank_player_three_kind_test() ->
   L = [
@@ -805,7 +805,7 @@ rank_player_three_kind_test() ->
     {"4H 8C 8D AS 2D 8S", ?CF_EIGHT},
     {"KH KC 6D AS KD 8S 7D", ?CF_KING}
   ],
-  gr([{Cards, ?HC_THREE_KIND, High1, ?CF_NONE, ?CS_NONE} || {Cards, High1} <- L]).
+  gr([{Cards, ?HC_THREE_KIND, High1, ?UNDEF, ?UNDEF} || {Cards, High1} <- L]).
 
 rank_player_four_kind_test() ->
   L = [
@@ -814,7 +814,7 @@ rank_player_four_kind_test() ->
     {"4H 8C 8D 8H 2D 8S", ?CF_EIGHT},
     {"KH KC KS AS KD 8S 7D", ?CF_KING}
   ],
-  gr([{Cards, ?HC_FOUR_KIND, High1, ?CF_NONE, ?CS_NONE} || {Cards, High1} <- L]).
+  gr([{Cards, ?HC_FOUR_KIND, High1, ?UNDEF, ?UNDEF} || {Cards, High1} <- L]).
 
 rank_player_full_house_test() ->
   L = [
@@ -822,7 +822,7 @@ rank_player_full_house_test() ->
     {"KD AH AC AS 3S 3D", ?CF_ACE, ?CF_THREE},
     {"TS TD KH KC KD 8S 8C", ?CF_KING, ?CF_TEN}
   ],
-  gr([{Cards, ?HC_FULL_HOUSE, High1, High2, ?CS_NONE} || {Cards, High1, High2} <- L]).
+  gr([{Cards, ?HC_FULL_HOUSE, High1, High2, ?UNDEF} || {Cards, High1, High2} <- L]).
 
 rank_player_staright_test() ->
   L = [
@@ -833,7 +833,7 @@ rank_player_staright_test() ->
     {"7D 3S 4D 5S 6H 2D AD", ?CF_SEVEN},
     {"AD KS QD JS TH 9S 8H", ?CF_ACE}
   ],
-  gr([{Cards, ?HC_STRAIGHT, High1, ?CF_NONE, ?CS_NONE} || {Cards, High1} <- L]).
+  gr([{Cards, ?HC_STRAIGHT, High1, ?UNDEF, ?UNDEF} || {Cards, High1} <- L]).
 
 rank_player_flush_test() ->
   L = [
@@ -842,7 +842,7 @@ rank_player_flush_test() ->
     {"3H 9H TH KH 4H QH 5H", ?CF_KING, ?CS_HEARTS},
     {"3H 9H TH KS 4H QH 5H", ?CF_QUEEN, ?CS_HEARTS}
   ],
-  gr([{Cards, ?HC_FLUSH, High1, ?CF_NONE, Suit} || {Cards, High1, Suit} <- L]).
+  gr([{Cards, ?HC_FLUSH, High1, ?UNDEF, Suit} || {Cards, High1, Suit} <- L]).
 
 rank_player_staright_flush_test() ->
   L = [
@@ -851,7 +851,7 @@ rank_player_staright_flush_test() ->
     {"KD JD TD QD AD", ?CF_ACE, ?CS_DIAMONDS},
     {"KD JD TD QD AS 9D 8D", ?CF_KING, ?CS_DIAMONDS}
   ],
-  gr([{Cards, ?HC_STRAIGHT_FLUSH, High1, ?CF_NONE, Suit} || {Cards, High1, Suit} <- L]).
+  gr([{Cards, ?HC_STRAIGHT_FLUSH, High1, ?UNDEF, Suit} || {Cards, High1, Suit} <- L]).
 
 print_bin(X) ->
     io:format("AKQJT98765432A~n"),
