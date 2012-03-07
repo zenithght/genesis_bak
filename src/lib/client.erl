@@ -57,6 +57,11 @@ loop({protocol, #logout{}}, #pdata{player = Player}) when is_pid(Player) ->
 loop({protocol, #logout{}}, _Data) ->
   err(?ERR_PROTOCOL);
 
+loop({protocol, #game_query{}}, Data = #pdata{player = Player}) when is_pid(Player) ->
+  Infos = game:list(),
+  lists:map(fun(Info) -> send(Info) end, Infos),
+  Data;
+
 loop({protocol, R}, Data = #pdata{player = Player}) when is_pid(Player) ->
   player:cast(Player, R),
   Data;

@@ -4,6 +4,7 @@
 -include("common.hrl").
 -include("schema.hrl").
 -include("protocol.hrl").
+-include("game.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
 -define(SLEEP, timer:sleep(500)).
@@ -26,9 +27,13 @@ info_and_balance_query_test() ->
         ?assertEqual(0, Balance)
     end).
 
-game_query_test() ->
+list_test() ->
   run_by_login(fun() ->
-        ok
+        start_game(),
+        send(#game_query{}),
+        ?SLEEP,
+        #game_info{} = head(),
+        #game_info{} = head()
     end).
 
 game_info_test() ->
@@ -36,7 +41,18 @@ game_info_test() ->
         ok
     end).
 
+start_game() ->
+  Limit = #limit{min = 100, max = 400, small = 5, big = 10},
+  Conf = #tab_game_config{module = game, mods = [{wait_players, []}], limit = Limit, seat_count = 9, start_delay = 3000, required = 2, timeout = 1000, max = 2},
+  game:start(Conf).
+  
 run_by_login(Fun) ->
+  catch mnesia:transaction(fun() ->
+        mnesia:foldl(fun(#tab_game_xref{process = Game}, _Acc) ->
+              gen_server:call(Game, kill)
+          end, [], tab_game_xref)
+    end
+  ),
   schema:uninstall(),
   schema:install(),
   schema:load_default_data(),

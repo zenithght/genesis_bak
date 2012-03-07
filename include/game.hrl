@@ -31,11 +31,8 @@
 -define(LT_POT_LIMIT, 2).
 
 -record(limit, {
-    type,        % no_limit, pot_limit, fixed_limit
     small,       % small blind
     big,         % big blind
-    low,         % betting low limit
-    high,        % betting high limit
     min,         % min buyin
     max          % max buyin
   }).

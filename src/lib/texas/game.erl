@@ -40,8 +40,7 @@ stop(#texas{gid = GID, timer = Timer}) ->
 call(info, Ctx = #texas{gid = GId, joined = Joined, required = Required, seats = Seats, limit = Limit}) ->
   {ok, #game_info{
       game = GId,
-      table_name = "TEXAS_TABLE",
-      type = "TEXAS",
+      table_name = <<"TEXAS_TABLE">>,
       limit = Limit,
       seat_count = seat:info(size, Seats),
       required = Required,
@@ -216,6 +215,19 @@ info_test() ->
   #game_info{required = R, seat_count = C} = game:info(?LOOKUP_GAME(1)),
   ?assertEqual(3, R),
   ?assertEqual(5, C).
+
+game_query_test() ->
+  ?assert(is_list(pp:write(#game_query{}))).
+
+game_info_test() ->
+  ?assert(is_list(pp:write(#game_info{
+      game = 1,
+      table_name = <<"TEXAS_TABLE">>,
+      limit = #limit{min = 10, max = 400, small = 5, big = 10},
+      seat_count = 5,
+      required = 2,
+      joined = 1}
+    ))).
 
 setup() ->
   catch mnesia:transaction(fun() ->

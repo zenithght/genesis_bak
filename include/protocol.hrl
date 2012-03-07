@@ -109,13 +109,7 @@
 
 -define(CMD_GAME_QUERY, 13).
 
--record(game_query, {
-					game_type,
-					limit_type,
-					expected, % query op
-					joined, % query op
-					waiting
-				 }).
+-record(game_query, {}).
 
 -define(CMD_SEAT_QUERY, 14).
 
@@ -159,13 +153,10 @@
 -record(game_info, {
 					game,
 					table_name,
-					type,
 					limit,
 					seat_count,
 					required,
-					joined,
-					waiting,
-          game_count
+					joined
 				 }).
 
 -define(CMD_PHOTO_INFO, 101).

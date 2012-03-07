@@ -143,7 +143,6 @@ transaction(Fun, Data) ->
     {aborted, Ex} when is_atom(Ex) ->
       {reply, Ex, Data};
     {aborted, Ex} ->
-      error_logger:error_report(Ex),
       {reply, unknown_exception, Data}
   end.
 
@@ -157,13 +156,11 @@ setup_players(Identity) when is_list(Identity) ->
   end.
 
 cost(#pdata{cash = Cash, credit = Credit}, Amount) when (Cash + Credit) < Amount -> 
-  error_logger:error_report({Cash, Credit, Amount}),
   case mnesia:is_transaction() 
     of true -> exit(less_balance); 
     false -> less_balance 
   end;
 cost(Data = #pdata{cash = Cash, record = R}, Amount) ->
-  error_logger:error_report({Cash, Amount}),
   Data#pdata{cash = Cash - Amount, record = R#tab_agent{cash = Cash - Amount}}.
 
 join(Data = #pdata{record = R, subordinate = Subordinate}, #tab_agent{identity = Identity}) ->

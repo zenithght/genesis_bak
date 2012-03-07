@@ -68,16 +68,10 @@ seats() ->
 players() ->
   byte().
 
-game_count() ->
-    int(). % XXX byte()
-
 required_players() ->
     int(). % XXX byte()
 
 joined_players() ->
-    int(). % XXX byte()
-
-waiting_players() ->
     int(). % XXX byte()
 
 player_timeout() ->
@@ -139,22 +133,12 @@ player_hand() ->
              suit()
             }).
 
-limit_type() ->
-    byte().
-
 limit() ->
     record(limit, {
-             limit_type(),
              price(),
              price(),
              price(),
              price()
-            }).
-
-query_op() ->
-    record(query_op, {
-             byte(),
-             byte()
             }).
 
 game_to_id(G) 
@@ -336,13 +320,7 @@ notify_chat() ->
             }).
 
 game_query() ->
-    record(game_query, {
-             game_type(),
-             limit_type(),
-             query_op(), % query op
-             query_op(), % query op
-             query_op()
-            }).
+    record(game_query, { }).
 
 seat_query() ->
     record(seat_query, {
@@ -380,13 +358,10 @@ game_info() ->
     record(game_info, {
              game(),
              table_name(),
-             game_type(),
              limit(),
              seat_count(),
              required_players(),
-             joined_players(),
-             waiting_players(),
-             game_count()
+             joined_players()
             }).
 
 photo_info() ->
