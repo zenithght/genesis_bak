@@ -79,7 +79,7 @@ watch_test() ->
         ?assertEqual(0, R#notify_game_detail.players),
         ?assertEqual(9, R#notify_game_detail.seats),
         [Player] = (game:ctx(1))#texas.observers,
-        ?assertEqual(?LOOKUP_PLAYER("player"), Player)
+        ?assertEqual({"player", ?LOOKUP_PLAYER("player")}, Player)
     end
   ).
 

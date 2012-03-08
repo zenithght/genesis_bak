@@ -6,7 +6,7 @@
 -export([join/1, bet/2, reward/3, broadcast/2, broadcast/3, info/1, list/0]).
 -export([ctx/1]).
 
--export([watch/1, seat_query/1]).
+-export([watch/2, seat_query/1]).
 
 -include("common.hrl").
 -include("schema.hrl").
@@ -40,7 +40,7 @@ stop(#texas{gid = GID, timer = Timer}) ->
   catch erlang:cancel_timer(Timer),
   clear_runtime(GID).
 
-call({watch, Process}, Ctx = #texas{observers = Obs}) ->
+call({watch, {Identity, Process}}, Ctx = #texas{observers = Obs}) ->
   R = #notify_game_detail{
     game = Ctx#texas.gid, 
     pot = pot:total(Ctx#texas.pot),
@@ -48,8 +48,17 @@ call({watch, Process}, Ctx = #texas{observers = Obs}) ->
     seats = seat:info(size, Ctx#texas.seats),
     stage = Ctx#texas.stage,
     limit = Ctx#texas.limit},
+
   player:notify(Process, R),
-  {ok, ok, Ctx#texas{observers = [Process|Obs]}};
+
+  %% update observer player process
+  case proplists:lookup(Identity, Obs) of
+    none ->
+      {ok, ok, Ctx#texas{observers = [{Identity, Process}|Obs]}};
+    {Identity, Process} ->
+      NewObs = [{Identity, Process}] ++ proplists:delete(Identity, Obs),
+      {ok, ok, Ctx#texas{observers = NewObs}}
+  end;
 
 call(info, Ctx = #texas{gid = GId, joined = Joined, required = Required, seats = Seats, limit = Limit}) ->
   {ok, #game_info{
@@ -68,12 +77,6 @@ dispatch(join, Ctx = #texas{joined = Joined}) ->
   Ctx#texas{joined = Joined + 1};
 
 dispatch(#leave{}, Ctx) ->
-  Ctx;
-
-dispatch(#watch{}, Ctx) ->
-  Ctx;
-
-dispatch(#unwatch{}, Ctx) ->
   Ctx;
 
 dispatch({seat_query, Player}, Ctx) when is_pid(Player)->
@@ -164,8 +167,8 @@ list() ->
   {atomic, Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, [], tab_game_xref) end),
   Result.
 
-watch(Game) when is_pid(Game) ->
-  gen_server:call(Game, {watch, self()}).
+watch(Game, Identity) when is_pid(Game), is_list(Identity) ->
+  gen_server:call(Game, {watch, {Identity, self()}}).
 
 seat_query(Game) when is_pid(Game) ->
   gen_server:cast(Game, {seat_query, self()}).

@@ -20,6 +20,7 @@
 -record(pdata, {
     pid,
     self,
+    identity = ?UNDEF,
     client = ?UNDEF,
     playing = ?UNDEF,
     watching = ?UNDEF,
@@ -30,13 +31,13 @@
     zombie 
   }).
 
-init([R = #tab_player_info{pid = PID, nick = Nick, photo = Photo}]) ->
+init([R = #tab_player_info{pid = PID, identity = Identity, nick = Nick, photo = Photo}]) ->
   process_flag(trap_exit, true),
   ok = create_runtime(PID, self()),
-  {ok, #pdata{ pid = PID, self = self(), nick = list_to_binary(Nick), photo = list_to_binary(Photo), record = R}}.
+  {ok, #pdata{ pid = PID, self = self(), nick = list_to_binary(Nick), photo = list_to_binary(Photo), identity = Identity, record = R}}.
 
-handle_cast(#watch{game = G}, Data) when is_pid(G) ->
-  game:watch(G),
+handle_cast(#watch{game = G}, Data = #pdata{identity = Identity}) when is_pid(G) ->
+  game:watch(G, Identity),
   {noreply, Data#pdata{ watching = G}};
 
 handle_cast(R = #watch{}, Data = #pdata{}) ->
