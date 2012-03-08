@@ -14,10 +14,11 @@
 
 %%% Game stage
 
--define(GS_PREFLOP, 0).
--define(GS_FLOP, 1).
--define(GS_TURN, 2).
--define(GS_RIVER, 3).
+-define(GS_CANCEL, 0).
+-define(GS_PREFLOP, 1).
+-define(GS_FLOP, 2).
+-define(GS_TURN, 3).
+-define(GS_RIVER, 4).
 
 %%% Game type
 
@@ -131,11 +132,13 @@
 -record(seat, {
     sn = ?UNDEF,
     pid = ?UNDEF,               %% player id
-    process = ?UNDEF,            %% player process
+    process = ?UNDEF,           %% player process
     hand = [],                  %% cards
     bet = 0,                    %% total bet
     inplay = 0,                 %% inplay balance
-    state = ?PS_EMPTY           %% player state
+    state = ?PS_EMPTY,          %% player state
+    nick = <<"">>,
+    photo = <<"">>
   }).
 
 -record(texas, {
@@ -162,7 +165,7 @@
     exp_call = 0,               %% expecting call amount
     exp_min = 0,                %% expecting raise min amount
     exp_max = 0,                %% expecting raise max amount
-    stage = ?UNDEF,             %% current stage
+    stage = ?GS_CANCEL,
     winners = [],               %% last winners
     timer = ?UNDEF
   }).

@@ -35,12 +35,13 @@ init([R = #tab_player_info{pid = PID, nick = Nick, photo = Photo}]) ->
   ok = create_runtime(PID, self()),
   {ok, #pdata{ pid = PID, self = self(), nick = list_to_binary(Nick), photo = list_to_binary(Photo), record = R}}.
 
-handle_cast(#watch{}, Data = #pdata{watching = W}) when W /= ?UNDEF ->
-  {noreply, Data};
-
-handle_cast(#watch{game = G}, Data) ->
-  game:watch(G, self()),
+handle_cast(#watch{game = G}, Data) when is_pid(G) ->
+  game:watch(G),
   {noreply, Data#pdata{ watching = G}};
+
+handle_cast(R = #watch{}, Data = #pdata{}) ->
+  ?LOG([{player, {error, watch}}, {join, R}, {pdata, Data}]),
+  {noreply, Data};
 
 handle_cast(#unwatch{game = G}, Data = #pdata{watching = W}) when W /= G->
   {noreply, Data};
@@ -49,15 +50,16 @@ handle_cast(#unwatch{game = G}, Data) ->
   game:unwatch(G, player = self()),
   {noreply, Data#pdata{ watching = ?UNDEF}};
 
-handle_cast(R = #join{ game = G}, Data = #pdata{watching = W}) when W =:= ?UNDEF ->
-  game:watch(G, self()),
-  handle_cast(R, Data#pdata{watching = G});
-
-handle_cast(#join { game = G}, Data = #pdata{watching = W}) when W /= G ->
+handle_cast(R = #join{game = G}, Data = #pdata{watching = W, playing = P}) when is_pid(G), W =:= G, P =:= ?UNDEF ->
+  game:join(G, R),
   {noreply, Data};
 
-handle_cast(#join { seat = Seat, game = Game}, Data = #pdata{}) ->
-  game:join(Game, Seat, self()),
+handle_cast(R = #join{game = G}, Data = #pdata{watching = W, playing = P}) when is_pid(G), W =:= ?UNDEF, P =:= ?UNDEF ->
+  ok = game:watch(G),
+  handle_cast(R, Data#pdata{watching = G});
+
+handle_cast(R = #join{}, Data = #pdata{}) ->
+  ?LOG([{player, {error, join}}, {join, R}, {pdata, Data}]),
   {noreply, Data};
 
 handle_cast(#leave{game = G}, Data = #pdata{playing = P}) when G /= P ->
@@ -77,11 +79,7 @@ handle_cast(#player_query{}, Data = #pdata{}) ->
   handle_cast({notify, R}, Data);
 
 handle_cast(#seat_query{ game = G }, Data = #pdata{watching = W, playing = P}) when W =:= ?UNDEF, P =:= ?UNDEF ->
-  L = game:seat_query(G),
-  F = fun(R = #seat_state{}) ->
-      forward_to_client(R, Data)
-  end,
-  lists:foreach(F, L),
+  game:seat_query(G),
   {noreply, Data};
       
 handle_cast(#balance_query{}, Data) ->

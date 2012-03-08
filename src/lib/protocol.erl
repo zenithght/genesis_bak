@@ -8,6 +8,7 @@
 -export([id_to_player/1, id_to_game/1]).
 
 -include("common.hrl").
+-include("game.hrl").
 -include("protocol.hrl").
 -include("schema.hrl").
 
@@ -15,7 +16,7 @@
                  short/0, sshort/0, int/0, sint/0, 
                  long/0, slong/0, list/2, choice/2, 
                  optional/1, wrap/2, tuple/1, record/2, 
-                 binary/1, string/0, wstring/0, price/0
+                 binary/1, string/0, wstring/0
                 ]).
 
 -define(PP_VER, 1).
@@ -35,8 +36,8 @@ usr() ->
 nick() ->
     string().
 
-photo() ->
-  binary(int()).  %% 实际上这是代表字符串的, size:4, string/binary
+photo() -> %% photo code, not support custom photo
+  string().
 
 pass() ->
     string().
@@ -135,10 +136,10 @@ player_hand() ->
 
 limit() ->
     record(limit, {
-             price(),
-             price(),
-             price(),
-             price()
+             int(),
+             int(),
+             int(),
+             int()
             }).
 
 game_to_id(G) 
@@ -262,11 +263,8 @@ fold() ->
 join() ->
     record(join, {
              game(),
-             internal(),
              seat(),
-             amount(),
-             internal(),
-             internal()
+             amount()
             }).
 
 leave() ->
@@ -478,8 +476,10 @@ seat_state() ->
              seat(),
              state(),
              player(),
-             amount(),
-             nick()
+             amount(), % inplay
+             amount(), % bet
+             nick(),
+             photo()
             }).
 
 you_are() ->
@@ -533,10 +533,7 @@ notify_game_detail() ->
       seats(),
       players(),
       stage(),
-      price(),
-      price(),
-      price(),
-      price()
+      limit()
     }).
 
 ping() ->
@@ -868,6 +865,9 @@ read(<<?CMD_SHOW_CARDS, Bin/binary>>) ->
     unpickle(show_cards(), Bin);
 
 read(<<?CMD_NOTIFY_GAME_DETAIL, Bin/binary>>) ->
+  unpickle(notify_game_detail(), Bin);
+
+read(<<?CMD_NOTIFY_SEAT_DETAIL, Bin/binary>>) ->
   unpickle(notify_seat_detail(), Bin);
 
 read(<<?CMD_PING, Bin/binary>>) ->
@@ -913,6 +913,14 @@ id_to_game_test() ->
   R = protocol:read(list_to_binary(Data)),
   ?assertEqual(PID, R#watch.game).
 
+seat_query_test() ->
+  PID = spawn(fun loop_fun/0),
+  yes = global:register_name({game, 10}, PID),
+  Data = protocol:write(#seat_query{game = 10}),
+  R = protocol:read(list_to_binary(Data)),
+  ?assertEqual(PID, R#seat_query.game).
+
+
 id_to_player_test() ->
   PID = spawn(fun loop_fun/0),
   yes = global:register_name({player, 1}, PID),
@@ -921,8 +929,25 @@ id_to_player_test() ->
   R = protocol:read(list_to_binary(Data)),
   ?assertEqual(PID, R#player_query.player).
 
+notify_game_detail_test() ->
+  R = #notify_game_detail{game = 1, pot = 100, players = 4, seats = 5, stage = 0, limit = #limit{max = 10, min = 10, small = 10, big = 20}},
+  Data = protocol:write(R),
+  R1 = protocol:read(list_to_binary(Data)),
+  ?assertEqual(notify_game_detail, element(1, R1)).
+
+seat_state_test() ->
+  R = #seat_state{game = 1, seat = 1, state = ?PS_EMPTY, player = 0, inplay = 0, bet = 0, nick = <<"">>, photo = <<"">>},
+  R1 = #seat_state{game = 1, seat = 2, state = ?PS_BET, player = 10, inplay = 1000, bet = 10, nick = <<"player">>, photo = <<"default">>},
+  Data = protocol:write(R),
+  Data1 = protocol:write(R1),
+  RR = protocol:read(list_to_binary(Data)),
+  RR1 = protocol:read(list_to_binary(Data1)),
+  ?assertEqual(?PS_EMPTY, RR#seat_state.state),
+  ?assertEqual(?PS_BET, RR1#seat_state.state).
+
 loop_fun() ->
   receive
     _ ->
       loop_fun()
   end.
+

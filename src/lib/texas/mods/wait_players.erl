@@ -16,6 +16,6 @@ wait_for_players({timeout, _, ?MODULE}, Ctx = #texas{}) ->
   ?LOG([{texas, wait_for_players}, {state, playing}]),
   {stop, Ctx};
 
-wait_for_players(_, Ctx) ->
-  ?LOG([{texas, {wait_for_players, skip}}]),
+wait_for_players(R, Ctx) ->
+  ?LOG([{texas, wait_for_players}, {skip, R}]),
   {skip, Ctx}.

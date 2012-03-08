@@ -1,5 +1,5 @@
 -module(seat).
--export([new/1, set/2, set/3, get/2, lookup/2, lookup/3, info/2]).
+-export([new/1, set/2, set/3, get/1, get/2, lookup/2, lookup/3, info/2]).
 
 -include("common.hrl").
 -include("game.hrl").
@@ -18,6 +18,9 @@ lookup(Mask, Seats) ->
 
 set(Seat = #seat{sn = SN}, Seats) ->
   setelement(SN, Seats, Seat).
+
+get(Seats) ->
+  tuple_to_list(Seats).
 
 get(SN, Seats) ->
   element(SN, Seats).

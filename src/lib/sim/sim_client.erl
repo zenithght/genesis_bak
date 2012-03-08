@@ -99,7 +99,8 @@ loop(Fun, LoopData, Data = #pdata{box = Box}) ->
       exit(normal);
     %% clien module callback send bianry to remote client.
     {send, Bin} when is_binary(Bin) ->
-      NB = Box ++ [protocol:read(Bin)], %% insert new message to box
+      R = protocol:read(Bin),
+      NB = Box ++ [R], %% insert new message to box
       loop(Fun, LoopData, Data#pdata{box = NB});
     %% send protocol record to clinet module.
     {send, R} when is_tuple(R) ->

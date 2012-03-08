@@ -70,11 +70,8 @@
 
 -record(join, {
 					game,
-					player,
 					seat,
-					amount,
-					pid,
-					state
+					amount
 				 }).
 
 -define(CMD_LEAVE, 9).
@@ -270,7 +267,9 @@
 					state,
 					player,
 					inplay,
-          nick
+          bet,
+          nick,
+          photo
 				 }).
 
 -define(CMD_YOU_ARE, 31).
@@ -408,10 +407,7 @@
     players,
     seats,
     stage,
-    min,
-    max,
-    low,
-    high
+    limit
   }).
 
 

@@ -4,6 +4,9 @@
 -export([id/0, init/2, stop/1, dispatch/2, call/2]).
 -export([start/0, start/1, start/2]).
 -export([join/1, bet/2, reward/3, broadcast/2, broadcast/3, info/1, list/0]).
+-export([ctx/1]).
+
+-export([watch/1, seat_query/1]).
 
 -include("common.hrl").
 -include("schema.hrl").
@@ -37,6 +40,17 @@ stop(#texas{gid = GID, timer = Timer}) ->
   catch erlang:cancel_timer(Timer),
   clear_runtime(GID).
 
+call({watch, Process}, Ctx = #texas{observers = Obs}) ->
+  R = #notify_game_detail{
+    game = Ctx#texas.gid, 
+    pot = pot:total(Ctx#texas.pot),
+    players = Ctx#texas.joined, 
+    seats = seat:info(size, Ctx#texas.seats),
+    stage = Ctx#texas.stage,
+    limit = Ctx#texas.limit},
+  player:notify(Process, R),
+  {ok, ok, Ctx#texas{observers = [Process|Obs]}};
+
 call(info, Ctx = #texas{gid = GId, joined = Joined, required = Required, seats = Seats, limit = Limit}) ->
   {ok, #game_info{
       game = GId,
@@ -47,8 +61,8 @@ call(info, Ctx = #texas{gid = GId, joined = Joined, required = Required, seats =
       joined = Joined
     }, Ctx};
 
-call(_, Ctx) ->
-  {ok, ok, Ctx}.
+call(pdata, Ctx) ->
+  {ok, Ctx, Ctx}.
 
 dispatch(join, Ctx = #texas{joined = Joined}) ->
   Ctx#texas{joined = Joined + 1};
@@ -60,6 +74,24 @@ dispatch(#watch{}, Ctx) ->
   Ctx;
 
 dispatch(#unwatch{}, Ctx) ->
+  Ctx;
+
+dispatch({seat_query, Player}, Ctx) when is_pid(Player)->
+  Fun = fun(R) ->
+      R1 = #seat_state{
+        game = Ctx#texas.gid,
+        seat = R#seat.sn,
+        state = R#seat.state,
+        player = R#seat.pid,
+        inplay = R#seat.inplay,
+        bet = R#seat.bet,
+        nick = R#seat.nick,
+        photo = R#seat.photo
+      },
+        
+      player:notify(Player, R1)
+  end,
+  lists:map(Fun, seat:get(Ctx#texas.seats)),
   Ctx;
 
 dispatch(_, Ctx) ->
@@ -131,6 +163,15 @@ list() ->
   end,
   {atomic, Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, [], tab_game_xref) end),
   Result.
+
+watch(Game) when is_pid(Game) ->
+  gen_server:call(Game, {watch, self()}).
+
+seat_query(Game) when is_pid(Game) ->
+  gen_server:cast(Game, {seat_query, self()}).
+
+ctx(Id) ->
+  gen_server:call(?LOOKUP_GAME(Id), ctx).
 
 %%%
 %%% private

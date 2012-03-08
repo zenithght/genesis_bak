@@ -20,10 +20,10 @@
     identity,
     cash = 0,
     credit = 0,
-    turnover = 0,       % today turnover
-    subordinate = gb_trees:empty(),   % low level agent list
+    turnover = 0,                     
+    subordinate = gb_trees:empty(),   
     players = gb_trees:empty(),
-    record,             % tab_agent record
+    record,                           
     disable = false
   }).
 
@@ -143,7 +143,7 @@ transaction(Fun, Data) ->
     {aborted, Ex} when is_atom(Ex) ->
       {reply, Ex, Data};
     {aborted, Ex} ->
-      {reply, unknown_exception, Data}
+      {reply, {unknown_exception, Ex}, Data}
   end.
 
 setup_players(Identity) when is_list(Identity) ->
@@ -227,7 +227,7 @@ players(Identity) when is_list(Identity) ->
 balance(Identity) when is_list(Identity) ->
   [R] = mnesia:dirty_index_read(tab_agent, Identity, identity),
   R#tab_agent.cash + R#tab_agent.credit.
-  
+
 %% Eunit Test Case
 
 subordinate_test() ->
