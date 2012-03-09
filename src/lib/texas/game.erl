@@ -13,8 +13,6 @@
 -include("game.hrl").
 -include("protocol.hrl").
 
--define(LOOKUP_GAME(Id), global:whereis_name({game, Id})).
-
 %%%
 %%% callback
 %%% 

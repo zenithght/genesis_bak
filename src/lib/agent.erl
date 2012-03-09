@@ -11,8 +11,6 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
--define(AGENT(Name), {global, {agent, Name}}).
--define(LOOKUP_AGENT(Name), global:whereis_name({agent, Name})).
 -define(DEF_PWD, erlang:md5("password")).
 
 -record(pdata, {

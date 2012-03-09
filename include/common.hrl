@@ -8,3 +8,10 @@
 -define(LOG(L), error_logger:info_report([{debug, {?MODULE, ?LINE, self()}}] ++ L)).
 -define(ERROR(L), error_logger:error_report([{debug, {?MODULE, ?LINE, self()}}] ++ L)).
 
+-define(LOOKUP_GAME(Id), global:whereis_name({game, Id})).
+-define(PLAYER(Identity), {global, {player, Identity}}).
+-define(LOOKUP_PLAYER(Identity), global:whereis_name({player, Identity})).
+-define(AGENT(Name), {global, {agent, Name}}).
+-define(LOOKUP_AGENT(Name), global:whereis_name({agent, Name})).
+
+-define(DEF_PWD, "def_pwd").

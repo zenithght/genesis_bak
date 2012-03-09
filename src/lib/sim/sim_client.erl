@@ -1,9 +1,16 @@
 -module(sim_client).
--export([start/1, loop/2, box/0, box/1, kill/1, head/1, loopdata/0, where/1, send/2, flush/0]).
+-compile([export_all]).
 
 -include("common.hrl").
+-include("game.hrl").
+-include("schema.hrl").
 -include("protocol.hrl").
 -include_lib("eunit/include/eunit.hrl").
+
+-define(SLEEP, timer:sleep(100)).
+
+-define(DEF_HASH_PWD, erlang:phash2(?DEF_PWD, 1 bsl 32)).
+
 
 -record(pdata, {
     box = [],
@@ -14,65 +21,103 @@
 %%% client
 %%%
 
+start() ->
+  start(sim_client).
+
 start(Id) when is_atom(Id) ->
+  kill(Id),
   PID = spawn(?MODULE, loop, [fun client:loop/2, self()]),
   true = register(Id, PID),
   PID.
 
 kill(Id) ->
-  PID = whereis(Id),
-  catch PID ! kill,
-  timer:sleep(500).
+  catch where(Id) ! kill,
+  ?SLEEP.
+
+kill_games() ->
+  kill_games(1),
+  ?SLEEP.
+
+kill_games(N) ->
+  case kill_game(N) of
+    ok -> kill_games(N+1);
+    undefined -> ok
+  end.
+
+kill_game(Id) ->
+  case where_game(Id) of
+    Game when is_pid(Game) ->
+      gen_server:call(Game, kill);
+    undefined ->
+      undefined
+  end.
+
+kill_player(Identity) ->
+  case where_player(Identity) of
+    Player when is_pid(Player) ->
+      gen_server:call(Player, kill);
+    undefined ->
+      undefined
+  end.
+  
+where(Id) ->
+  whereis(Id).
+
+where_game(Id) ->
+  ?LOOKUP_GAME(Id).
+
+where_player(Identity) ->
+  ?LOOKUP_PLAYER(Identity).
+  
+send(Id, R) ->
+  Id ! {send, R},
+  ?SLEEP.
 
 head(Id) ->
   Id ! {head, self()},
   receive 
-    R when is_tuple(R) -> R;
-    nil -> nil
+    R when is_tuple(R) -> R
   after
-    1000 -> exit(request_timeout)
+    500 -> exit(request_timeout)
   end.
-
-where(Id) ->
-  whereis(Id).
-
-send(Id, R) ->
-  Id ! {send, R}.
-
-flush() ->
-	receive 
-		_Any ->
-			flush()
-	after 
-		0 ->
-			true
-	end.
 
 box(Id) ->
   Id ! {box, self()},
   receive 
     Box when is_list(Box) -> Box
   after
-    1000 -> exit(request_timeout)
+    500 -> exit(request_timeout)
   end.
 
-
-loopdata() ->
-  player ! {loopdata, self()},
+loopdata(Id) ->
+  Id ! {loopdata, self()},
   receive 
     Data -> Data
   after
-    1000 -> exit(request_timeout)
+    500 -> exit(request_timeout)
   end.
-  
 
-box() ->
-  receive 
-    Box -> 
-      Box
-  after
-    1000 -> exit(request_timeout)
-  end.
+players() ->
+  [
+    {jack, #tab_player_info{
+        pid = 1, 
+        identity = "jack", 
+        nick = "Jack",
+        photo = "default",
+        password = ?DEF_HASH_PWD,
+        disabled = false }},
+    {tommy, #tab_player_info{
+        pid = 2, 
+        identity = "tommy", 
+        nick = "Tommy",
+        photo = "default",
+        password = ?DEF_HASH_PWD,
+        disabled = false }}
+  ].
+
+player(Identity) when is_atom(Identity) ->
+  {Identity, Data} = proplists:lookup(Identity, players()),
+  Data.
 
 %%%
 %%% callback
@@ -80,10 +125,6 @@ box() ->
 
 loop(Fun, Host) ->
   loop(Fun, ?UNDEF, #pdata{host = Host}).
-
-%%%
-%%% private
-%%%
 
 loop(Fun, ?UNDEF, Data = #pdata{}) ->
   LoopData = Fun(connected, ?UNDEF),
@@ -113,7 +154,6 @@ loop(Fun, LoopData, Data = #pdata{box = Box}) ->
           From ! H,
           loop(Fun, LoopData, Data#pdata{box = T});
         [] ->
-          From ! nil,
           loop(Fun, LoopData, Data#pdata{box = []})
       end;
     {box, From} when is_pid(From) ->
@@ -133,6 +173,30 @@ loop(Fun, LoopData, Data = #pdata{box = Box}) ->
 %%%
 
 start_test() ->
-  ?assert(is_pid(sim_client:start(test))),
-  kill(test),
-  ?assert(is_pid(sim_client:start(test))).
+  P1 = start(),
+  P2 = start(),
+  ?assert(is_pid(P1)),
+  ?assert(is_pid(P2)),
+  ?assertNot(P1 =:= P2),
+  ?assertNot(erlang:is_process_alive(P1)),
+  ?assert(erlang:is_process_alive(P2)).
+
+kill_game_test() ->
+  schema:init(),
+  Limit = #limit{min = 100, max = 400, small = 5, big = 10},
+  game:start(#tab_game_config{module = game, mods = [{wait_players, []}], limit = Limit, seat_count = 9, start_delay = 3000, required = 2, timeout = 1000, max = 2}),
+
+  ?assert(is_pid(where_game(1))),
+  ?assert(is_pid(where_game(2))),
+  ?assertNot(is_pid(where_game(3))),
+
+  kill_games(),
+
+  ?assertNot(is_pid(where_game(1))),
+  ?assertNot(is_pid(where_game(2))),
+  ?assertNot(is_pid(where_game(3))).
+
+players_test() ->
+  ?assertEqual(2, length(players())),
+  ?assertMatch(#tab_player_info{identity = "jack"}, player(jack)),
+  ?assertMatch(#tab_player_info{identity = "tommy"}, player(tommy)).

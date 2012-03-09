@@ -1,5 +1,5 @@
 -module(schema).
--export([install/0, uninstall/0, load_default_data/0]).
+-export([init/0, install/0, uninstall/0, load_default_data/0]).
 
 -include("schema.hrl").
 -include("common.hrl").
@@ -53,6 +53,12 @@ load_default_data() ->
   setup_cluster([node()]),
   setup_agent(),
   setup_games().
+
+init() ->
+  schema:uninstall(),
+  schema:install(),
+  schema:load_default_data().
+
 
 %% Private
 

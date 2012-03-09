@@ -14,9 +14,6 @@
 -include("protocol.hrl").
 -include("schema.hrl").
 
--define(PLAYER(Identity), {global, {player, Identity}}).
--define(LOOKUP_PLAYER(Identity), global:whereis_name({player, Identity})).
-
 -record(pdata, {
     pid,
     self,
@@ -156,9 +153,6 @@ start(Identity) when is_list(Identity) ->
 start(R = #tab_player_info{identity = Identity}) ->
   gen_server:start(?PLAYER(Identity), player, [R], []).
 
-stop({kill, Identity}) when is_list(Identity) ->
-  catch ok = gen_server:call(?PLAYER(Identity), kill);
-
 stop(Identity) when is_list(Identity) ->
   gen_server:cast(?PLAYER(Identity), stop).
 
@@ -226,7 +220,6 @@ forward_to_client(R, #pdata{client = Client}) -> client:send(Client, R).
 %%% unit test
 %%%
 
--define(DEF_PWD, "def_pwd").
 -define(DEF_HASH_PWD, erlang:phash2(?DEF_PWD, 1 bsl 32)).
   
 start_all_test() ->
