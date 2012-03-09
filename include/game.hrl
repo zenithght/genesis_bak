@@ -132,6 +132,7 @@
 -record(seat, {
     sn = ?UNDEF,
     pid = ?UNDEF,               %% player id
+    identity = ?UNDEF,          %% player identity
     process = ?UNDEF,           %% player process
     hand = [],                  %% cards
     bet = 0,                    %% total bet
@@ -153,7 +154,8 @@
     board = [],                 %% shared cards list
     observers = [],             %% game observers [{pid, process}] -> proplists
     required = 2,               %% players required to start a game
-    joined = 0,
+    joined = 0,                 %% joined players count
+    max_joined = 0,             %% can joined players limit max
     b = ?UNDEF,                 %% button
     sb = ?UNDEF,                %% small blind
     bb = ?UNDEF,                %% big blind

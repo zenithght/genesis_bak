@@ -34,9 +34,8 @@ run_by_login_two_players(Fun) ->
         ?assertMatch(#balance{}, sim_client:head(Key))
     end, [{?JACK, ?JACK_ID}, {?TOMMY, ?TOMMY_ID}]),
 
-  Fun().
-
-start_game() ->
   Limit = #limit{min = 100, max = 400, small = 5, big = 10},
   Conf = #tab_game_config{module = game, mods = [{wait_players, []}], limit = Limit, seat_count = 9, start_delay = 3000, required = 2, timeout = 1000, max = 2},
-  game:start(Conf).
+  game:start(Conf),
+
+  Fun().

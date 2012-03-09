@@ -33,6 +33,7 @@ init([R = #tab_player_info{pid = PID, identity = Identity, nick = Nick, photo = 
   ok = create_runtime(PID, self()),
   {ok, #pdata{ pid = PID, self = self(), nick = list_to_binary(Nick), photo = list_to_binary(Photo), identity = Identity, record = R}}.
 
+%% player watch game
 handle_cast(#watch{game = G}, Data = #pdata{identity = Identity}) when is_pid(G) ->
   game:watch(G, Identity),
   {noreply, Data#pdata{ watching = G}};
@@ -41,6 +42,7 @@ handle_cast(R = #watch{}, Data = #pdata{}) ->
   ?LOG([{player, {error, watch}}, {join, R}, {pdata, Data}]),
   {noreply, Data};
 
+%% player unwatch game
 handle_cast(#unwatch{game = G}, Data = #pdata{watching = W}) when W /= G->
   {noreply, Data};
 
@@ -48,18 +50,22 @@ handle_cast(#unwatch{game = G}, Data) ->
   game:unwatch(G, player = self()),
   {noreply, Data#pdata{ watching = ?UNDEF}};
 
+%% player join game
 handle_cast(R = #join{game = G}, Data = #pdata{watching = W, playing = P}) when is_pid(G), W =:= G, P =:= ?UNDEF ->
-  game:join(G, R),
+  %% TODO check buyin less balance
+  game:join(G, R#join{pid = Data#pdata.pid, identity = Data#pdata.identity, nick = Data#pdata.nick, photo = Data#pdata.photo}),
   {noreply, Data};
 
-handle_cast(R = #join{game = G}, Data = #pdata{watching = W, playing = P}) when is_pid(G), W =:= ?UNDEF, P =:= ?UNDEF ->
-  ok = game:watch(G),
+handle_cast(R = #join{game = G}, Data = #pdata{identity = Identity, watching = W, playing = P}) when is_pid(G), W =:= ?UNDEF, P =:= ?UNDEF ->
+  ?LOG([{player, game}, {player, befor_watch}]),
+  game:watch(G, Identity),
   handle_cast(R, Data#pdata{watching = G});
 
 handle_cast(R = #join{}, Data = #pdata{}) ->
   ?LOG([{player, {error, join}}, {join, R}, {pdata, Data}]),
   {noreply, Data};
 
+%% player leave game
 handle_cast(#leave{game = G}, Data = #pdata{playing = P}) when G /= P ->
   {noreply, Data};
 
@@ -67,6 +73,7 @@ handle_cast(#leave{game = G}, Data) ->
   game:leave(G, self()),
   {noreply, Data};
 
+%% player info query
 handle_cast(#player_query{}, Data = #pdata{}) ->
   R = #player_info{
     player = Data#pdata.pid,

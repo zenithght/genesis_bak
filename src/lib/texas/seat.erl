@@ -22,8 +22,8 @@ set(Seat = #seat{sn = SN}, Seats) ->
 get(Seats) ->
   tuple_to_list(Seats).
 
-get(SN, Seats) ->
-  element(SN, Seats).
+get(SN, Seats) when is_tuple(Seats), SN >= 1, SN =< size(Seats) -> element(SN, Seats);
+get(_SN, _Seats) -> ?UNDEF.
 
 set(#seat{sn = SN}, State, Seats) -> set(SN, State, Seats);
 set(SN, State, Seats) when is_integer(SN) ->
@@ -79,6 +79,12 @@ set_test() ->
   R = set(#seat{sn = 3}, ?PS_PLAY, new(4)),
   [R1] = seat:lookup(?PS_PLAY, R),
   ?assertEqual(?PS_PLAY, R1#seat.state).
+
+get_test() ->
+  All = new(5),
+  ?assertEqual(?UNDEF, get(0, All)),
+  ?assertEqual(?UNDEF, get(6, All)),
+  ?assertMatch(#seat{sn = 5, state = ?PS_EMPTY}, get(5, All)).
 
 lookup_test() ->
   All = new(5),

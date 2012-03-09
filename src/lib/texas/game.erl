@@ -3,7 +3,7 @@
 
 -export([id/0, init/2, stop/1, dispatch/2, call/2]).
 -export([start/0, start/1, start/2]).
--export([join/1, bet/2, reward/3, broadcast/2, broadcast/3, info/1, list/0]).
+-export([join/2, bet/2, reward/3, broadcast/2, broadcast/3, info/1, list/0]).
 -export([ctx/1]).
 
 -export([watch/2, seat_query/1]).
@@ -25,6 +25,7 @@ init(GID, R = #tab_game_config{}) ->
   #texas { 
     gid = GID, 
     seats = seat:new(R#tab_game_config.seat_count),
+    max_joined = R#tab_game_config.seat_count,
     limit = R#tab_game_config.limit,
     timeout = ?PLAYER_TIMEOUT,
     start_delay = R#tab_game_config.start_delay,
@@ -71,8 +72,40 @@ call(info, Ctx = #texas{gid = GId, joined = Joined, required = Required, seats =
 call(pdata, Ctx) ->
   {ok, Ctx, Ctx}.
 
-dispatch(join, Ctx = #texas{joined = Joined}) ->
-  Ctx#texas{joined = Joined + 1};
+dispatch({join, _Process, _R}, Ctx = #texas{max_joined = Max, joined = Joined}) when Max =:= Joined ->
+  Ctx;
+
+dispatch({join, Process, R = #join{sn = SN}}, Ctx = #texas{seats = Seats}) when SN /= 0 ->
+  case seat:get(SN, Seats) of
+    Seat = #seat{state = ?PS_EMPTY} ->
+      dispatch({join, Process, Seat, R}, Ctx);
+    _ ->
+      dispatch({join, Process, R#join{sn = 0}}, Ctx)
+  end;
+
+dispatch({join, Process, R = #join{sn = SN}}, Ctx = #texas{seats = Seats}) when SN =:= 0 ->
+  %% auto compute player seat number
+  [H = #seat{}|_] = seat:lookup(?PS_EMPTY, Seats),
+  dispatch({join, Process, H, R}, Ctx);
+  
+dispatch({join, Process, S = #seat{}, R = #join{identity = Identity}}, Ctx = #texas{observers = Obs, seats = Seats}) ->
+  case proplists:lookup(Identity, Obs) of
+    {Identity, Process} ->
+      JoinedSeats = seat:set(S#seat{
+          identity = Identity,
+          pid = R#join.pid,
+          process = Process,
+          hand = [],
+          bet = 0,
+          inplay = R#join.buyin,
+          state = ?PS_PLAY,
+          nick = R#join.nick,
+          photo = R#join.photo
+        }, Seats),
+      Ctx#texas{seats = JoinedSeats, joined = Ctx#texas.joined + 1};
+    _ -> % not find watch in observers
+      Ctx
+  end;
 
 dispatch(#leave{}, Ctx) ->
   Ctx;
@@ -124,9 +157,6 @@ start(Conf = #tab_game_config{module = Module, mods = Mods}, N) when is_list(Mod
 start(Conf = #tab_game_config{}, N) ->
   start(Conf#tab_game_config{mods = default_mods()}, N).
 
-join(Id) ->
-  gen_server:cast(?LOOKUP_GAME(Id), join).
-
 bet({S = #seat{inplay = Inplay, bet = Bet, pid = PID}, Amt}, Ctx = #texas{pot = Pot, seats = Seats}) ->
   {State, AllIn} = case Amt < Inplay of 
     true -> {?PS_BET, false}; 
@@ -167,6 +197,10 @@ list() ->
 
 watch(Game, Identity) when is_pid(Game), is_list(Identity) ->
   gen_server:call(Game, {watch, {Identity, self()}}).
+
+join(Game, R = #join{}) when is_pid(Game) ->
+  ?LOG([{game, join}]),
+  gen_server:cast(Game, {join, self(), R}).
 
 seat_query(Game) when is_pid(Game) ->
   gen_server:cast(Game, {seat_query, self()}).

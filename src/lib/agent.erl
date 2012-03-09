@@ -11,8 +11,6 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
--define(DEF_PWD, erlang:md5("password")).
-
 -record(pdata, {
     aid = 0,
     identity,

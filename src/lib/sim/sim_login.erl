@@ -74,7 +74,6 @@ login_successful_test() ->
 %%% private
 %%%
 
--define(DEF_PWD, "def_pwd").
 -define(DEF_HASH_PWD, erlang:phash2(?DEF_PWD, 1 bsl 32)).
 
 run_by_def(Fun) ->

@@ -61,6 +61,20 @@ watch_test() ->
     end
   ).
 
+join_test() ->
+  run_by_login(fun() ->
+        start_game(),
+        ?assertMatch(#texas{observers = []}, game:ctx(1)),
+        send(#join{game = 1, sn = 1, buyin = 500}),
+        ?assertMatch(#notify_game_detail{stage = ?GS_CANCEL, pot = 0, players = 0, seats = 9}, head()),
+        Ctx = game:ctx(1),
+        Seat = seat:get(1, Ctx#texas.seats),
+        Process = sim_client:where_player("jack"),
+        ?assertMatch(#texas{observers = [{"jack", PID}], joined = 1} when is_pid(PID), Ctx),
+        ?assertMatch(#seat{process = Process, identity = "jack", photo = <<"default">>, nick = <<"Jack">>}, Seat)
+    end
+  ).
+
 run_by_login(Fun) ->
   schema:init(),
   mnesia:dirty_write(?DEF_PLAYER),

@@ -99,6 +99,9 @@ raise_min() ->
 raise_max() ->
     amount().
 
+buyin() ->
+  amount().
+
 stage() ->
     byte().
 
@@ -185,7 +188,7 @@ player(true) ->
 player(_) ->
   wrap({fun player_to_id/1, fun id_to_player/1}, int()).
 
-seat() ->
+sn() ->
     byte().
 
 state() ->
@@ -263,8 +266,12 @@ fold() ->
 join() ->
     record(join, {
              game(),
-             seat(),
-             amount()
+             sn(),
+             buyin(),
+             internal(),
+             internal(),
+             internal(),
+             internal()
             }).
 
 leave() ->
@@ -278,7 +285,7 @@ notify_join() ->
     record(notify_join, {
              game(),
              player(),
-             seat(),
+             sn(),
              amount(),
              nick(),
              internal()
@@ -387,7 +394,7 @@ bet_req() ->
 notify_actor() ->
     record(notify_actor, {
              game(), 
-             seat()
+             sn()
            }).
 
 notify_draw() ->
@@ -473,7 +480,7 @@ game_stage() ->
 seat_state() ->
     record(seat_state, {
              game(), 
-             seat(),
+             sn(),
              state(),
              player(),
              amount(), % inplay
@@ -519,7 +526,7 @@ notify_unwatch() ->
 notify_seat_detail() ->
     record(notify_seat_detail, {
              game(), 
-             seat(),
+             sn(),
              state(),
              player(),
              amount(),
@@ -950,4 +957,11 @@ loop_fun() ->
     _ ->
       loop_fun()
   end.
+
+join_test() ->
+  R = #join{game = 1, sn = 1, buyin = 100, nick = "test", photo = "test"},
+  Data = protocol:write(R),
+  RR = protocol:read(list_to_binary(Data)),
+  ?LOG([{data, Data}, {rr, RR}]).
+  
 

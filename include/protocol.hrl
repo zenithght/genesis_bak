@@ -70,8 +70,13 @@
 
 -record(join, {
 					game,
-					seat,
-					amount
+					sn,
+					buyin,
+          % internal
+          pid,
+          identity,
+          nick,
+          photo
 				 }).
 
 -define(CMD_LEAVE, 9).
