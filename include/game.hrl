@@ -59,6 +59,7 @@
 -define(PS_FOLD, 8).      %% player fold
 -define(PS_OUT, 16).      %% player out when inplay not enough
 -define(PS_LEAVE, 32).    %% player is leave but game is not over
+-define(PS_WAIT, 64).     %% player wait next game playing
 
 -define(PS_STANDING,      %% player is survive game
   ?PS_PLAY bor

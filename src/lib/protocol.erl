@@ -962,11 +962,9 @@ loop_fun() ->
 join_test() ->
   R = #join{game = 1, sn = 1, buyin = 100, nick = "test", photo = "test"},
   Data = protocol:write(R),
-  RR = protocol:read(list_to_binary(Data)),
-  ?LOG([{data, Data}, {rr, RR}]).
+  _RR = protocol:read(list_to_binary(Data)).
   
 notify_join_test() ->
   R = #notify_join{game = 1, player = 1, sn = 1, buyin = 100, nick = <<"test">>, photo = <<"default">>},
   Data = protocol:write(R),
-  RR = protocol:read(list_to_binary(Data)),
-  ?LOG([{data, Data}, {rr, RR}]).
+  _RR = protocol:read(list_to_binary(Data)).

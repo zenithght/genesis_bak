@@ -67,6 +67,7 @@ join_test() ->
         start_game(),
         ?assertMatch(#texas{observers = []}, game:ctx(1)),
         send(#join{game = 1, sn = 1, buyin = 500}),
+
         ?assertMatch(#notify_game_detail{stage = ?GS_CANCEL, pot = 0, players = 0, seats = 9}, head()),
 
         %% check game context 

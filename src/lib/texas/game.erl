@@ -98,7 +98,7 @@ dispatch({join, Process, S = #seat{}, R = #join{identity = Identity}}, Ctx = #te
           hand = [],
           bet = 0,
           inplay = R#join.buyin,
-          state = ?PS_PLAY,
+          state = ?PS_WAIT,
           nick = R#join.nick,
           photo = R#join.photo
         }, Seats),
