@@ -9,98 +9,63 @@
 -define(SLEEP, timer:sleep(500)).
 -define(SLEEP(T), timer:sleep(T * 1000)).
 
-%% test dirty code, redefine client module pdata record.
--record(pdata, { 
-    timer = ?UNDEF, 
-    server = global:whereis_name(server),
-    player = ?UNDEF 
-  }).
-
-%% TODO test timeout is use long time, commit befor complate all test
-connection_timeout() ->
+connection_timeout_test() ->
   run_by_def(fun(_) ->
-        ?assertEqual(true, is_pid(where())),
+        ?assert(is_pid(sim_client:where(?MODULE))),
         ?SLEEP(3),
-        [E] = sim_client:box(),
-        ?assertEqual(undefined, where()),
-        ?assertEqual(E#bad.error, ?ERR_CONNECTION_TIMEOUT)
+        ?assertNot(is_pid(sim_client:where(?MODULE))),
+        ?assertMatch([#bad{error = ?ERR_CONNECTION_TIMEOUT}], sim_client:box())
     end).
 
 login_unauth_test() ->
   run_by_def(fun([{player, I}|_]) ->
         mnesia:dirty_write(I#tab_player_info{identity = "player_new"}),
-        ?assertEqual(true, is_pid(where())),
-        send(#login{usr = <<"player">>, pass = <<"def_pwd">>}),
-        [E] = sim_client:box(),
-        ?assertEqual(undefined, where()),
-        ?assertEqual(E#bad.error, ?ERR_UNAUTH)
+        ?assert(is_pid(sim_client:where(?MODULE))),
+        sim_client:send(?MODULE, #login{usr = <<"player">>, pass = <<"def_pwd">>}),
+        ?assertNot(is_pid(sim_client:where(?MODULE))),
+        ?assertMatch([#bad{error = ?ERR_UNAUTH}], sim_client:box())
     end),
+
   run_by_def(fun([{player, I}|_]) ->
         mnesia:dirty_write(I#tab_player_info{password = "pwd"}),
-        ?assertEqual(true, is_pid(where())),
-        send(#login{usr = <<"player">>, pass = <<"def_pwd">>}),
-        [E] = sim_client:box(),
-        ?assertEqual(undefined, where()),
-        ?assertEqual(E#bad.error, ?ERR_UNAUTH)
+        ?assert(is_pid(sim_client:where(?MODULE))),
+        sim_client:send(?MODULE, #login{usr = <<"player">>, pass = <<"def_pwd">>}),
+        ?assertNot(is_pid(sim_client:where(?MODULE))),
+        ?assertMatch([#bad{error = ?ERR_UNAUTH}], sim_client:box())
     end).
 
 login_player_disbale_test() ->
   run_by_def(fun([{player, I}|_]) ->
         mnesia:dirty_write(I#tab_player_info{disabled = true}),
-        ?assertEqual(true, is_pid(where())),
-        send(#login{usr = <<"player">>, pass = <<"def_pwd">>}),
-        [E] = sim_client:box(),
-        ?assertEqual(undefined, where()),
-        ?assertEqual(E#bad.error, ?ERR_PLAYER_DISABLE)
+        ?assert(is_pid(sim_client:where(?MODULE))),
+        sim_client:send(?MODULE, #login{usr = <<"player">>, pass = <<"def_pwd">>}),
+        ?assertNot(is_pid(sim_client:where(?MODULE))),
+        ?assertMatch([#bad{error = ?ERR_PLAYER_DISABLE}], sim_client:box())
     end).
 
 login_successful_test() ->
   run_by_def(fun([{player, I}|_]) ->
         mnesia:dirty_write(I),
-        ?assertEqual(true, is_pid(where())),
-        send(#login{usr = <<"player">>, pass = <<"def_pwd">>}),
-        Data = sim_client:loopdata(),
-        ?assertEqual(true, is_pid(Data#pdata.player)),
-        ?SLEEP,
-        #player_info{nick = Nick, photo = Photo} = head(),
-        ?assertEqual(<<"player">>, Nick),
-        ?assertEqual(<<"default">>, Photo),
-        #balance{amount = Balance, inplay = Inplay} = head(),
-        ?assertEqual(0, Balance),
-        ?assertEqual(0, Inplay)
+        ?assert(is_pid(sim_client:where(?MODULE))),
+        sim_client:send(?MODULE, #login{usr = <<"player">>, pass = <<"def_pwd">>}),
+        ?assertEqual(sim_client:where_player("player"), sim_client:loopdata(?MODULE, player)),
+        ?assertMatch(#player_info{nick = <<"player">>, photo = <<"default">>}, sim_client:head(?MODULE)),
+        ?assertMatch(#balance{amount = 0, inplay = 0}, sim_client:head(?MODULE))
     end).
 
 %%%
 %%% private
 %%%
 
--define(DEF_HASH_PWD, erlang:phash2(?DEF_PWD, 1 bsl 32)).
-
 run_by_def(Fun) ->
-  schema:uninstall(),
-  schema:install(),
-  schema:load_default_data(),
-
+  schema:init(),
   Data = [
     { player, #tab_player_info{
       pid = 1, 
       identity = "player", 
       nick = "player",
       photo = "default",
-      password = ?DEF_HASH_PWD,
+      password = erlang:phash2(?DEF_PWD, 1 bsl 32),
       disabled = false }}],
-
-  sim_client:flush(),
-  sim_client:kill(player),
-  sim_client:start(player),
-
+  sim_client:start(?MODULE),
   Fun(Data).
-
-where() ->
-  sim_client:where(player).
-
-send(R) ->
-  sim_client:send(player, R).
-
-head() ->
-  sim_client:head(player).

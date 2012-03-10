@@ -16,6 +16,9 @@ loop(connected, ?UNDEF) ->
 
 loop(disconnected, _Data = #pdata{}) -> ok;
 
+loop({loopdata, player}, Data = #pdata{}) ->
+  Data#pdata.player;
+
 loop({recv, Bin}, Data = #pdata{}) when is_binary(Bin) ->
   case catch protocol:read(Bin) of
     {'EXIT', {Reason, Stack}} ->

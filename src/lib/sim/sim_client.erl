@@ -81,6 +81,13 @@ head(Id) ->
     500 -> exit(request_timeout)
   end.
 
+box() ->
+  receive
+    Box when is_list(Box) -> Box
+  after
+    500 -> exit(request_timeout)
+  end.
+
 box(Id) ->
   Id ! {box, self()},
   receive 
@@ -89,10 +96,10 @@ box(Id) ->
     500 -> exit(request_timeout)
   end.
 
-loopdata(Id) ->
-  Id ! {loopdata, self()},
+loopdata(Id, Key) ->
+  Id ! {loopdata, Key, self()},
   receive 
-    Data -> Data
+    LoopDataVal -> LoopDataVal
   after
     500 -> exit(request_timeout)
   end.
@@ -159,11 +166,11 @@ loop(Fun, LoopData, Data = #pdata{box = Box}) ->
     {box, From} when is_pid(From) ->
       From ! Box,
       loop(Fun, LoopData, Data#pdata{box = []});
-    {loopdata, From} when is_pid(From) ->
-      From ! LoopData,
+    {loopdata, Key, From} when is_pid(From) ->
+      Result = Fun({loopdata, Key}, LoopData),
+      From ! Result,
       loop(Fun, LoopData, Data);
     Msg ->
-      ?LOG([{recv_msg, Msg}]),
       ND = Fun({msg, Msg}, LoopData),
       loop(Fun, ND, Data)
   end.
