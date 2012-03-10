@@ -57,7 +57,6 @@ handle_cast(R = #join{game = G}, Data = #pdata{watching = W, playing = P}) when 
   {noreply, Data};
 
 handle_cast(R = #join{game = G}, Data = #pdata{identity = Identity, watching = W, playing = P}) when is_pid(G), W =:= ?UNDEF, P =:= ?UNDEF ->
-  ?LOG([{player, game}, {player, befor_watch}]),
   game:watch(G, Identity),
   handle_cast(R, Data#pdata{watching = G});
 
@@ -227,8 +226,6 @@ forward_to_client(R, #pdata{client = Client}) -> client:send(Client, R).
 %%% unit test
 %%%
 
--define(DEF_HASH_PWD, erlang:phash2(?DEF_PWD, 1 bsl 32)).
-  
 start_all_test() ->
   setup(),
   start("player_1"),

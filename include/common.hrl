@@ -15,3 +15,5 @@
 -define(LOOKUP_AGENT(Name), global:whereis_name({agent, Name})).
 
 -define(DEF_PWD, "def_pwd").
+-define(DEF_HASH_PWD, erlang:phash2(?DEF_PWD, 1 bsl 32)).
+

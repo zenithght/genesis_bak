@@ -206,7 +206,7 @@ create(Identity, R, {Credit, Cash}) ->
   gen_server:call(?AGENT(Identity), {create, R, {Credit, Cash}}).
 
 auth(Identity, Password) when is_list(Identity), is_list(Password) ->
-  gen_server:call(?AGENT(Identity), {auth, erlang:md5(Password)}).
+  gen_server:call(?AGENT(Identity), {auth, erlang:phash2(Password, 1 bsl 32)}).
 
 betting(Identity, Player, Bet) when is_list(Identity), is_list(Player), is_integer(Bet), Bet > 0 ->
   gen_server:call(?AGENT(Identity), {betting, Player, Bet}).
@@ -270,7 +270,7 @@ betting_test() ->
 
 auth_test() ->
   setup(),
-  ?assert(true =:= auth("root", "password")),
+  ?assert(true =:= auth("root", ?DEF_PWD)),
   ?assert(false =:= auth("root", "")).
 
 balance_test() ->
@@ -278,11 +278,9 @@ balance_test() ->
   ?assertEqual(10000, balance("agent_1")).
 
 setup() ->
-  schema:uninstall(),
-  schema:install(),
-  schema:load_default_data(),
+  schema:init(),
 
-  DefPwd = ?DEF_PWD,
+  DefPwd = ?DEF_HASH_PWD,
 
   Agents = [
     #tab_agent{ 
