@@ -9,8 +9,6 @@
 
 -define(SLEEP, timer:sleep(100)).
 
--define(DEF_HASH_PWD, erlang:phash2(?DEF_PWD, 1 bsl 32)).
-
 
 -record(pdata, {
     box = [],
@@ -52,8 +50,8 @@ kill_game(Id) ->
       undefined
   end.
 
-kill_player(Identity) ->
-  case where_player(Identity) of
+kill_player(PId) ->
+  case where_player(PId) of
     Player when is_pid(Player) ->
       gen_server:call(Player, kill);
     undefined ->
@@ -66,8 +64,8 @@ where(Id) ->
 where_game(Id) ->
   ?LOOKUP_GAME(Id).
 
-where_player(Identity) ->
-  ?LOOKUP_PLAYER(Identity).
+where_player(PId) ->
+  ?LOOKUP_PLAYER(PId).
   
 send(Id, R) ->
   Id ! {send, R},

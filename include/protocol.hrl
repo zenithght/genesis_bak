@@ -379,9 +379,10 @@
 -record(notify_join, {
 					game,
 					player,
-					seat,
-					amount,
+					sn,
+					buyin,
           nick,
+          photo,
 					proc % internal
 				 }).
 

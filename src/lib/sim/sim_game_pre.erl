@@ -7,7 +7,8 @@
 -include("game.hrl").
 
 -define(DEF_PLAYER, sim_client:player(jack)).
--define(DEF_PLAYER_ID, (sim_client:player(jack))#tab_player_info.identity).
+-define(DEF_PLAYER_ID, (sim_client:player(jack))#tab_player_info.pid).
+-define(DEF_PLAYER_IDENTITY, (sim_client:player(jack))#tab_player_info.identity).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -67,11 +68,17 @@ join_test() ->
         ?assertMatch(#texas{observers = []}, game:ctx(1)),
         send(#join{game = 1, sn = 1, buyin = 500}),
         ?assertMatch(#notify_game_detail{stage = ?GS_CANCEL, pot = 0, players = 0, seats = 9}, head()),
+
+        %% check game context 
         Ctx = game:ctx(1),
         Seat = seat:get(1, Ctx#texas.seats),
-        Process = sim_client:where_player("jack"),
+        Process = sim_client:where_player(?DEF_PLAYER_ID),
+        Game = sim_client:where_game(1),
         ?assertMatch(#texas{observers = [{"jack", PID}], joined = 1} when is_pid(PID), Ctx),
-        ?assertMatch(#seat{process = Process, identity = "jack", photo = <<"default">>, nick = <<"Jack">>}, Seat)
+        ?assertMatch(#seat{process = Process, identity = "jack", photo = <<"default">>, nick = <<"Jack">>}, Seat),
+
+        ?assertMatch(#notify_join{game = Game, player = Process, buyin = 500, sn = 1, photo = <<"default">>, nick = <<"Jack">>}, head())
+
     end
   ).
 
@@ -83,7 +90,7 @@ run_by_login(Fun) ->
   sim_client:kill_player(?DEF_PLAYER_ID),
 
   sim_client:start(?MODULE),
-  sim_client:send(?MODULE, #login{usr = list_to_binary(?DEF_PLAYER_ID), pass = <<?DEF_PWD>>}),
+  sim_client:send(?MODULE, #login{usr = list_to_binary(?DEF_PLAYER_IDENTITY), pass = <<?DEF_PWD>>}),
 
   ?assertMatch(#player_info{}, sim_client:head(?MODULE)),
   ?assertMatch(#balance{}, sim_client:head(?MODULE)),

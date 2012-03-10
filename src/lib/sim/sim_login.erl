@@ -48,7 +48,7 @@ login_successful_test() ->
         mnesia:dirty_write(I),
         ?assert(is_pid(sim_client:where(?MODULE))),
         sim_client:send(?MODULE, #login{usr = <<"player">>, pass = <<"def_pwd">>}),
-        ?assertEqual(sim_client:where_player("player"), sim_client:loopdata(?MODULE, player)),
+        ?assertEqual(sim_client:where_player(1), sim_client:loopdata(?MODULE, player)),
         ?assertMatch(#player_info{nick = <<"player">>, photo = <<"default">>}, sim_client:head(?MODULE)),
         ?assertMatch(#balance{amount = 0, inplay = 0}, sim_client:head(?MODULE))
     end).

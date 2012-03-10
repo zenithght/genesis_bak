@@ -156,8 +156,8 @@ start(Identity) when is_list(Identity) ->
   [R] = mnesia:dirty_index_read(tab_player_info, Identity, identity),
   start(R);
   
-start(R = #tab_player_info{identity = Identity}) ->
-  gen_server:start(?PLAYER(Identity), player, [R], []).
+start(R = #tab_player_info{pid = PId}) ->
+  gen_server:start(?PLAYER(PId), player, [R], []).
 
 stop(Identity) when is_list(Identity) ->
   gen_server:cast(?PLAYER(Identity), stop).
@@ -165,8 +165,8 @@ stop(Identity) when is_list(Identity) ->
 stop(Identity, Reason) when is_list(Identity) ->
   gen_server:cast(?PLAYER(Identity), {stop, Reason}).
 
-notify(Identity, R) when is_list(Identity) ->
-  notify(?LOOKUP_PLAYER(Identity), R);
+notify(PId, R) when is_integer(PId) ->
+  notify(?LOOKUP_PLAYER(PId), R);
 notify(Player, R) when is_pid(Player) ->
   gen_server:cast(Player, {notify, R}).
 
@@ -229,8 +229,8 @@ forward_to_client(R, #pdata{client = Client}) -> client:send(Client, R).
 start_all_test() ->
   setup(),
   start("player_1"),
-  ?assertEqual(true, erlang:is_process_alive(?LOOKUP_PLAYER("player_1"))),
-  Pdata = pdata("player_1"),
+  ?assertEqual(true, erlang:is_process_alive(?LOOKUP_PLAYER(1))),
+  Pdata = pdata(1),
   ?assertEqual(<<"player1">>, Pdata#pdata.nick),
   ?assertEqual(<<"default1">>, Pdata#pdata.photo),
   [Xref] = mnesia:dirty_read(tab_player, Pdata#pdata.pid),
@@ -240,8 +240,8 @@ start_all_test() ->
 start_test() ->
   setup(),
   {ok, _Pid} = start("player_1"),
-  ?assertEqual(true, erlang:is_process_alive(?LOOKUP_PLAYER("player_1"))),
-  Pdata = pdata("player_1"),
+  ?assertEqual(true, erlang:is_process_alive(?LOOKUP_PLAYER(1))),
+  Pdata = pdata(1),
   ?assertEqual(<<"player1">>, Pdata#pdata.nick),
   ?assertEqual(<<"default1">>, Pdata#pdata.photo),
   [Xref] = mnesia:dirty_read(tab_player, Pdata#pdata.pid),
@@ -267,24 +267,24 @@ setup() ->
 
   Players = [
     #tab_player_info {
-      pid = counter:bump(player),
+      pid = 1,
       identity = "player_1",
       password = ?DEF_HASH_PWD,
       nick = "player1",
       photo = "default1",
       agent = "root"
     }, #tab_player_info {
-      pid = counter:bump(player),
+      pid = 2,
       identity = "player_2",
       nick = "player2",
       agent = "root"
     }, #tab_player_info {
-      pid = counter:bump(player),
+      pid = 3,
       identity = "player_3",
       nick = "player3",
       agent = "agent_1"
     }, #tab_player_info {
-      pid = counter:bump(player),
+      pid = 4,
       identity = "player_4",
       nick = "player4",
       agent = "agent_1_1"
@@ -293,8 +293,8 @@ setup() ->
 
   lists:foreach(fun(R) -> mnesia:dirty_write(R) end, Players),
   
-  Fun = fun(#tab_player_info{identity = Identity}, _Acc) ->
-      case ?LOOKUP_PLAYER(Identity) of
+  Fun = fun(#tab_player_info{pid = PId}, _Acc) ->
+      case ?LOOKUP_PLAYER(PId) of
         Pid when is_pid(Pid) -> 
           ok = gen_server:call(Pid, kill);
         _ -> ok
@@ -302,5 +302,5 @@ setup() ->
   end,
   lists:foldl(Fun, nil, Players).
 
-pdata(Identity) ->
-  gen_server:call(?PLAYER(Identity), pdata).
+pdata(Id) ->
+  gen_server:call(?PLAYER(Id), pdata).

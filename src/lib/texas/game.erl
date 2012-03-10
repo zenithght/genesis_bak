@@ -102,6 +102,18 @@ dispatch({join, Process, S = #seat{}, R = #join{identity = Identity}}, Ctx = #te
           nick = R#join.nick,
           photo = R#join.photo
         }, Seats),
+
+      JoinMsg = #notify_join{
+        game = Ctx#texas.gid,
+        player = R#join.pid,
+        sn = S#seat.sn,
+        buyin = R#join.buyin,
+        nick = R#join.nick,
+        photo = R#join.photo,
+        proc = self()
+      },
+
+      broadcast(JoinMsg, Ctx),
       Ctx#texas{seats = JoinedSeats, joined = Ctx#texas.joined + 1};
     _ -> % not find watch in observers
       Ctx
@@ -178,9 +190,9 @@ broadcast(Msg, #texas{observers = Obs}, []) ->
 broadcast(Msg, Ctx = #texas{observers = Obs}, _Exclude = [H|T]) ->
   broadcast(Msg, Ctx#texas{observers = proplists:delete(H, Obs)}, T).
 
-broadcast(_Msg, []) -> ok;
 broadcast(Msg, #texas{observers = Obs}) -> 
   broadcast(Msg, Obs);
+broadcast(_Msg, []) -> ok;
 broadcast(Msg, [{_, Process}|T]) ->
   player:notify(Process, Msg),
   broadcast(Msg, T).
@@ -199,7 +211,6 @@ watch(Game, Identity) when is_pid(Game), is_list(Identity) ->
   gen_server:call(Game, {watch, {Identity, self()}}).
 
 join(Game, R = #join{}) when is_pid(Game) ->
-  ?LOG([{game, join}]),
   gen_server:cast(Game, {join, self(), R}).
 
 seat_query(Game) when is_pid(Game) ->
