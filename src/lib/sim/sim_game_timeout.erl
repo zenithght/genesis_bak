@@ -1,4 +1,4 @@
--module(sim_game).
+-module(sim_game_timeout).
 -compile([export_all]).
 
 -include("common.hrl").
@@ -15,9 +15,13 @@
 -define(TOMMY, tommy).
 -define(TOMMY_ID, 2).
 
-join_empty_game_test() ->
+watch_empty_game_test() ->
   run_by_login_two_players(fun() ->
-        ok
+        sim_client:send(?JACK, #watch{game = ?GAME}),
+        ?assertMatch(#notify_game_detail{stage = ?GS_CANCEL, pot = 0, players = 0, seats = 9}, sim_client:head(?JACK)),
+        ?assertMatch(#texas{observers = [{"jack", PID}]} when is_pid(PID), ?GAME_CTX),
+        timer:sleep(3000),
+        ?assertMatch(#notify_cancel_game{game = ?GAME}, sim_client:head(?JACK))
     end).
 
 run_by_login_two_players(Fun) ->

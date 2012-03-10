@@ -34,7 +34,7 @@ behaviour_info(callbacks) -> [
 
 start(Module, Conf, Mods) ->
   Id = Module:id(),
-  gen_server:start({global, {Module, Id}}, exch, [Module, Id, Conf, Mods], []).
+  {ok, _PID} = gen_server:start({global, {Module, Id}}, exch, [Module, Id, Conf, Mods], []).
 
 stop(Module, Id) when is_number(Id) ->
   gen_server:cast({global, {Module, Id}}, stop).
