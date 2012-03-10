@@ -113,6 +113,7 @@ advance({skip, Ctx}, Msg, Data = #pdata{module = Module}) ->
   {noreply, Data#pdata{ ctx = Module:dispatch(Msg, Ctx) }};
 
 advance({stop, Ctx}, _Msg, Data = #pdata{ stack = [_] }) ->
+  ?LOG([{exch, stack_empty}]),
   {stop, normal, Data#pdata{ ctx = Ctx, stack = [] }};
 
 advance({stop, Ctx}, Msg, Data = #pdata{ stack = [_|T] }) ->

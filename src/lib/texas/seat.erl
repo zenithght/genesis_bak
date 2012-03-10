@@ -28,7 +28,11 @@ get(_SN, _Seats) -> ?UNDEF.
 set(#seat{sn = SN}, State, Seats) -> set(SN, State, Seats);
 set(SN, State, Seats) when is_integer(SN) ->
   S = element(SN, Seats),
-  setelement(SN, Seats, S#seat{state = State}).
+  setelement(SN, Seats, S#seat{state = State});
+
+set([], _State, Seats) -> Seats;
+set([#seat{sn = SN}|T], State, Seats) -> 
+  set(T, State, set(SN, State, Seats)).
 
 info(size, Seats) ->
   size(Seats).
@@ -38,7 +42,7 @@ info(size, Seats) ->
 %%%
 
 new(0, Acc) -> Acc;
-new(N, Acc) -> new(N - 1, [#seat{sn = N} | Acc]).
+new(N, Acc) -> new(N - 1, [#seat{sn = N, state = ?PS_EMPTY} | Acc]).
 
 lookup(_Mask, _Seats, 0, _At, _N, _Acc) -> [];
 lookup(_Mask, _Seats, _Size, _At, 0, Acc) -> lists:reverse(Acc);
@@ -98,14 +102,14 @@ lookup_test() ->
   ?assertEqual(?PS_EMPTY, Last#seat.state).
 
 lookup_at_test() ->
-  All = new(5),
-  S = element(3, All),
-  R = seat:lookup(?PS_EMPTY, All, S),
-  ?assertEqual(5, length(R)),
-  First = lists:nth(1, R),
-  Last = lists:nth(5, R),
-  ?assertEqual(4, First#seat.sn),
-  ?assertEqual(3, Last#seat.sn).
+  Seats = set([#seat{sn = 2}, #seat{sn = 1}], ?PS_PLAY, new(5)),
+  ?assertMatch(#seat{state = ?PS_PLAY, sn = 1}, get(1, Seats)),
+  ?assertMatch(#seat{state = ?PS_PLAY, sn = 2}, get(2, Seats)),
+  ?assertMatch(#seat{state = ?PS_EMPTY, sn = 3}, get(3, Seats)),
+  ?assertMatch(#seat{state = ?PS_EMPTY, sn = 4}, get(4, Seats)),
+  ?assertMatch(#seat{state = ?PS_EMPTY, sn = 5}, get(5, Seats)),
+  LookupSeats = seat:lookup(?PS_PLAY, Seats, #seat{sn = 1}),
+  ?assertMatch([#seat{state = ?PS_PLAY, sn = 2}], LookupSeats).
 
 lookup_mask_test() ->
   S = #seat{sn = 3, state = ?PS_PLAY},
@@ -117,3 +121,8 @@ lookup_mask_test() ->
   R1 = seat:lookup(?PS_STANDING, seat:set(S, new(5))),
   ?assertEqual(1, length(R1)),
   ?assertEqual(3, (lists:nth(1, R1))#seat.sn).
+
+set_list_test() ->
+  Seats = set([#seat{sn = 2}, #seat{sn = 4}], ?PS_PLAY, new(4)),
+  ?assertEqual(#seat{state = ?PS_PLAY, sn = 2}, get(2, Seats)),
+  ?assertEqual(#seat{state = ?PS_PLAY, sn = 4}, get(4, Seats)).

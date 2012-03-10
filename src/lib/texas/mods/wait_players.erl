@@ -13,9 +13,11 @@ wait_for_players({timeout, _, ?MODULE}, Ctx = #texas{required = R, joined = J}) 
   game:broadcast(#notify_cancel_game{game = Ctx#texas.gid}, Ctx),
   {repeat, Ctx};
 
-wait_for_players({timeout, _, ?MODULE}, Ctx = #texas{}) ->
+wait_for_players({timeout, _, ?MODULE}, Ctx = #texas{seats = Seats}) ->
   game:broadcast(#notify_start_game{game = Ctx#texas.gid}, Ctx),
-  {stop, Ctx};
+  ReadySeats = seat:lookup(?PS_READY, Seats),
+  PlaySeats = seat:set(ReadySeats, ?PS_PLAY, Seats),
+  {stop, Ctx#texas{seats = PlaySeats}};
 
 wait_for_players(_R, Ctx) ->
   {skip, Ctx}.

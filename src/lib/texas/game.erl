@@ -32,7 +32,10 @@ init(GID, R = #tab_game_config{}) ->
     required = R#tab_game_config.required,
     xref = gb_trees:empty(),
     pot = pot:new(),
-    deck = deck:new()
+    deck = deck:new(),
+    b = ?UNDEF,
+    sb = ?UNDEF,
+    bb = ?UNDEF
   }.
 
 stop(#texas{gid = GID, timer = Timer}) ->

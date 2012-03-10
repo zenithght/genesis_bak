@@ -68,7 +68,8 @@
 
 -define(PS_READY,         %% player ready to play game again
   ?PS_STANDING bor
-  ?PS_FOLD).
+  ?PS_FOLD bor
+  ?PS_WAIT).
 
 -define(PS_ANY, 
   ?PS_STANDING bor
