@@ -59,11 +59,7 @@ blind_headsup_game_test() ->
   run_by_login_two_players([{blinds, []}], fun() ->
         join_and_start_game(?TWO_PLAYERS),
 
-        lists:map(fun(ID) ->
-              ?assertMatch(#notify_button{button = 1}, sim_client:head(ID)),
-              ?assertMatch(#notify_sb{sb = 1}, sim_client:head(ID)),
-              ?assertMatch(#notify_bb{bb = 2}, sim_client:head(ID))
-          end, [?JACK, ?TOMMY]),
+        check_blind(?TWO_PLAYERS, 1, 1, 2),
 
         Ctx = ?GAME_CTX, 
         Seats = Ctx#texas.seats,
@@ -82,19 +78,29 @@ blind_headsup_game_test() ->
         ?assertMatch([#tab_player_info{cash = -10}], mnesia:dirty_read(tab_player_info, ?TOMMY_ID))
     end).
         
-%blind_game_test() ->
-  %run_by_login_players([{blinds, []}], ?TREE_PLAYERS, fun() ->
-        %join_and_start_game(),
+blind_game_test() ->
+  run_by_login_players([{blinds, []}], ?THREE_PLAYERS, fun() ->
+        join_and_start_game(?THREE_PLAYERS),
+        check_blind(?THREE_PLAYERS, 1, 2, 3),
 
-        %lists:map(fun(ID) ->
-              %?assertMatch(#notify_button{button = 1}, sim_client:head(ID)),
-              %?assertMatch(#notify_sb{sb = 2}, sim_client:head(ID)),
-              %?assertMatch(#notify_bb{bb = 3}, sim_client:head(ID))
-          %end, ?TREE_PLAYERS)
-    %end).
+        ?assertMatch(
+          #texas{
+            b = #seat{sn = 1, pid = ?JACK_ID}, 
+            sb = #seat{sn = 2, pid = ?TOMMY_ID}, 
+            bb = #seat{sn = 3, pid = ?FOO_ID}, 
+            headsup = false}, 
+          ?GAME_CTX)
+    end).
 
 run_by_login_two_players(Fun) ->
   run_by_login_players([], ?TWO_PLAYERS, Fun).
+
+check_blind([], _, _, _) -> ok;
+check_blind([{Key, _Id}|T], B, SB, BB) ->
+  ?assertMatch(#notify_button{button = B}, sim_client:head(Key)),
+  ?assertMatch(#notify_sb{sb = SB}, sim_client:head(Key)),
+  ?assertMatch(#notify_bb{bb = BB}, sim_client:head(Key)),
+  check_blind(T, B, SB, BB).
 
 run_by_login_two_players(Mods, Fun) ->
   run_by_login_players(Mods, ?TWO_PLAYERS, Fun).
