@@ -106,6 +106,7 @@ dispatch({join, Process, S = #seat{}, R = #join{identity = Identity}}, Ctx = #te
           identity = Identity,
           pid = R#join.pid,
           process = Process,
+          %agent = R#join.agent,
           hand = [],
           bet = 0,
           inplay = R#join.buyin,
@@ -247,15 +248,26 @@ start(Conf = #tab_game_config{module = Module, mods = Mods}, N) when is_list(Mod
 start(Conf = #tab_game_config{}, N) ->
   start(Conf#tab_game_config{mods = default_mods()}, N).
 
-bet({S = #seat{inplay = Inplay, bet = Bet, pid = PID}, Amt}, Ctx = #texas{pot = Pot, seats = Seats}) ->
-  {State, AllIn} = case Amt < Inplay of 
-    true -> {?PS_BET, false}; 
-    _ -> {?PS_ALL_IN, true} 
+bet({S = #seat{inplay = Inplay, bet = Bet, pid = PId}, Amt}, Ctx = #texas{seats = Seats}) ->
+  {State, AllIn, CostAmt} = case Amt < Inplay of 
+    true -> {?PS_BET, false, Amt}; 
+    _ -> {?PS_ALL_IN, true, Inplay} 
   end,
-  NewInplay = mnesia:dirty_update_counter(tab_inplay, PID, 0 - Amt),
-  NewSeats = seat:set(S#seat{inplay = NewInplay, state = State, bet = Bet + Amt}, Seats),
-  NewPot = pot:add(Pot, PID, Amt, AllIn),
-  Ctx#texas{seats = NewSeats, pot = NewPot}.
+
+  Fun = fun() ->
+      [R] = mnesia:read(tab_inplay, PId, write),
+      ok = mnesia:write(R#tab_inplay{inplay = Inplay - CostAmt}),
+      ok = mnesia:write(#tab_turnover_log{
+          aid = S#seat.agent, pid = PId, game = Ctx#texas.gid,
+          amt = CostAmt, inplay = Inplay - CostAmt})
+  end,
+  
+  case mnesia:transaction(Fun) of
+    {atomic, ok} ->
+      NewSeats = seat:set(S#seat{inplay = Inplay - CostAmt, state = State, bet = Bet + CostAmt}, Seats),
+      NewPot = pot:add(Ctx#texas.pot, PId, Amt, AllIn),
+      Ctx#texas{seats = NewSeats, pot = NewPot}
+  end.
 
 reward(#hand{seat_sn = SN, pid = PId}, Amt, Ctx = #texas{seats = S}) when Amt > 0 ->
   NewInplay = mnesia:dirty_update_counter(tab_inplay, PId, Amt),

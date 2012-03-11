@@ -10,5 +10,7 @@ start([], Ctx) ->
   {next, stop, Ctx}.
 
 stop({timeout, _, ?MODULE}, Ctx = #texas{}) ->
-  {stop, Ctx}.
+  {stop, Ctx};
 
+stop(_, Ctx) ->
+  {skip, Ctx}.

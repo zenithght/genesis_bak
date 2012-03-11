@@ -121,6 +121,15 @@ players() ->
         password = ?DEF_HASH_PWD,
         cash = 0,
         credit = 1000,
+        disabled = false }},
+    {foo, #tab_player_info{
+        pid = 3, 
+        identity = "foo", 
+        nick = "Foo",
+        photo = "default",
+        password = ?DEF_HASH_PWD,
+        cash = 0,
+        credit = 1000,
         disabled = false }}
   ].
 

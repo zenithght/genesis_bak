@@ -134,6 +134,7 @@
 -record(seat, {
     sn = ?UNDEF,
     pid = ?UNDEF,               %% player id
+    agent,
     identity = ?UNDEF,          %% player identity
     process = ?UNDEF,           %% player process
     hand = [],                  %% cards
