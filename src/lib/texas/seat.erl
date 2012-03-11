@@ -109,7 +109,7 @@ lookup_at_test() ->
   ?assertMatch(#seat{state = ?PS_EMPTY, sn = 4}, get(4, Seats)),
   ?assertMatch(#seat{state = ?PS_EMPTY, sn = 5}, get(5, Seats)),
   LookupSeats = seat:lookup(?PS_PLAY, Seats, #seat{sn = 1}),
-  ?assertMatch([#seat{state = ?PS_PLAY, sn = 2}], LookupSeats).
+  ?assertMatch([#seat{state = ?PS_PLAY, sn = 2}, #seat{state = ?PS_PLAY, sn = 1}], LookupSeats).
 
 lookup_mask_test() ->
   S = #seat{sn = 3, state = ?PS_PLAY},

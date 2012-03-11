@@ -62,6 +62,27 @@ watch_test() ->
     end
   ).
 
+unwatch_test() ->
+  run_by_login(fun() ->
+        start_game(),
+        ?assertMatch(#texas{observers = []}, game:ctx(1)),
+        send(#watch{game = 1}),
+        ?assertMatch(#texas{observers = [{"jack", _}]}, game:ctx(1)),
+        send(#unwatch{game = 1}),
+        ?assertMatch(#texas{observers = []}, game:ctx(1))
+    end).
+
+join_error_test() ->
+  run_by_login(fun() ->
+        start_game(),
+        send(#join{game = 1, sn = 1, buyin = 5000}), % join big buyin
+        ?assertMatch(#notify_game_detail{}, head()), % watched game
+        ?assertMatch(#bad{error = ?ERR_JOIN_LESS_BALANCE}, head()), % less balance
+        %% check game context 
+        Ctx = game:ctx(1), % watched buy not join
+        ?assertMatch(#texas{observers = [{"jack", PID}], joined = 0} when is_pid(PID), Ctx)
+    end).
+        
 join_test() ->
   run_by_login(fun() ->
         start_game(),
@@ -77,11 +98,28 @@ join_test() ->
         Game = sim_client:where_game(1),
         ?assertMatch(#texas{observers = [{"jack", PID}], joined = 1} when is_pid(PID), Ctx),
         ?assertMatch(#seat{process = Process, identity = "jack", photo = <<"default">>, nick = <<"Jack">>}, Seat),
-
         ?assertMatch(#notify_join{game = Game, player = Process, buyin = 500, sn = 1, photo = <<"default">>, nick = <<"Jack">>}, head())
-
     end
   ).
+
+join_leave_acount_test() ->
+  run_by_login(fun() ->
+        start_game(),
+        send(#join{game = 1, sn = 1, buyin = 500}),
+        %% check db
+        PId = ?DEF_PLAYER_ID,
+        ?assertMatch([#tab_inplay{pid = PId, inplay = 500}], mnesia:dirty_read(tab_inplay, PId)),
+        ?assertMatch([#tab_buyin_log{aid = "root", pid = PId, gid = 1, amt = -500, cash = -500, credit = 1000}], mnesia:dirty_index_read(tab_buyin_log, PId, pid)),
+        ?assertMatch([#tab_player_info{credit = 1000, cash = -500}], mnesia:dirty_read(tab_player_info, PId)),
+        %% check player info
+        ?assertMatch(#tab_player_info{credit = 1000, cash = -500}, player:ctx(PId, info)),
+
+        send(#leave{game = 1}),
+        ?assertMatch([], mnesia:dirty_read(tab_inplay, PId)),
+        ?assertMatch([#tab_player_info{credit = 1000, cash = 0}], mnesia:dirty_read(tab_player_info, PId))
+    end
+  ).
+
 
 run_by_login(Fun) ->
   schema:init(),

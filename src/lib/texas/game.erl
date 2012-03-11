@@ -3,10 +3,10 @@
 
 -export([id/0, init/2, stop/1, dispatch/2, call/2]).
 -export([start/0, start/1, start/2]).
--export([join/2, bet/2, reward/3, broadcast/2, broadcast/3, info/1, list/0]).
+-export([join/2, leave/2, bet/2, reward/3, broadcast/2, broadcast/3, info/1, list/0]).
 -export([ctx/1]).
 
--export([watch/2, seat_query/1]).
+-export([watch/2, unwatch/2, seat_query/1]).
 
 -include("common.hrl").
 -include("schema.hrl").
@@ -60,6 +60,14 @@ call({watch, {Identity, Process}}, Ctx = #texas{observers = Obs}) ->
     {Identity, Process} ->
       NewObs = [{Identity, Process}] ++ proplists:delete(Identity, Obs),
       {ok, ok, Ctx#texas{observers = NewObs}}
+  end;
+
+call({unwatch, {Identity, _Process}}, Ctx = #texas{observers = Obs}) ->
+  case proplists:lookup(Identity, Obs) of
+    none ->
+      {ok, ok, Ctx};
+    {Identity, _Proc} ->
+      {ok, ok, Ctx#texas{observers = proplists:delete(Identity, Obs)}}
   end;
 
 call(info, Ctx = #texas{gid = GId, joined = Joined, required = Required, seats = Seats, limit = Limit}) ->
@@ -116,14 +124,81 @@ dispatch({join, Process, S = #seat{}, R = #join{identity = Identity}}, Ctx = #te
         proc = self()
       },
 
-      broadcast(JoinMsg, Ctx),
-      Ctx#texas{seats = JoinedSeats, joined = Ctx#texas.joined + 1};
+      Fun = fun() ->
+          [] = mnesia:read(tab_inplay, R#join.pid), % check none inplay record
+          [Info] = mnesia:read(tab_player_info, R#join.pid, write),
+          Balance = Info#tab_player_info.cash + Info#tab_player_info.credit,
+
+          case Balance < R#join.buyin of
+            true ->
+              exit(err_join_less_balance);
+            _ ->
+              ok
+          end,
+
+          ok = mnesia:write(#tab_buyin_log{
+              aid = R#join.agent, pid = R#join.pid, gid = Ctx#texas.gid, 
+              amt = 0 - R#join.buyin, cash = Info#tab_player_info.cash - R#join.buyin,
+              credit = Info#tab_player_info.credit}),
+          ok = mnesia:write(#tab_inplay{pid = R#join.pid, inplay = R#join.buyin}),
+          ok = mnesia:write(Info#tab_player_info{cash = Info#tab_player_info.cash - R#join.buyin})
+      end,
+
+      case mnesia:transaction(Fun) of
+        {atomic, ok} ->
+          broadcast(JoinMsg, Ctx),
+          Ctx#texas{seats = JoinedSeats, joined = Ctx#texas.joined + 1};
+        {aborted, Err} ->
+          ?LOG([{game, error}, {join, R}, {ctx, Ctx}, {error, Err}]),
+          Ctx
+      end;
     _ -> % not find watch in observers
+      ?LOG([{game, error}, {join, R}, {ctx, Ctx}, {error, not_find_observer}]),
       Ctx
   end;
 
-dispatch(#leave{}, Ctx) ->
-  Ctx;
+dispatch({leave, _Process, R = #leave{sn = SN, pid = PId}}, Ctx = #texas{seats = Seats}) ->
+  case seat:get(SN, Seats) of
+    #seat{pid = PId} ->
+      Fun = fun() -> 
+          [Info] = mnesia:read(tab_player_info, PId, write),
+          [Inplay] = mnesia:read(tab_inplay, PId, write),
+
+          case Inplay#tab_inplay.inplay < 0 of
+            true ->
+              exit(err_inplay_less_zero);
+            _ ->
+              ok
+          end,
+
+          ok = mnesia:delete_object(Inplay),
+          ok = mnesia:write(#tab_buyin_log{
+              aid = R#leave.agent, pid = R#leave.pid, gid = Ctx#texas.gid, 
+              amt = Inplay#tab_inplay.inplay, cash = Info#tab_player_info.cash + Inplay#tab_inplay.inplay,
+              credit = Info#tab_player_info.credit}),
+          ok = mnesia:write(Info#tab_player_info{cash = Info#tab_player_info.cash + Inplay#tab_inplay.inplay})
+      end,
+
+      case mnesia:transaction(Fun) of
+        {atomic, ok} ->
+          LeaveMsg = #notify_leave{
+            sn = SN,
+            game = Ctx#texas.gid,
+            player = R#leave.pid,
+            proc = self()
+          },
+
+          broadcast(LeaveMsg, Ctx),
+          LeavedSeats = seat:set(SN, ?PS_LEAVE, Seats),
+          Ctx#texas{seats = LeavedSeats, joined = Ctx#texas.joined - 1};
+        {aborted, Err} ->
+          ?LOG([{game, error}, {leave, R}, {ctx, Ctx}, {error, Err}]),
+          Ctx
+      end;
+    _ ->
+      ?LOG([{game, error}, {leave, R}, {ctx, Ctx}, {error, not_find_player}]),
+      Ctx
+  end;
 
 dispatch({seat_query, Player}, Ctx) when is_pid(Player)->
   Fun = fun(R) ->
@@ -213,8 +288,14 @@ list() ->
 watch(Game, Identity) when is_pid(Game), is_list(Identity) ->
   gen_server:call(Game, {watch, {Identity, self()}}).
 
+unwatch(Game, Identity) when is_pid(Game), is_list(Identity) ->
+  gen_server:call(Game, {unwatch, {Identity, self()}}).
+
 join(Game, R = #join{}) when is_pid(Game) ->
   gen_server:cast(Game, {join, self(), R}).
+
+leave(Game, R = #leave{}) when is_pid(Game) ->
+  gen_server:cast(Game, {leave, self(), R}).
 
 seat_query(Game) when is_pid(Game) ->
   gen_server:cast(Game, {seat_query, self()}).

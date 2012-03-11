@@ -8,6 +8,8 @@
 
 -export([client/1, info/1, balance/1]).
 
+-export([ctx/1, ctx/2]).
+
 -include_lib("eunit/include/eunit.hrl").
 
 -include("common.hrl").
@@ -17,21 +19,22 @@
 -record(pdata, {
     pid,
     self,
+    agent,
     identity = ?UNDEF,
     client = ?UNDEF,
     playing = ?UNDEF,
+    playing_sn = 0,
     watching = ?UNDEF,
     nick = ?UNDEF,
     photo = ?UNDEF,
     inplay = 0,
-    record,
-    zombie 
+    record
   }).
 
-init([R = #tab_player_info{pid = PID, identity = Identity, nick = Nick, photo = Photo}]) ->
+init([R = #tab_player_info{agent = Agent, pid = PId, identity = Identity, nick = Nick, photo = Photo}]) ->
   process_flag(trap_exit, true),
-  ok = create_runtime(PID, self()),
-  {ok, #pdata{ pid = PID, self = self(), nick = list_to_binary(Nick), photo = list_to_binary(Photo), identity = Identity, record = R}}.
+  ok = create_runtime(PId, self()),
+  {ok, #pdata{agent = Agent, pid = PId, self = self(), nick = list_to_binary(Nick), photo = list_to_binary(Photo), identity = Identity, record = R}}.
 
 %% player watch game
 handle_cast(#watch{game = G}, Data = #pdata{identity = Identity}) when is_pid(G) ->
@@ -43,17 +46,20 @@ handle_cast(R = #watch{}, Data = #pdata{}) ->
   {noreply, Data};
 
 %% player unwatch game
-handle_cast(#unwatch{game = G}, Data = #pdata{watching = W}) when W /= G->
+handle_cast(#unwatch{game = G}, Data = #pdata{watching = W, playing = P}) when P /= ?UNDEF; W /= G ->
   {noreply, Data};
 
-handle_cast(#unwatch{game = G}, Data) ->
-  game:unwatch(G, player = self()),
+handle_cast(#unwatch{game = G}, Data = #pdata{identity = Identity}) ->
+  game:unwatch(G, Identity),
   {noreply, Data#pdata{ watching = ?UNDEF}};
 
 %% player join game
+handle_cast(#join{game = G, buyin = B}, Data = #pdata{watching = W, playing = P, record = R}) when is_pid(G), W =:= G, P =:= ?UNDEF, (R#tab_player_info.cash + R#tab_player_info.credit) < B  ->
+  notify(#bad{cmd = 0, error = ?ERR_JOIN_LESS_BALANCE}),
+  {noreply, Data};
+
 handle_cast(R = #join{game = G}, Data = #pdata{watching = W, playing = P}) when is_pid(G), W =:= G, P =:= ?UNDEF ->
-  %% TODO check buyin less balance
-  game:join(G, R#join{pid = Data#pdata.pid, identity = Data#pdata.identity, nick = Data#pdata.nick, photo = Data#pdata.photo}),
+  game:join(G, R#join{pid = Data#pdata.pid, agent = Data#pdata.agent, identity = Data#pdata.identity, nick = Data#pdata.nick, photo = Data#pdata.photo}),
   {noreply, Data};
 
 handle_cast(R = #join{game = G}, Data = #pdata{identity = Identity, watching = W, playing = P}) when is_pid(G), W =:= ?UNDEF, P =:= ?UNDEF ->
@@ -65,11 +71,11 @@ handle_cast(R = #join{}, Data = #pdata{}) ->
   {noreply, Data};
 
 %% player leave game
-handle_cast(#leave{game = G}, Data = #pdata{playing = P}) when G /= P ->
+handle_cast(R = #leave{game = G}, Data = #pdata{playing = P, playing_sn = SN}) when G =:= P, SN /= 0 ->
+  game:leave(G, R#leave{agent = Data#pdata.agent, pid = Data#pdata.pid, sn = SN}),
   {noreply, Data};
 
-handle_cast(#leave{game = G}, Data) ->
-  game:leave(G, self()),
+handle_cast(#leave{}, Data) ->
   {noreply, Data};
 
 %% player info query
@@ -90,13 +96,15 @@ handle_cast(#balance_query{}, Data) ->
   R = #balance{ amount = 0, inplay = 0 },
   handle_cast({notify, R}, Data);
 
-handle_cast({notify, R = #notify_join{proc = G, player = P}}, Data = #pdata{pid = PID}) when P =:= PID ->
+handle_cast({notify, R = #notify_join{proc = G, player = P}}, Data = #pdata{pid = PId}) when P =:= PId ->
+  Info = reload_player_info(PId),
   forward_to_client(R, Data),
-  {noreply, Data#pdata{ playing = G }};
+  {noreply, Data#pdata{ playing = G, playing_sn = R#notify_join.sn, record = Info }};
 
-handle_cast({notify, R = #notify_leave{player = P}}, Data = #pdata{pid = PID}) when P =:= PID ->
+handle_cast({notify, R = #notify_leave{player = P}}, Data = #pdata{pid = PId}) when P =:= PId ->
+  Info = reload_player_info(PId),
   forward_to_client(R, Data),
-  {noreply, Data#pdata{ playing = ?UNDEF }};
+  {noreply, Data#pdata{ playing = ?UNDEF, playing_sn = 0, record = Info }};
 
 handle_cast({notify, R}, Data) ->
   forward_to_client(R, Data),
@@ -121,6 +129,12 @@ handle_cast(R, Data = #pdata{playing = Playing}) ->
 handle_cast(R, Data) ->
   ?LOG([{unknown_cast, R}]),
   {noreply, Data}.
+
+handle_call(ctx, _From, Data) ->
+  {reply, Data, Data};
+
+handle_call(info, _From, Data = #pdata{record = R}) ->
+  {reply, R, Data};
 
 handle_call({client, Client}, _From, Data) when is_pid(Client) ->
   {reply, Client, Data#pdata{ client = Client}};
@@ -152,6 +166,12 @@ code_change(_OldVsn, Data, _Extra) ->
 %%% clinet function
 %%% 
 
+ctx(PId) ->
+  ctx(PId, ctx).
+
+ctx(PId, Type) ->
+  gen_server:call(?LOOKUP_PLAYER(PId), Type).
+
 start(Identity) when is_list(Identity) ->
   [R] = mnesia:dirty_index_read(tab_player_info, Identity, identity),
   start(R);
@@ -164,6 +184,9 @@ stop(Identity) when is_list(Identity) ->
 
 stop(Identity, Reason) when is_list(Identity) ->
   gen_server:cast(?PLAYER(Identity), {stop, Reason}).
+
+notify(R) ->
+  notify(self(), R).
 
 notify(PId, R) when is_integer(PId) ->
   notify(?LOOKUP_PLAYER(PId), R);
@@ -215,6 +238,13 @@ client(Player) when is_pid(Player) ->
 %%%
 %%% private
 %%%
+
+reload_player_info(PId) ->
+  {atomic, R} = mnesia:transaction(fun() ->
+        [Info] = mnesia:read(tab_player_info, PId),
+        Info
+    end),
+  R.
 
 create_runtime(PID, Process) when is_number(PID), is_pid(Process) ->
   mnesia:dirty_write(#tab_player{ pid = PID, process = Process }).

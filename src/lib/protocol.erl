@@ -271,12 +271,14 @@ join() ->
              internal(),
              internal(),
              internal(),
+             internal(),
              internal()
             }).
 
 leave() ->
     record(leave, {
              game(),
+             internal(),
              internal(),
              internal()
             }).
@@ -296,6 +298,7 @@ notify_leave() ->
     record(notify_leave, {
              game(),
              player(),
+             sn(),
              internal()
             }).
 

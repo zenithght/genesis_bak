@@ -131,3 +131,13 @@ buyin_log_test() ->
   ?assertMatch([#tab_buyin_log{pid = 1}], mnesia:dirty_index_read(tab_buyin_log, 1, pid)),
   ?assertMatch([#tab_buyin_log{aid = 1}, #tab_buyin_log{aid = 1}], mnesia:dirty_index_read(tab_buyin_log, 1, aid)),
   ?assertMatch([#tab_buyin_log{pid = 1}, #tab_buyin_log{pid = 2}], mnesia:dirty_read(tab_buyin_log, Id)).
+
+tab_inplay_test() ->
+  mnesia:dirty_write(#tab_inplay{pid = 1, inplay = 500}),
+  mnesia:transaction(fun() ->
+        [Inplay] = mnesia:read(tab_inplay, 1, write),
+        mnesia:delete_object(Inplay)
+    end),
+  ?assertMatch([], mnesia:dirty_read(tab_inplay, 1)).
+        
+  

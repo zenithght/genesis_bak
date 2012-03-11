@@ -5,6 +5,7 @@
 -define(ERR_CONNECTION_TIMEOUT, 5).
 -define(ERR_AGENT_DISABLE, 6).
 -define(ERR_PLAYER_DISABLE, 7).
+-define(ERR_JOIN_LESS_BALANCE, 8).
 
 %%%
 %%% Commands
@@ -73,6 +74,7 @@
 					sn,
 					buyin,
           % internal
+          agent,
           pid,
           identity,
           nick,
@@ -83,8 +85,9 @@
 
 -record(leave, {
 					game,
-					player,
-					state
+          agent,
+          pid,
+          sn
 				 }).
 
 -define(CMD_SIT_OUT, 10).
@@ -391,6 +394,7 @@
 -record(notify_leave, {
 					game,
 					player,
+          sn,
 					proc % internal
 				 }).
 
