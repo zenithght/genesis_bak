@@ -26,12 +26,13 @@ install(Nodes) when is_list(Nodes) ->
       DiscTables = [
         ?TABLE_DEF(tab_agent, set, ?DISC, record_info(fields, tab_agent)),
         ?TABLE_DEF(tab_player_info, set, ?DISC, record_info(fields, tab_player_info)),
-        ?TABLE_DEF(tab_balance, set, ?DISC, record_info(fields, tab_balance)),
         ?TABLE_DEF(tab_inplay, set, ?DISC, record_info(fields, tab_inplay)),
         ?TABLE_DEF(tab_game_config, set, ?DISC, record_info(fields, tab_game_config)),
         ?TABLE_DEF(tab_cluster_config, set, ?DISC, record_info(fields, tab_cluster_config)),
         ?TABLE_DEF(tab_counter, set, ?DISC, record_info(fields, tab_counter)),
-        ?TABLE_DEF(tab_turnover, bag, ?DISC, record_info(fields, tab_turnover))
+        ?TABLE_DEF(tab_charge_log, bag, ?DISC, record_info(fields, tab_charge_log)),
+        ?TABLE_DEF(tab_turnover_log, bag, ?DISC, record_info(fields, tab_turnover_log)),
+        ?TABLE_DEF(tab_buyin_log, bag, ?DISC, record_info(fields, tab_buyin_log))
       ],
 
       mnesia:start(),
@@ -40,8 +41,10 @@ install(Nodes) when is_list(Nodes) ->
       create_tables(DiscTables),
 
       create_indices(tab_agent, [identity, parent]),
-      create_indices(tab_turnover, [date]),
-      create_indices(tab_player_info, [agent, identity])
+      create_indices(tab_player_info, [agent, identity]),
+      create_indices(tab_buyin_log, [aid, pid, date]),
+      create_indices(tab_turnover_log, [aid, pid, date]),
+      create_indices(tab_charge_log, [aid, target, date])
   end.
 
 uninstall() ->
@@ -101,13 +104,30 @@ setup_agent() ->
 %% EUnit Test Case
 
 uninstall_test() ->
-  ?assert(ok == uninstall()).
+  ?assertEqual(ok, uninstall()).
 
 install_test() ->
-  ok = uninstall(),
-  ok = install().
+  ?assertEqual(ok, uninstall()),
+  ?assertEqual(ok, install()).
 
 reinstall_raise_error_test() ->
-  ok = uninstall(),
-  ok = install(),
-  {error, _} = install().
+  ?assertEqual(ok, uninstall()),
+  ?assertEqual(ok, install()),
+  ?assertMatch({error, _}, install()).
+
+buyin_log_test() ->
+  BuyInLog = #tab_buyin_log{
+    aid = 1,
+    gid = 1,
+    amt = 10,
+    cash = -10,
+    credit = 100
+  },
+
+  Id = now(),
+  mnesia:dirty_write(BuyInLog#tab_buyin_log{id = Id, pid = 1, date = date(), time = time()}),
+  mnesia:dirty_write(BuyInLog#tab_buyin_log{id = Id, pid = 2, date = date(), time = time()}),
+
+  ?assertMatch([#tab_buyin_log{pid = 1}], mnesia:dirty_index_read(tab_buyin_log, 1, pid)),
+  ?assertMatch([#tab_buyin_log{aid = 1}, #tab_buyin_log{aid = 1}], mnesia:dirty_index_read(tab_buyin_log, 1, aid)),
+  ?assertMatch([#tab_buyin_log{pid = 1}, #tab_buyin_log{pid = 2}], mnesia:dirty_read(tab_buyin_log, Id)).

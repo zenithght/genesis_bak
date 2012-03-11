@@ -10,22 +10,6 @@
     credit = 0
   }).
 
--record(tab_turnover, {
-    aid,      %% aid
-    pid,      %% pid
-    game,     %% {gid, sn}
-    out,      %% integer
-    in,       %% integer
-    inplay,   %% integer
-    date,     %% {year, month, day}
-    time      %% {hour, min, sec}
-  }).
-
--record(tab_counter, {
-    type,
-    value
-  }).
-
 -record(tab_player_info, {
     pid,
     identity,
@@ -34,7 +18,56 @@
     photo,
     login_errors = 0,
     disabled = false,
-    agent = "root"
+    agent = "root",
+    cash = 0,
+    credit = 0
+  }).
+
+-record(tab_inplay, {
+    pid,
+    inplay
+  }).
+
+-record(tab_charge_log, {
+    id = now(),
+    aid,
+    target,   %% {player|agent, id}
+    cash,     %% charge cash
+    credit,   %% charge credit
+    r_cash,   %% result cash
+    r_credit, %% result credit
+    b_cash,   %% balance cash
+    b_credit, %% balance credit
+    date = date(),     %% {year, month, day}
+    time = time()      %% {hour, min, sec}
+  }).
+
+-record(tab_turnover_log, {
+    id = now(),
+    aid,      %% aid
+    pid,      %% pid
+    game,     %% {gid, sn}
+    amt,      %% amt
+    inplay,   %% in out result inplay
+    date = date(),     %% {year, month, day}
+    time = time()      %% {hour, min, sec}
+  }).
+
+-record(tab_buyin_log, {
+    id = now(), 
+    aid,      %% aid
+    pid,      %% pid
+    gid,      %% gid
+    amt,      %% amt
+    cash,     %% cash result by change amt
+    credit,   %% credit
+    date = date(),     %% {year, month, day}
+    time = time()      %% {hour, min, sec}
+  }).
+
+-record(tab_counter, {
+    type,
+    value
   }).
 
 -record(tab_player, {
@@ -43,15 +76,6 @@
     socket = undefined  ::pid() | undefined 
   }).
 
--record(tab_balance, {
-    pid, 
-    amount % integer
-  }).
-
--record(tab_inplay, {
-    gidpid, 
-    amount % integer
-  }).
 
 -record(tab_game_config, {
     id,
