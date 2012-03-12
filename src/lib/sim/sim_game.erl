@@ -24,23 +24,67 @@
 -define(SLEEP, timer:sleep(?DELAY)).
 
 betting_test() ->
-  run_by_login_two_players([{blinds, []}, {betting, [?GS_PREFLOP]}], fun() ->
+  run_by_login_two_players([{blinds, []}, {betting, [?GS_PREFLOP]}, {betting, [?GS_FLOP]}], fun() ->
         join_and_start_game(?TWO_PLAYERS),
         SB = 1, BB = 2,
         check_blind(?TWO_PLAYERS, SB, SB, BB),
 
         %% sb = 10, call = 10, raise_max = 80
         ?assertMatch(#notify_actor{sn = SB}, sim_client:head(?JACK)),
+        ?assertMatch(#notify_actor{sn = SB}, sim_client:head(?TOMMY)),
+
         ?assertMatch(#notify_betting{call = 10, min = 20, max = 80}, sim_client:head(?JACK)),
         sim_client:send(?JACK, #cmd_raise{game = ?GAME, amount = 0}), %% call
-        ?assertMatch(#notify_raise{game = ?GAME, raise = 0, call = 10}, sim_client:head(?JACK)),
-        ?assertMatch(#notify_actor{sn = BB}, sim_client:head(?JACK)), %% turnover player
 
-        ?assertMatch(#notify_actor{sn = SB}, sim_client:head(?TOMMY)),
+        ?assertMatch(#notify_raise{game = ?GAME, raise = 0, call = 10}, sim_client:head(?JACK)),
         ?assertMatch(#notify_raise{game = ?GAME, raise = 0, call = 10}, sim_client:head(?TOMMY)),
+
+        ?assertMatch(#notify_actor{sn = BB}, sim_client:head(?JACK)), %% turnover player
         ?assertMatch(#notify_actor{sn = BB}, sim_client:head(?TOMMY)),
+
         ?assertMatch(#notify_betting{call = 0, min = 20, max = 80}, sim_client:head(?TOMMY)),
-        sim_client:send(?TOMMY, #cmd_raise{game = ?GAME, amount = 0}) %% check
+        sim_client:send(?TOMMY, #cmd_raise{game = ?GAME, amount = 0}), %% check
+
+        ?assertMatch(#notify_raise{game = ?GAME, raise = 0, call = 0}, sim_client:head(?JACK)),
+        ?assertMatch(#notify_raise{game = ?GAME, raise = 0, call = 0}, sim_client:head(?TOMMY)),
+
+        ?assertMatch(#notify_stage_end{game = ?GAME, stage = ?GS_PREFLOP}, sim_client:head(?JACK)),
+        ?assertMatch(#notify_stage_end{game = ?GAME, stage = ?GS_PREFLOP}, sim_client:head(?TOMMY)),
+
+        ?assertMatch(#notify_stage{stage = ?GS_FLOP}, sim_client:head(?JACK)),
+        ?assertMatch(#notify_stage{stage = ?GS_FLOP}, sim_client:head(?TOMMY)),
+
+        ?assertMatch(#notify_actor{sn = BB}, sim_client:head(?JACK)),
+        ?assertMatch(#notify_actor{sn = BB}, sim_client:head(?TOMMY)),
+
+        ?assertMatch(#notify_betting{call = 0, min = 20, max = 80}, sim_client:head(?TOMMY)),
+        sim_client:send(?TOMMY, #cmd_raise{game = ?GAME, amount = 0}), %% check
+
+        ?assertMatch(#notify_raise{game = ?GAME, raise = 0, call = 0}, sim_client:head(?JACK)),
+        ?assertMatch(#notify_raise{game = ?GAME, raise = 0, call = 0}, sim_client:head(?TOMMY)),
+
+        ?assertMatch(#notify_actor{sn = SB}, sim_client:head(?JACK)),
+        ?assertMatch(#notify_actor{sn = SB}, sim_client:head(?TOMMY)),
+
+        ?assertMatch(#notify_betting{call = 0, min = 20, max = 80}, sim_client:head(?JACK)),
+        sim_client:send(?JACK, #cmd_raise{game = ?GAME, amount = 20}), %% check
+
+        ?assertMatch(#notify_raise{game = ?GAME, raise = 20, call = 0}, sim_client:head(?JACK)),
+        ?assertMatch(#notify_raise{game = ?GAME, raise = 20, call = 0}, sim_client:head(?TOMMY)),
+
+        ?assertMatch(#notify_actor{sn = BB}, sim_client:head(?JACK)),
+        ?assertMatch(#notify_actor{sn = BB}, sim_client:head(?TOMMY)),
+
+        ?assertMatch(#notify_betting{call = 20, min = 20, max = 60}, sim_client:head(?TOMMY)),
+        sim_client:send(?TOMMY, #cmd_raise{game = ?GAME, amount = 0}), %% call
+
+        ?assertMatch(#notify_raise{game = ?GAME, raise = 0, call = 20}, sim_client:head(?JACK)),
+        ?assertMatch(#notify_raise{game = ?GAME, raise = 0, call = 20}, sim_client:head(?TOMMY)),
+
+        ?assertMatch(#notify_stage_end{game = ?GAME, stage = ?GS_FLOP}, sim_client:head(?JACK)),
+        ?assertMatch(#notify_stage_end{game = ?GAME, stage = ?GS_FLOP}, sim_client:head(?TOMMY)),
+
+        ?assertMatch(stop, game:state(?GAME))
     end).
 
 run_by_login_two_players(Fun) ->
@@ -94,6 +138,7 @@ check_blind([{Key, _Id}|T], B, SB, BB) ->
   ?assertMatch(#notify_bb{bb = BB}, sim_client:head(Key)),
   ?assertMatch(#notify_raise{call = 10}, sim_client:head(Key)),
   ?assertMatch(#notify_raise{call = 20}, sim_client:head(Key)),
+  ?assertMatch(#notify_stage{stage = ?GS_PREFLOP}, sim_client:head(Key)),
   check_blind(T, B, SB, BB).
 
 check_notify_start([]) -> ok;

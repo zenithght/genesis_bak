@@ -4,7 +4,7 @@
 -export([id/0, init/2, stop/1, dispatch/2, call/2]).
 -export([start/0, start/1, start/2]).
 
--export([ctx/1]).
+-export([ctx/1, state/1]).
 
 -export([watch/2, unwatch/2, join/2, leave/2, bet/2, reward/3, query_seats/1, info/1, list/0]).
 -export([raise/2, fold/2]).
@@ -334,8 +334,11 @@ fold(Game, R = #cmd_fold{}) when is_pid(Game) ->
 query_seats(Game) when is_pid(Game) ->
   gen_server:cast(Game, {query_seats, self()}).
 
-ctx(Id) ->
+ctx(Id) ->  % get exch context
   gen_server:call(?LOOKUP_GAME(Id), ctx).
+
+state(Id) -> % get exch pdata
+  gen_server:call(?LOOKUP_GAME(Id), {pdata, state}).
 
 %%%
 %%% private
