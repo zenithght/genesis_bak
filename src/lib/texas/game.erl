@@ -3,10 +3,12 @@
 
 -export([id/0, init/2, stop/1, dispatch/2, call/2]).
 -export([start/0, start/1, start/2]).
--export([join/2, leave/2, bet/2, reward/3, broadcast/2, broadcast/3, info/1, list/0]).
+
 -export([ctx/1]).
 
--export([watch/2, unwatch/2, seat_query/1]).
+-export([watch/2, unwatch/2, join/2, leave/2, bet/2, reward/3, seat_query/1, info/1, list/0]).
+-export([raise/2, fold/2]).
+-export([broadcast/2, broadcast/3]).
 
 -include("common.hrl").
 -include("schema.hrl").
@@ -248,6 +250,12 @@ start(Conf = #tab_game_config{module = Module, mods = Mods}, N) when is_list(Mod
 start(Conf = #tab_game_config{}, N) ->
   start(Conf#tab_game_config{mods = default_mods()}, N).
 
+%% check
+bet({#seat{sn = SN}, 0}, Ctx = #texas{seats = Seats}) ->
+  NewSeats = seat:set(SN, ?PS_BET, Seats),
+  Ctx#texas{seats = NewSeats};
+
+%% call & raise
 bet({S = #seat{inplay = Inplay, bet = Bet, pid = PId}, Amt}, Ctx = #texas{seats = Seats}) ->
   {State, AllIn, CostAmt} = case Amt < Inplay of 
     true -> {?PS_BET, false, Amt}; 
@@ -308,6 +316,12 @@ join(Game, R = #join{}) when is_pid(Game) ->
 
 leave(Game, R = #leave{}) when is_pid(Game) ->
   gen_server:cast(Game, {leave, self(), R}).
+
+raise(Game, R = #raise{}) when is_pid(Game) ->
+  gen_server:cast(Game, R).
+
+fold(Game, R = #fold{}) when is_pid(Game) ->
+  gen_server:cast(Game, R).
 
 seat_query(Game) when is_pid(Game) ->
   gen_server:cast(Game, {seat_query, self()}).

@@ -15,7 +15,7 @@ start([Stage], Ctx = #texas{b = At}) ->
   ask(At, Ctx#texas{stage = Stage, max_betting = 0}).
 
 % not expectation seat player
-betting(#raise{ player = PId}, Ctx = #texas{exp_seat = Exp}) when Exp#seat.pid /= PId -> 
+betting(#raise{player = PId}, Ctx = #texas{exp_seat = Exp}) when Exp#seat.pid /= PId -> 
   {continue, Ctx};
 
 % betting timeout
@@ -77,15 +77,16 @@ ask([H|_], Ctx = #texas{}) ->
   ask_for_bet(H, Ctx).
   
 % small blind fix big blind
-ask_for_bet(H = #seat{inplay = Inplay, sn = SN, bet = B}, Ctx = #texas{stage = S})
-when S =:= ?GS_PREFLOP, SN =:= Ctx#texas.sb, B =:= Ctx#texas.sb_amt ->
-  ask_for_bet(H, Ctx, {Ctx#texas.max_betting - Ctx#texas.bb_amt, Inplay});
+ask_for_bet(H = #seat{inplay = Inplay, sn = SN, bet = B}, Ctx = #texas{sb = SB, stage = S})
+when S =:= ?GS_PREFLOP, SN =:= SB#seat.sn, B =:= Ctx#texas.sb_amt ->
+  ask_for_bet(H, Ctx, {Ctx#texas.max_betting, Inplay});
 ask_for_bet(H = #seat{inplay = Inplay}, Ctx = #texas{}) ->
   ask_for_bet(H, Ctx, {Ctx#texas.max_betting - H#seat.bet , Inplay}).
 
-ask_for_bet(H = #seat{sn = SN}, Ctx = #texas{gid = Id}, {Min, Max}) ->
+ask_for_bet(H = #seat{sn = SN}, Ctx = #texas{gid = Id}, {Min, Inplay}) ->
   ExpAmt = Ctx#texas.max_betting - H#seat.bet,
-  game:broadcast(#notify_actor{ game = Id, seat = SN}, Ctx),
+  Max = Inplay - ExpAmt,
+  game:broadcast(#notify_actor{ game = Id, sn = SN}, Ctx),
   player:notify(H#seat.process, #bet_req{ game = Id, call = ExpAmt, min = Min, max = Max}),
 
   TimerCtx = start_timer(Ctx),

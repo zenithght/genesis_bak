@@ -116,15 +116,9 @@ handle_cast(stop, Data) ->
 handle_cast({stop, Reason}, Data) ->
   {stop, Reason, Data};
 
-handle_cast(R, Data = #pdata{playing = Playing}) ->
-  Game = element(2, R),
-  case Game of
-    Playing ->
-      game:action(Game, self(), R),
-      {noreply, Data};
-    _ ->
-      {noreply, Data}
-  end;
+handle_cast(R = #raise{game = G}, Data = #pdata{playing = P}) when G =:= P ->
+  game:raise(Game, R#raise{players = Data#pdata.pid}),
+  {noreply, Data};
 
 handle_cast(R, Data) ->
   ?LOG([{unknown_cast, R}]),

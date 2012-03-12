@@ -192,7 +192,7 @@
 
 -record(notify_actor, {
 					game, 
-				  seat	
+				  sn 
 				 }).
 
 -define(CMD_NOTIFY_DRAW, 21).
