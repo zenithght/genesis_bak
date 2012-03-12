@@ -163,9 +163,6 @@ read(<<?NOTIFY_SB, Bin/binary>>) ->
 read(<<?NOTIFY_BB, Bin/binary>>) ->
   unpickle(record(notify_bb, {game_id(), bb()}), Bin);
 
-read(<<?NOTIFY_BLIND, Bin/binary>>) ->
-  unpickle(record(notify_blind, {game_id(), player_id(), call()}), Bin);
-
 read(<<?NOTIFY_RAISE, Bin/binary>>) ->
   unpickle(record(notify_raise, {game_id(), player_id(), raise(), call()}), Bin);
 
@@ -279,9 +276,6 @@ write(R) when is_record(R, notify_sb) ->
 
 write(R) when is_record(R, notify_bb) ->
   [?NOTIFY_BB | pickle(record(notify_bb, {game_id(), bb()}), R)];
-
-write(R) when is_record(R, notify_blind) ->
-  [?NOTIFY_BLIND | pickle(record(notify_blind, {game_id(), player_id(), call()}), R)];
 
 write(R) when is_record(R, notify_raise) ->
   [?NOTIFY_RAISE | pickle(record(notify_raise, {game_id(), player_id(), raise(), call()}), R)];

@@ -39,9 +39,6 @@
 -define(NOTIFY_BB,            112).
 -record(notify_bb,            { game, bb }).
 
--define(NOTIFY_BLIND,         113).
--record(notify_blind,         { game, player, call }).
-
 -define(NOTIFY_RAISE,         114).
 -record(notify_raise,         { game, player, raise, call }).
 

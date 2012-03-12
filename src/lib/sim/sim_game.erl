@@ -33,9 +33,11 @@ betting_test() ->
         ?assertMatch(#notify_actor{sn = SB}, sim_client:head(?JACK)),
         ?assertMatch(#notify_betting{call = 10, min = 20, max = 80}, sim_client:head(?JACK)),
         sim_client:send(?JACK, #cmd_raise{game = ?GAME, amount = 0}), %% call
+        ?assertMatch(#notify_raise{game = ?GAME, raise = 0, call = 10}, sim_client:head(?JACK)),
         ?assertMatch(#notify_actor{sn = BB}, sim_client:head(?JACK)), %% turnover player
 
         ?assertMatch(#notify_actor{sn = SB}, sim_client:head(?TOMMY)),
+        ?assertMatch(#notify_raise{game = ?GAME, raise = 0, call = 10}, sim_client:head(?TOMMY)),
         ?assertMatch(#notify_actor{sn = BB}, sim_client:head(?TOMMY)),
         ?assertMatch(#notify_betting{call = 0, min = 20, max = 80}, sim_client:head(?TOMMY)),
         sim_client:send(?TOMMY, #cmd_raise{game = ?GAME, amount = 0}) %% check
@@ -90,8 +92,8 @@ check_blind([{Key, _Id}|T], B, SB, BB) ->
   ?assertMatch(#notify_button{b = B}, sim_client:head(Key)),
   ?assertMatch(#notify_sb{sb = SB}, sim_client:head(Key)),
   ?assertMatch(#notify_bb{bb = BB}, sim_client:head(Key)),
-  ?assertMatch(#notify_blind{call = 10}, sim_client:head(Key)),
-  ?assertMatch(#notify_blind{call = 20}, sim_client:head(Key)),
+  ?assertMatch(#notify_raise{call = 10}, sim_client:head(Key)),
+  ?assertMatch(#notify_raise{call = 20}, sim_client:head(Key)),
   check_blind(T, B, SB, BB).
 
 check_notify_start([]) -> ok;

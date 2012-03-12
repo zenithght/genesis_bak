@@ -256,7 +256,8 @@ start(Conf = #tab_game_config{}, N) ->
 bet({R = #seat{}, Amt}, Ctx = #texas{}) ->
   bet({R, Amt, 0}, Ctx);
 
-bet({#seat{sn = SN}, _Call = 0, _Raise = 0}, Ctx = #texas{seats = Seats}) ->
+bet({R = #seat{sn = SN}, _Call = 0, _Raise = 0}, Ctx = #texas{seats = Seats}) ->
+  broadcast(#notify_raise{game = Ctx#texas.gid, player = R#seat.pid, raise = 0, call = 0}, Ctx),
   NewSeats = seat:set(SN, ?PS_BET, Seats),
   Ctx#texas{seats = NewSeats};
 
@@ -278,6 +279,7 @@ bet({S = #seat{inplay = Inplay, bet = Bet, pid = PId}, Call, Raise}, Ctx = #texa
   
   case mnesia:transaction(Fun) of
     {atomic, ok} ->
+      broadcast(#notify_raise{game = Ctx#texas.gid, player = PId, raise = Raise, call = Call}, Ctx),
       NewSeats = seat:set(S#seat{inplay = Inplay - CostAmt, state = State, bet = Bet + CostAmt}, Seats),
       NewPot = pot:add(Ctx#texas.pot, PId, Amt, AllIn),
       Ctx#texas{seats = NewSeats, pot = NewPot}
