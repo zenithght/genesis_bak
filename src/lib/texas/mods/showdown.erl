@@ -22,7 +22,7 @@ start([], Ctx = #texas{gid = Id, seats = S, pot = P}) ->
   RewardedSeats = RewardedCtx#texas.seats,
   KickedCtx = kick_poor_players(set:lookup(?PS_READY, RewardedSeats), RewardedCtx),
 
-  game:broadcast(#notify_end_game{ game = Id }, KickedCtx),
+  game:broadcast(#notify_game_end{ game = Id }, KickedCtx),
 
   {stop, KickedCtx}.
 
@@ -32,7 +32,7 @@ start([], Ctx = #texas{gid = Id, seats = S, pot = P}) ->
 
 show_cards([], _Ctx) -> ok;
 show_cards([#seat{pid = PId, hand = Hand}|T], Ctx = #texas{gid = Id}) ->
-  game:broadcast(#show_cards{ game = Id, player = PId, cards = Hand#hand.cards}, Ctx, [PId]),
+  game:broadcast(#notify_cards{ game = Id, player = PId, cards = Hand#hand.cards}, Ctx, [PId]),
   show_cards(T, Ctx).
 
 reward_winners([], Ctx) -> Ctx;

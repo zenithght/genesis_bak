@@ -37,64 +37,63 @@ init([R = #tab_player_info{agent = Agent, pid = PId, identity = Identity, nick =
   {ok, #pdata{agent = Agent, pid = PId, self = self(), nick = list_to_binary(Nick), photo = list_to_binary(Photo), identity = Identity, record = R}}.
 
 %% player watch game
-handle_cast(#watch{game = G}, Data = #pdata{identity = Identity}) when is_pid(G) ->
+handle_cast(#cmd_watch{game = G}, Data = #pdata{identity = Identity}) when is_pid(G) ->
   game:watch(G, Identity),
   {noreply, Data#pdata{ watching = G}};
 
-handle_cast(R = #watch{}, Data = #pdata{}) ->
+handle_cast(R = #cmd_watch{}, Data = #pdata{}) ->
   ?LOG([{player, {error, watch}}, {join, R}, {pdata, Data}]),
   {noreply, Data};
 
 %% player unwatch game
-handle_cast(#unwatch{game = G}, Data = #pdata{watching = W, playing = P}) when P /= ?UNDEF; W /= G ->
+handle_cast(#cmd_unwatch{game = G}, Data = #pdata{watching = W, playing = P}) when P /= ?UNDEF; W /= G ->
   {noreply, Data};
 
-handle_cast(#unwatch{game = G}, Data = #pdata{identity = Identity}) ->
+handle_cast(#cmd_unwatch{game = G}, Data = #pdata{identity = Identity}) ->
   game:unwatch(G, Identity),
   {noreply, Data#pdata{ watching = ?UNDEF}};
 
 %% player join game
-handle_cast(#join{game = G, buyin = B}, Data = #pdata{watching = W, playing = P, record = R}) when is_pid(G), W =:= G, P =:= ?UNDEF, (R#tab_player_info.cash + R#tab_player_info.credit) < B  ->
-  notify(#bad{cmd = 0, error = ?ERR_JOIN_LESS_BALANCE}),
+handle_cast(#cmd_join{game = G, buyin = B}, Data = #pdata{watching = W, playing = P, record = R}) when is_pid(G), W =:= G, P =:= ?UNDEF, (R#tab_player_info.cash + R#tab_player_info.credit) < B  ->
+  notify(#notify_error{error = ?ERR_JOIN_LESS_BALANCE}),
   {noreply, Data};
 
-handle_cast(R = #join{game = G}, Data = #pdata{watching = W, playing = P}) when is_pid(G), W =:= G, P =:= ?UNDEF ->
-  game:join(G, R#join{pid = Data#pdata.pid, agent = Data#pdata.agent, identity = Data#pdata.identity, nick = Data#pdata.nick, photo = Data#pdata.photo}),
+handle_cast(R = #cmd_join{game = G}, Data = #pdata{watching = W, playing = P}) when is_pid(G), W =:= G, P =:= ?UNDEF ->
+  game:join(G, R#cmd_join{pid = Data#pdata.pid, agent = Data#pdata.agent, identity = Data#pdata.identity, nick = Data#pdata.nick, photo = Data#pdata.photo}),
   {noreply, Data};
 
-handle_cast(R = #join{game = G}, Data = #pdata{identity = Identity, watching = W, playing = P}) when is_pid(G), W =:= ?UNDEF, P =:= ?UNDEF ->
+handle_cast(R = #cmd_join{game = G}, Data = #pdata{identity = Identity, watching = W, playing = P}) when is_pid(G), W =:= ?UNDEF, P =:= ?UNDEF ->
   game:watch(G, Identity),
   handle_cast(R, Data#pdata{watching = G});
 
-handle_cast(R = #join{}, Data = #pdata{}) ->
+handle_cast(R = #cmd_join{}, Data = #pdata{}) ->
   ?LOG([{player, {error, join}}, {join, R}, {pdata, Data}]),
   {noreply, Data};
 
 %% player leave game
-handle_cast(R = #leave{game = G}, Data = #pdata{playing = P, playing_sn = SN}) when G =:= P, SN /= 0 ->
-  game:leave(G, R#leave{agent = Data#pdata.agent, pid = Data#pdata.pid, sn = SN}),
+handle_cast(R = #cmd_leave{game = G}, Data = #pdata{playing = P, playing_sn = SN}) when G =:= P, SN /= 0 ->
+  game:leave(G, R#cmd_leave{agent = Data#pdata.agent, pid = Data#pdata.pid, sn = SN}),
   {noreply, Data};
 
-handle_cast(#leave{}, Data) ->
+handle_cast(#cmd_leave{}, Data) ->
   {noreply, Data};
 
 %% player info query
-handle_cast(#player_query{}, Data = #pdata{}) ->
-  R = #player_info{
+handle_cast(#cmd_query_player{}, Data = #pdata{}) ->
+  R = #notify_player{
     player = Data#pdata.pid,
-    inplay = Data#pdata.inplay,
     nick = Data#pdata.nick,
     photo = Data#pdata.photo
   },
   handle_cast({notify, R}, Data);
 
-handle_cast(#seat_query{ game = G }, Data = #pdata{watching = W, playing = P}) when W =:= ?UNDEF, P =:= ?UNDEF ->
-  game:seat_query(G),
-  {noreply, Data};
-      
-handle_cast(#balance_query{}, Data) ->
-  R = #balance{ amount = 0, inplay = 0 },
+handle_cast(#cmd_query_balance{}, Data) ->
+  R = #notify_acount{ balance = 0, inplay = 0 },
   handle_cast({notify, R}, Data);
+
+handle_cast(#cmd_query_seats{game = Game}, Data) ->
+  game:query_seats(Game),
+  {noreply, Data};
 
 handle_cast({notify, R = #notify_join{proc = G, player = P}}, Data = #pdata{pid = PId}) when P =:= PId ->
   Info = reload_player_info(PId),
@@ -116,8 +115,8 @@ handle_cast(stop, Data) ->
 handle_cast({stop, Reason}, Data) ->
   {stop, Reason, Data};
 
-handle_cast(R = #raise{game = G}, Data = #pdata{playing = P}) when G =:= P ->
-  game:raise(Game, R#raise{players = Data#pdata.pid}),
+handle_cast(R = #cmd_raise{game = G}, Data = #pdata{playing = P}) when G =:= P ->
+  game:raise(G, R#cmd_raise{sn = Data#pdata.playing_sn, pid = Data#pdata.pid}),
   {noreply, Data};
 
 handle_cast(R, Data) ->
@@ -220,10 +219,10 @@ logout(Player) when is_pid(Player) ->
   gen_server:call(Player, logout).
 
 info(Player) when is_pid(Player) ->
-  gen_server:cast(Player, #player_query{}).
+  gen_server:cast(Player, #cmd_query_player{}).
 
 balance(Player) when is_pid(Player) ->
-  gen_server:cast(Player, #balance_query{}).
+  gen_server:cast(Player, #cmd_query_balance{}).
 
 client(Player) when is_pid(Player) ->
   Client = self(),

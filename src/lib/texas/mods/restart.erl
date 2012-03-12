@@ -6,5 +6,5 @@
 -include("game.hrl").
 
 start([], Ctx) ->
-  game:broadcast(#notify_end_game{game = Ctx#texas.gid}, Ctx),
+  game:broadcast(#notify_game_end{game = Ctx#texas.gid}, Ctx),
   {goto, top, Ctx}.

@@ -25,34 +25,29 @@
 
 join_empty_game_test() ->
   run_by_login_two_players(fun() ->
-        Jack = sim_client:where_player(?JACK_ID),
-        Tommy = sim_client:where_player(?TOMMY_ID),
-
-        sim_client:send(?TOMMY, #watch{game = ?GAME}),
+        sim_client:send(?TOMMY, #cmd_watch{game = ?GAME}),
         ?assertMatch(#notify_game_detail{}, sim_client:head(?TOMMY)),
 
-        sim_client:send(?JACK, #watch{game = ?GAME}),
+        sim_client:send(?JACK, #cmd_watch{game = ?GAME}),
         ?assertMatch(#notify_game_detail{}, sim_client:head(?JACK)),
-        sim_client:send(?JACK, #join{game = ?GAME, sn = 1, buyin = 500}),
+        sim_client:send(?JACK, #cmd_join{game = ?GAME, sn = 1, buyin = 500}),
         ?assertMatch(#notify_join{}, sim_client:head(?JACK)),
 
-        ?assertMatch(#notify_join{player = Jack}, sim_client:head(?TOMMY)),
-        sim_client:send(?TOMMY, #join{game = ?GAME, sn = 2, buyin = 500}),
-        ?assertMatch(#notify_join{player = Tommy}, sim_client:head(?TOMMY)),
-        ?assertMatch(#notify_join{player = Tommy}, sim_client:head(?JACK))
+        ?assertMatch(#notify_join{player = ?JACK_ID}, sim_client:head(?TOMMY)),
+        sim_client:send(?TOMMY, #cmd_join{game = ?GAME, sn = 2, buyin = 500}),
+        ?assertMatch(#notify_join{player = ?TOMMY_ID}, sim_client:head(?TOMMY)),
+        ?assertMatch(#notify_join{player = ?TOMMY_ID}, sim_client:head(?JACK))
     end).
 
 auto_compute_seat_sn_test() ->
   run_by_login_two_players(fun() ->
-        Jack = sim_client:where_player(?JACK_ID),
-        sim_client:send(?JACK, #join{game = ?GAME, sn = 0, buyin = 500}),
+        sim_client:send(?JACK, #cmd_join{game = ?GAME, sn = 0, buyin = 500}),
         ?assertMatch(#notify_game_detail{}, sim_client:head(?JACK)),
-        ?assertMatch(#notify_join{player = Jack, sn = 1}, sim_client:head(?JACK)),
-        Tommy = sim_client:where_player(?TOMMY_ID),
-        sim_client:send(?TOMMY, #join{game = ?GAME, sn = 0, buyin = 500}),
+        ?assertMatch(#notify_join{player = ?JACK_ID, sn = 1}, sim_client:head(?JACK)),
+        sim_client:send(?TOMMY, #cmd_join{game = ?GAME, sn = 0, buyin = 500}),
         ?assertMatch(#notify_game_detail{}, sim_client:head(?TOMMY)),
-        ?assertMatch(#notify_join{player = Tommy, sn = 2}, sim_client:head(?TOMMY)),
-        ?assertMatch(#notify_join{player = Tommy, sn = 2}, sim_client:head(?JACK))
+        ?assertMatch(#notify_join{player = ?TOMMY_ID, sn = 2}, sim_client:head(?TOMMY)),
+        ?assertMatch(#notify_join{player = ?TOMMY_ID, sn = 2}, sim_client:head(?JACK))
     end).
 
 blind_headsup_game_test() ->
@@ -71,8 +66,8 @@ blind_headsup_game_test() ->
         ?assertMatch([#tab_player_info{cash = -500}], mnesia:dirty_read(tab_player_info, ?JACK_ID)),
         ?assertMatch([#tab_player_info{cash = -500}], mnesia:dirty_read(tab_player_info, ?TOMMY_ID)),
 
-        sim_client:send(?JACK, #leave{game = ?GAME}),
-        sim_client:send(?TOMMY, #leave{game = ?GAME}),
+        sim_client:send(?JACK, #cmd_leave{game = ?GAME}),
+        sim_client:send(?TOMMY, #cmd_leave{game = ?GAME}),
 
         ?assertMatch([#tab_player_info{cash = -5}], mnesia:dirty_read(tab_player_info, ?JACK_ID)),
         ?assertMatch([#tab_player_info{cash = -10}], mnesia:dirty_read(tab_player_info, ?TOMMY_ID))
@@ -97,7 +92,7 @@ run_by_login_two_players(Fun) ->
 
 check_blind([], _, _, _) -> ok;
 check_blind([{Key, _Id}|T], B, SB, BB) ->
-  ?assertMatch(#notify_button{button = B}, sim_client:head(Key)),
+  ?assertMatch(#notify_button{b = B}, sim_client:head(Key)),
   ?assertMatch(#notify_sb{sb = SB}, sim_client:head(Key)),
   ?assertMatch(#notify_bb{bb = BB}, sim_client:head(Key)),
   check_blind(T, B, SB, BB).
@@ -117,9 +112,9 @@ run_by_login_players(MixinMods, Players, Fun) ->
         Usr = list_to_binary((sim_client:player(Key))#tab_player_info.identity),
         sim_client:kill_player(Id),
         sim_client:start(Key),
-        sim_client:send(Key, #login{usr = Usr, pass = <<?DEF_PWD>>}),
-        ?assertMatch(#player_info{}, sim_client:head(Key)),
-        ?assertMatch(#balance{}, sim_client:head(Key))
+        sim_client:send(Key, #cmd_login{identity = Usr, password = <<?DEF_PWD>>}),
+        ?assertMatch(#notify_player{}, sim_client:head(Key)),
+        ?assertMatch(#notify_acount{}, sim_client:head(Key))
     end, Players),
   Mods = [{wait_players, []}] ++ MixinMods ++ [{stop, []}],
   Limit = #limit{min = 100, max = 400, small = 5, big = 10},
@@ -138,7 +133,7 @@ join_and_start_game(Players) ->
 
 check_notify_start([]) -> ok;
 check_notify_start([{Key, _Id}|T]) ->
-  ?assertMatch(#notify_start_game{}, sim_client:head(Key)),
+  ?assertMatch(#notify_game_start{}, sim_client:head(Key)),
   check_notify_start(T).
 
 check_notify_join([], 0, 0) -> ok;
@@ -150,8 +145,7 @@ check_notify_join(Players = [{Key, _Id}|_], N, S) ->
 
 join_and_start_game([], _SN) -> ok;
 join_and_start_game([{Key, Id}|T], SN) ->
-  Process = sim_client:where_player(Id),
-  sim_client:send(Key, #join{game = ?GAME, sn = SN, buyin = 500}),
+  sim_client:send(Key, #cmd_join{game = ?GAME, sn = SN, buyin = 500}),
   ?assertMatch(#notify_game_detail{}, sim_client:head(Key)),
-  ?assertMatch(#notify_join{player = Process}, sim_client:head(Key)),
+  ?assertMatch(#notify_join{player = Id}, sim_client:head(Key)),
   join_and_start_game(T, SN + 1).

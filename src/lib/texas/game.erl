@@ -6,7 +6,7 @@
 
 -export([ctx/1]).
 
--export([watch/2, unwatch/2, join/2, leave/2, bet/2, reward/3, seat_query/1, info/1, list/0]).
+-export([watch/2, unwatch/2, join/2, leave/2, bet/2, reward/3, query_seats/1, info/1, list/0]).
 -export([raise/2, fold/2]).
 -export([broadcast/2, broadcast/3]).
 
@@ -48,10 +48,12 @@ call({watch, {Identity, Process}}, Ctx = #texas{observers = Obs}) ->
   R = #notify_game_detail{
     game = Ctx#texas.gid, 
     pot = pot:total(Ctx#texas.pot),
-    players = Ctx#texas.joined, 
-    seats = seat:info(size, Ctx#texas.seats),
     stage = Ctx#texas.stage,
-    limit = Ctx#texas.limit},
+    limit = Ctx#texas.limit,
+    seats = seat:info(size, Ctx#texas.seats),
+    require = Ctx#texas.required,
+    joined = Ctx#texas.joined
+  },
 
   player:notify(Process, R),
 
@@ -73,12 +75,12 @@ call({unwatch, {Identity, _Process}}, Ctx = #texas{observers = Obs}) ->
   end;
 
 call(info, Ctx = #texas{gid = GId, joined = Joined, required = Required, seats = Seats, limit = Limit}) ->
-  {ok, #game_info{
+  {ok, #notify_game{
       game = GId,
-      table_name = <<"TEXAS_TABLE">>,
+      name = <<"TEXAS_TABLE">>,
       limit = Limit,
-      seat_count = seat:info(size, Seats),
-      required = Required,
+      seats = seat:info(size, Seats),
+      require = Required,
       joined = Joined
     }, Ctx};
 
@@ -88,51 +90,51 @@ call(pdata, Ctx) ->
 dispatch({join, _Process, _R}, Ctx = #texas{max_joined = Max, joined = Joined}) when Max =:= Joined ->
   Ctx;
 
-dispatch({join, Process, R = #join{sn = SN}}, Ctx = #texas{seats = Seats}) when SN /= 0 ->
+dispatch({join, Process, R = #cmd_join{sn = SN}}, Ctx = #texas{seats = Seats}) when SN /= 0 ->
   case seat:get(SN, Seats) of
     Seat = #seat{state = ?PS_EMPTY} ->
       dispatch({join, Process, Seat, R}, Ctx);
     _ ->
-      dispatch({join, Process, R#join{sn = 0}}, Ctx)
+      dispatch({join, Process, R#cmd_join{sn = 0}}, Ctx)
   end;
 
-dispatch({join, Process, R = #join{sn = SN}}, Ctx = #texas{seats = Seats}) when SN =:= 0 ->
+dispatch({join, Process, R = #cmd_join{sn = SN}}, Ctx = #texas{seats = Seats}) when SN =:= 0 ->
   %% auto compute player seat number
   [H = #seat{}|_] = seat:lookup(?PS_EMPTY, Seats),
   dispatch({join, Process, H, R}, Ctx);
   
-dispatch({join, Process, S = #seat{}, R = #join{identity = Identity}}, Ctx = #texas{observers = Obs, seats = Seats}) ->
+dispatch({join, Process, S = #seat{}, R = #cmd_join{identity = Identity}}, Ctx = #texas{observers = Obs, seats = Seats}) ->
   case proplists:lookup(Identity, Obs) of
     {Identity, Process} ->
       JoinedSeats = seat:set(S#seat{
           identity = Identity,
-          pid = R#join.pid,
+          pid = R#cmd_join.pid,
           process = Process,
-          %agent = R#join.agent,
+          %agent = R#cmd_join.agent,
           hand = [],
           bet = 0,
-          inplay = R#join.buyin,
+          inplay = R#cmd_join.buyin,
           state = ?PS_WAIT,
-          nick = R#join.nick,
-          photo = R#join.photo
+          nick = R#cmd_join.nick,
+          photo = R#cmd_join.photo
         }, Seats),
 
       JoinMsg = #notify_join{
         game = Ctx#texas.gid,
-        player = R#join.pid,
+        player = R#cmd_join.pid,
         sn = S#seat.sn,
-        buyin = R#join.buyin,
-        nick = R#join.nick,
-        photo = R#join.photo,
+        buyin = R#cmd_join.buyin,
+        nick = R#cmd_join.nick,
+        photo = R#cmd_join.photo,
         proc = self()
       },
 
       Fun = fun() ->
-          [] = mnesia:read(tab_inplay, R#join.pid), % check none inplay record
-          [Info] = mnesia:read(tab_player_info, R#join.pid, write),
+          [] = mnesia:read(tab_inplay, R#cmd_join.pid), % check none inplay record
+          [Info] = mnesia:read(tab_player_info, R#cmd_join.pid, write),
           Balance = Info#tab_player_info.cash + Info#tab_player_info.credit,
 
-          case Balance < R#join.buyin of
+          case Balance < R#cmd_join.buyin of
             true ->
               exit(err_join_less_balance);
             _ ->
@@ -140,11 +142,11 @@ dispatch({join, Process, S = #seat{}, R = #join{identity = Identity}}, Ctx = #te
           end,
 
           ok = mnesia:write(#tab_buyin_log{
-              aid = R#join.agent, pid = R#join.pid, gid = Ctx#texas.gid, 
-              amt = 0 - R#join.buyin, cash = Info#tab_player_info.cash - R#join.buyin,
+              aid = R#cmd_join.agent, pid = R#cmd_join.pid, gid = Ctx#texas.gid, 
+              amt = 0 - R#cmd_join.buyin, cash = Info#tab_player_info.cash - R#cmd_join.buyin,
               credit = Info#tab_player_info.credit}),
-          ok = mnesia:write(#tab_inplay{pid = R#join.pid, inplay = R#join.buyin}),
-          ok = mnesia:write(Info#tab_player_info{cash = Info#tab_player_info.cash - R#join.buyin})
+          ok = mnesia:write(#tab_inplay{pid = R#cmd_join.pid, inplay = R#cmd_join.buyin}),
+          ok = mnesia:write(Info#tab_player_info{cash = Info#tab_player_info.cash - R#cmd_join.buyin})
       end,
 
       case mnesia:transaction(Fun) of
@@ -160,7 +162,7 @@ dispatch({join, Process, S = #seat{}, R = #join{identity = Identity}}, Ctx = #te
       Ctx
   end;
 
-dispatch({leave, _Process, R = #leave{sn = SN, pid = PId}}, Ctx = #texas{seats = Seats}) ->
+dispatch({leave, _Process, R = #cmd_leave{sn = SN, pid = PId}}, Ctx = #texas{seats = Seats}) ->
   case seat:get(SN, Seats) of
     #seat{pid = PId} ->
       Fun = fun() -> 
@@ -176,7 +178,7 @@ dispatch({leave, _Process, R = #leave{sn = SN, pid = PId}}, Ctx = #texas{seats =
 
           ok = mnesia:delete_object(Inplay),
           ok = mnesia:write(#tab_buyin_log{
-              aid = R#leave.agent, pid = R#leave.pid, gid = Ctx#texas.gid, 
+              aid = R#cmd_leave.agent, pid = R#cmd_leave.pid, gid = Ctx#texas.gid, 
               amt = Inplay#tab_inplay.inplay, cash = Info#tab_player_info.cash + Inplay#tab_inplay.inplay,
               credit = Info#tab_player_info.credit}),
           ok = mnesia:write(Info#tab_player_info{cash = Info#tab_player_info.cash + Inplay#tab_inplay.inplay})
@@ -187,7 +189,7 @@ dispatch({leave, _Process, R = #leave{sn = SN, pid = PId}}, Ctx = #texas{seats =
           LeaveMsg = #notify_leave{
             sn = SN,
             game = Ctx#texas.gid,
-            player = R#leave.pid,
+            player = R#cmd_leave.pid,
             proc = self()
           },
 
@@ -203,11 +205,11 @@ dispatch({leave, _Process, R = #leave{sn = SN, pid = PId}}, Ctx = #texas{seats =
       Ctx
   end;
 
-dispatch({seat_query, Player}, Ctx) when is_pid(Player)->
+dispatch({query_seats, Player}, Ctx) when is_pid(Player)->
   Fun = fun(R) ->
-      R1 = #seat_state{
+      R1 = #notify_seat{
         game = Ctx#texas.gid,
-        seat = R#seat.sn,
+        sn = R#seat.sn,
         state = R#seat.state,
         player = R#seat.pid,
         inplay = R#seat.inplay,
@@ -215,7 +217,7 @@ dispatch({seat_query, Player}, Ctx) when is_pid(Player)->
         nick = R#seat.nick,
         photo = R#seat.photo
       },
-        
+
       player:notify(Player, R1)
   end,
   lists:map(Fun, seat:get(Ctx#texas.seats)),
@@ -251,12 +253,16 @@ start(Conf = #tab_game_config{}, N) ->
   start(Conf#tab_game_config{mods = default_mods()}, N).
 
 %% check
-bet({#seat{sn = SN}, 0}, Ctx = #texas{seats = Seats}) ->
+bet({R = #seat{}, Amt}, Ctx = #texas{}) ->
+  bet({R, Amt, 0}, Ctx);
+
+bet({#seat{sn = SN}, _Call = 0, _Raise = 0}, Ctx = #texas{seats = Seats}) ->
   NewSeats = seat:set(SN, ?PS_BET, Seats),
   Ctx#texas{seats = NewSeats};
 
 %% call & raise
-bet({S = #seat{inplay = Inplay, bet = Bet, pid = PId}, Amt}, Ctx = #texas{seats = Seats}) ->
+bet({S = #seat{inplay = Inplay, bet = Bet, pid = PId}, Call, Raise}, Ctx = #texas{seats = Seats}) ->
+  Amt = Call + Raise,
   {State, AllIn, CostAmt} = case Amt < Inplay of 
     true -> {?PS_BET, false, Amt}; 
     _ -> {?PS_ALL_IN, true, Inplay} 
@@ -311,20 +317,20 @@ watch(Game, Identity) when is_pid(Game), is_list(Identity) ->
 unwatch(Game, Identity) when is_pid(Game), is_list(Identity) ->
   gen_server:call(Game, {unwatch, {Identity, self()}}).
 
-join(Game, R = #join{}) when is_pid(Game) ->
+join(Game, R = #cmd_join{}) when is_pid(Game) ->
   gen_server:cast(Game, {join, self(), R}).
 
-leave(Game, R = #leave{}) when is_pid(Game) ->
+leave(Game, R = #cmd_leave{}) when is_pid(Game) ->
   gen_server:cast(Game, {leave, self(), R}).
 
-raise(Game, R = #raise{}) when is_pid(Game) ->
+raise(Game, R = #cmd_raise{}) when is_pid(Game) ->
   gen_server:cast(Game, R).
 
-fold(Game, R = #fold{}) when is_pid(Game) ->
+fold(Game, R = #cmd_fold{}) when is_pid(Game) ->
   gen_server:cast(Game, R).
 
-seat_query(Game) when is_pid(Game) ->
-  gen_server:cast(Game, {seat_query, self()}).
+query_seats(Game) when is_pid(Game) ->
+  gen_server:cast(Game, {query_seats, self()}).
 
 ctx(Id) ->
   gen_server:call(?LOOKUP_GAME(Id), ctx).
@@ -402,27 +408,27 @@ list_test() ->
   ?assert(is_pid(?LOOKUP_GAME(2))),
   timer:sleep(1000),
 
-  [#game_info{}|[#game_info{}|[]]] = game:list().
+  [#notify_game{}|[#notify_game{}|[]]] = game:list().
 
 info_test() ->
   setup(),
   Conf = #tab_game_config{module = game, mods = [{wait_players, []}], limit = no_limit, seat_count = 5, start_delay = 3000, required = 3, timeout = 1000, max = 1},
   game:start(Conf),
   ?assert(is_pid(?LOOKUP_GAME(1))),
-  #game_info{required = R, seat_count = C} = game:info(?LOOKUP_GAME(1)),
+  #notify_game{require = R, seats = C} = game:info(?LOOKUP_GAME(1)),
   ?assertEqual(3, R),
   ?assertEqual(5, C).
 
 game_query_test() ->
-  ?assert(is_list(protocol:write(#game_query{}))).
+  ?assert(is_list(protocol:write(#cmd_query_game{}))).
 
 game_info_test() ->
-  ?assert(is_list(protocol:write(#game_info{
+  ?assert(is_list(protocol:write(#notify_game{
       game = 1,
-      table_name = <<"TEXAS_TABLE">>,
+      name = <<"TEXAS_TABLE">>,
       limit = #limit{min = 10, max = 400, small = 5, big = 10},
-      seat_count = 5,
-      required = 2,
+      seats = 5,
+      require = 2,
       joined = 1}
     ))).
 

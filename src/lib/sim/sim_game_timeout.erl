@@ -17,11 +17,11 @@
 
 watch_empty_game_test() ->
   run_by_login_two_players(fun() ->
-        sim_client:send(?JACK, #watch{game = ?GAME}),
-        ?assertMatch(#notify_game_detail{stage = ?GS_CANCEL, pot = 0, players = 0, seats = 9}, sim_client:head(?JACK)),
+        sim_client:send(?JACK, #cmd_watch{game = ?GAME}),
+        ?assertMatch(#notify_game_detail{stage = ?GS_CANCEL, pot = 0, joined = 0, seats = 9}, sim_client:head(?JACK)),
         ?assertMatch(#texas{observers = [{"jack", PID}]} when is_pid(PID), ?GAME_CTX),
         timer:sleep(3000),
-        ?assertMatch(#notify_cancel_game{game = ?GAME}, sim_client:head(?JACK))
+        ?assertMatch(#notify_game_cancel{game = ?GAME}, sim_client:head(?JACK))
     end).
 
 run_by_login_two_players(Fun) ->
@@ -36,9 +36,9 @@ run_by_login_two_players(Fun) ->
         Usr = list_to_binary((sim_client:player(Key))#tab_player_info.identity),
         sim_client:kill_player(Id),
         sim_client:start(Key),
-        sim_client:send(Key, #login{usr = Usr, pass = <<?DEF_PWD>>}),
-        ?assertMatch(#player_info{}, sim_client:head(Key)),
-        ?assertMatch(#balance{}, sim_client:head(Key))
+        sim_client:send(Key, #cmd_login{identity = Usr, password = <<?DEF_PWD>>}),
+        ?assertMatch(#notify_player{}, sim_client:head(Key)),
+        ?assertMatch(#notify_acount{}, sim_client:head(Key))
     end, [{?JACK, ?JACK_ID}, {?TOMMY, ?TOMMY_ID}]),
 
   Limit = #limit{min = 100, max = 400, small = 5, big = 10},

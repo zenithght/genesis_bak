@@ -40,6 +40,9 @@
 -record(cmd_raise,            { game, amount, '|', pid, sn }).
 
 -define(CMD_FOLD,             36).
--record(cmd_fold,             { game, '|', player }).
+-record(cmd_fold,             { game, '|', pid }).
+
+-define(CMD_QUERY_SEATS,      37).
+-record(cmd_query_seats,      { game }).
 
 -include("notify.hrl").

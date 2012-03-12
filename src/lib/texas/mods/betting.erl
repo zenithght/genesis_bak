@@ -5,6 +5,8 @@
 -include("game.hrl").
 -include("protocol.hrl").
 
+-define(ZERO, 0).
+
 %%%
 %%% callback
 %%%
@@ -15,30 +17,30 @@ start([Stage], Ctx = #texas{b = At}) ->
   ask(At, Ctx#texas{stage = Stage, max_betting = 0}).
 
 % not expectation seat player
-betting(#raise{player = PId}, Ctx = #texas{exp_seat = Exp}) when Exp#seat.pid /= PId -> 
+betting(#cmd_raise{pid = PId}, Ctx = #texas{exp_seat = Exp}) when Exp#seat.pid /= PId -> 
   {continue, Ctx};
 
 % betting timeout
 betting({timeout, _, ?MODULE}, Ctx = #texas{exp_seat = Exp}) ->
   NotTimerCtx = cancel_timer(Ctx),
-  betting(#fold{ player = Exp#seat.pid }, NotTimerCtx);
+  betting(#cmd_fold{ pid = Exp#seat.pid }, NotTimerCtx);
 
 %%% player call
-betting(#raise{ raise = 0 }, Ctx = #texas{exp_seat = Exp, exp_call = 0}) ->              % check
-  CheckedCtx = game:bet({Exp, 0}, Ctx),
+betting(#cmd_raise{ amount = ?ZERO }, Ctx = #texas{exp_seat = Exp, exp_call = ?ZERO}) ->              % check
+  CheckedCtx = game:bet({Exp, ?ZERO}, Ctx),
   next_turn(Exp, CheckedCtx);
-betting(#raise{ raise = 0 }, Ctx = #texas{exp_seat = Exp, exp_call = Amt})               % poor all_in
-when Exp#seat.inplay < Amt ->
+betting(#cmd_raise{ amount = ?ZERO }, Ctx = #texas{exp_seat = Exp, exp_call = ExpCall})               % poor all_in
+when Exp#seat.inplay < ExpCall ->
   PooredCtx = game:bet({Exp, Exp#seat.inplay}, Ctx),
   next_turn(Exp, PooredCtx);
-betting(#raise{ raise = 0 }, Ctx = #texas{exp_seat = Exp, exp_call = Amt}) ->            % call & check
-  CalledCtx = game:bet({Exp, Amt}, Ctx),
+betting(#cmd_raise{ amount = ?ZERO }, Ctx = #texas{exp_seat = Exp, exp_call = ExpCall}) ->            % call & check
+  CalledCtx = game:bet({Exp, ExpCall}, Ctx),
   next_turn(Exp, CalledCtx);
 
 %%% player raise
-betting(R = #raise{ raise = Raise}, Ctx = #texas{exp_min = Min, exp_max = Max}) when Raise < Min; Raise > Max  ->
-  betting(#fold{ player = R#raise.player }, Ctx);
-betting(#raise{ raise = Raise}, Ctx = #texas{exp_seat = Exp, exp_call = Call}) ->        % raise & all_in
+betting(R = #cmd_raise{ amount = Raise}, Ctx = #texas{exp_min = Min, exp_max = Max}) when Raise < Min; Raise > Max  ->
+  betting(#cmd_fold{ pid = R#cmd_raise.pid }, Ctx);
+betting(#cmd_raise{ amount = Raise}, Ctx = #texas{exp_seat = Exp, exp_call = Call}) ->        % raise & all_in
   Amt = Raise + Call,
   BettedCtx = game:bet({Exp, Amt}, Ctx),
 
@@ -54,9 +56,9 @@ betting(#raise{ raise = Raise}, Ctx = #texas{exp_seat = Exp, exp_call = Call}) -
 %%% fold
 %%%
 
-betting(#fold{player = P}, Ctx = #texas{exp_seat = Exp}) when Exp#seat.pid /= P ->
+betting(#cmd_fold{pid = PId}, Ctx = #texas{exp_seat = Exp}) when Exp#seat.pid /= PId ->
   {continue, Ctx};
-betting(#fold{}, Ctx = #texas{seats = S, exp_seat = Exp}) ->
+betting(#cmd_fold{}, Ctx = #texas{seats = S, exp_seat = Exp}) ->
   NotTimerCtx = cancel_timer(Ctx),
   FoldCtx = NotTimerCtx#texas{seats = seat:set(Exp#seat.sn, ?PS_FOLD, S)},
   next_turn(Exp, FoldCtx);
@@ -80,14 +82,19 @@ ask([H|_], Ctx = #texas{}) ->
 ask_for_bet(H = #seat{inplay = Inplay, sn = SN, bet = B}, Ctx = #texas{sb = SB, stage = S})
 when S =:= ?GS_PREFLOP, SN =:= SB#seat.sn, B =:= Ctx#texas.sb_amt ->
   ask_for_bet(H, Ctx, {Ctx#texas.max_betting, Inplay});
+ask_for_bet(H = #seat{inplay = Inplay, sn = SN, bet = B}, Ctx = #texas{bb = BB, limit = Limit, stage = S})
+when S =:= ?GS_PREFLOP, SN =:= BB#seat.sn, B =:= Ctx#texas.bb_amt ->
+  ask_for_bet(H, Ctx, {Limit#limit.big, Inplay});
 ask_for_bet(H = #seat{inplay = Inplay}, Ctx = #texas{}) ->
   ask_for_bet(H, Ctx, {Ctx#texas.max_betting - H#seat.bet , Inplay}).
 
+ask_for_bet(H = #seat{}, Ctx = #texas{limit = Limit}, {?ZERO, Inplay}) ->
+  ask_for_bet(H, Ctx, {Limit#limit.big, Inplay});
 ask_for_bet(H = #seat{sn = SN}, Ctx = #texas{gid = Id}, {Min, Inplay}) ->
   ExpAmt = Ctx#texas.max_betting - H#seat.bet,
   Max = Inplay - ExpAmt,
   game:broadcast(#notify_actor{ game = Id, sn = SN}, Ctx),
-  player:notify(H#seat.process, #bet_req{ game = Id, call = ExpAmt, min = Min, max = Max}),
+  player:notify(H#seat.process, #notify_betting{ game = Id, call = ExpAmt, min = Min, max = Max}),
 
   TimerCtx = start_timer(Ctx),
   ExpCtx = TimerCtx#texas{ exp_seat = H, exp_call = ExpAmt, exp_min = Min, exp_max = Max },
@@ -117,7 +124,7 @@ cancel_timer(Ctx = #texas{timer = T}) ->
   catch erlang:cancel_timer(T),
   Ctx#texas{timer = ?UNDEF}.
 
-%betting(Game, Ctx, #raise{ player = Player, raise = 0.0 }) ->
+%betting(Game, Ctx, #cmd_raise{ player = Player, raise = 0.0 }) ->
   %Game1 = g:cancel_timer(Game),
 
   %N = Ctx#texas.exp_seat,
@@ -147,7 +154,7 @@ cancel_timer(Ctx = #texas{timer = T}) ->
   %next_turn(Game5, Ctx, Ctx#texas.exp_seat);
 
 %%%% Raise
-%betting(Game, Ctx, #raise{ player = Player, raise = Amt }) ->
+%betting(Game, Ctx, #cmd_raise{ player = Player, raise = Amt }) ->
   %Game1 = g:cancel_timer(Game),
   %Call = Ctx#texas.exp_call,
   %Min = Ctx#texas.exp_min,
@@ -162,7 +169,7 @@ cancel_timer(Ctx = #texas{timer = T}) ->
     %(Amt > Max) or
     %(Max == 0.0) or % should have sent CALL
     %((Amt < Min) and ((Amt + Call) /= Inplay)) ->
-      %betting(Game1, Ctx, #fold{ player = Player });
+      %betting(Game1, Ctx, #cmd_fold{ player = Player });
     %true ->
       %%% proper raise
       %RC1 = if 

@@ -75,3 +75,5 @@
 -define(NOTIFY_ERROR,         255).
 -record(notify_error,         { error }).
 
+-define(NOTIFY_PLAYER,        124).
+-record(notify_player,        { player, nick, photo }).

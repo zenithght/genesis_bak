@@ -14,43 +14,43 @@ connection_timeout_test() ->
         ?assert(is_pid(sim_client:where(?MODULE))),
         ?SLEEP(3),
         ?assertNot(is_pid(sim_client:where(?MODULE))),
-        ?assertMatch([#bad{error = ?ERR_CONNECTION_TIMEOUT}], sim_client:box())
+        ?assertMatch([#notify_error{error = ?ERR_CONNECTION_TIMEOUT}], sim_client:box())
     end).
 
 login_unauth_test() ->
   run_by_def(fun([{player, I}|_]) ->
         mnesia:dirty_write(I#tab_player_info{identity = "player_new"}),
         ?assert(is_pid(sim_client:where(?MODULE))),
-        sim_client:send(?MODULE, #login{usr = <<"player">>, pass = <<"def_pwd">>}),
+        sim_client:send(?MODULE, #cmd_login{identity = <<"player">>, password = <<"def_pwd">>}),
         ?assertNot(is_pid(sim_client:where(?MODULE))),
-        ?assertMatch([#bad{error = ?ERR_UNAUTH}], sim_client:box())
+        ?assertMatch([#notify_error{error = ?ERR_UNAUTH}], sim_client:box())
     end),
 
   run_by_def(fun([{player, I}|_]) ->
         mnesia:dirty_write(I#tab_player_info{password = "pwd"}),
         ?assert(is_pid(sim_client:where(?MODULE))),
-        sim_client:send(?MODULE, #login{usr = <<"player">>, pass = <<"def_pwd">>}),
+        sim_client:send(?MODULE, #cmd_login{identity = <<"player">>, password = <<"def_pwd">>}),
         ?assertNot(is_pid(sim_client:where(?MODULE))),
-        ?assertMatch([#bad{error = ?ERR_UNAUTH}], sim_client:box())
+        ?assertMatch([#notify_error{error = ?ERR_UNAUTH}], sim_client:box())
     end).
 
 login_player_disbale_test() ->
   run_by_def(fun([{player, I}|_]) ->
         mnesia:dirty_write(I#tab_player_info{disabled = true}),
         ?assert(is_pid(sim_client:where(?MODULE))),
-        sim_client:send(?MODULE, #login{usr = <<"player">>, pass = <<"def_pwd">>}),
+        sim_client:send(?MODULE, #cmd_login{identity = <<"player">>, password = <<"def_pwd">>}),
         ?assertNot(is_pid(sim_client:where(?MODULE))),
-        ?assertMatch([#bad{error = ?ERR_PLAYER_DISABLE}], sim_client:box())
+        ?assertMatch([#notify_error{error = ?ERR_PLAYER_DISABLE}], sim_client:box())
     end).
 
 login_successful_test() ->
   run_by_def(fun([{player, I}|_]) ->
         mnesia:dirty_write(I),
         ?assert(is_pid(sim_client:where(?MODULE))),
-        sim_client:send(?MODULE, #login{usr = <<"player">>, pass = <<"def_pwd">>}),
+        sim_client:send(?MODULE, #cmd_login{identity = <<"player">>, password = <<"def_pwd">>}),
         ?assertEqual(sim_client:where_player(1), sim_client:loopdata(?MODULE, player)),
-        ?assertMatch(#player_info{nick = <<"player">>, photo = <<"default">>}, sim_client:head(?MODULE)),
-        ?assertMatch(#balance{amount = 0, inplay = 0}, sim_client:head(?MODULE))
+        ?assertMatch(#notify_player{nick = <<"player">>, photo = <<"default">>}, sim_client:head(?MODULE)),
+        ?assertMatch(#notify_acount{balance = 0, inplay = 0}, sim_client:head(?MODULE))
     end).
 
 %%%

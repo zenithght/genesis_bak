@@ -213,8 +213,3 @@ kill_game_test() ->
   ?assertNot(is_pid(where_game(1))),
   ?assertNot(is_pid(where_game(2))),
   ?assertNot(is_pid(where_game(3))).
-
-players_test() ->
-  ?assertEqual(2, length(players())),
-  ?assertMatch(#tab_player_info{identity = "jack"}, player(jack)),
-  ?assertMatch(#tab_player_info{identity = "tommy"}, player(tommy)).

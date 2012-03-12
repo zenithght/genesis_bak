@@ -121,6 +121,9 @@ read(<<?CMD_RAISE, Bin/binary>>) ->
 read(<<?CMD_FOLD, Bin/binary>>) ->
   unpickle(record(cmd_fold, {game(), internal(), internal()}), Bin);
 
+read(<<?CMD_QUERY_SEATS, Bin/binary>>) ->
+  unpickle(record(cmd_query_seats, {game()}), Bin);
+
 read(<<?NOTIFY_ACOUNT, Bin/binary>>) ->
   unpickle(record(notify_acount, {balance(), inplay()}), Bin);
 
@@ -196,6 +199,9 @@ read(<<?NOTIFY_WIN, Bin/binary>>) ->
 read(<<?NOTIFY_ERROR, Bin/binary>>) ->
   unpickle(record(notify_error, {error()}), Bin);
 
+read(<<?NOTIFY_PLAYER, Bin/binary>>) ->
+  unpickle(record(notify_player, {player_id(), nick(), photo()}), Bin);
+
 read(_ErrorBin) -> ok.
 
 %% write protocol record to binary
@@ -231,6 +237,9 @@ write(R) when is_record(R, cmd_raise) ->
 
 write(R) when is_record(R, cmd_fold) ->
   [?CMD_FOLD | pickle(record(cmd_fold, {game(), internal(), internal()}), R)];
+
+write(R) when is_record(R, cmd_query_seats) ->
+  [?CMD_QUERY_SEATS | pickle(record(cmd_query_seats, {game()}), R)];
 
 write(R) when is_record(R, notify_acount) ->
   [?NOTIFY_ACOUNT | pickle(record(notify_acount, {balance(), inplay()}), R)];
@@ -306,5 +315,8 @@ write(R) when is_record(R, notify_win) ->
 
 write(R) when is_record(R, notify_error) ->
   [?NOTIFY_ERROR | pickle(record(notify_error, {error()}), R)];
+
+write(R) when is_record(R, notify_player) ->
+  [?NOTIFY_PLAYER | pickle(record(notify_player, {player_id(), nick(), photo()}), R)];
 
 write(_ErrorRecord) -> ok.

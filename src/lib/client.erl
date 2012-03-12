@@ -29,11 +29,11 @@ loop({recv, Bin}, Data = #pdata{}) when is_binary(Bin) ->
   end;
 
 % cancel connection timer when remote client first send protocol must #login
-loop({protocol, R = #login{}}, Data = #pdata{timer = T}) when T /= ?UNDEF ->
+loop({protocol, R = #cmd_login{}}, Data = #pdata{timer = T}) when T /= ?UNDEF ->
   catch erlang:cancel_timer(T),
   loop({protocol, R}, Data#pdata{timer = ?UNDEF});
 
-loop({protocol, #login{usr = Identity, pass = Password}}, Data) ->
+loop({protocol, #cmd_login{identity = Identity, password = Password}}, Data) ->
   case player:auth(binary_to_list(Identity), binary_to_list(Password)) of
     {ok, unauth} ->
       err(?ERR_UNAUTH);
@@ -53,14 +53,14 @@ loop({protocol, #login{usr = Identity, pass = Password}}, Data) ->
       end
   end;
 
-loop({protocol, #logout{}}, #pdata{player = Player}) when is_pid(Player) ->
+loop({protocol, #cmd_logout{}}, #pdata{player = Player}) when is_pid(Player) ->
   {ok, logout} = player:logout(Player),
   close_connection();
 
-loop({protocol, #logout{}}, _Data) ->
+loop({protocol, #cmd_logout{}}, _Data) ->
   err(?ERR_PROTOCOL);
 
-loop({protocol, #game_query{}}, Data = #pdata{player = Player}) when is_pid(Player) ->
+loop({protocol, #cmd_query_game{}}, Data = #pdata{player = Player}) when is_pid(Player) ->
   Infos = game:list(),
   lists:map(fun(Info) -> send(Info) end, Infos),
   Data;
@@ -87,7 +87,7 @@ send(PID, R) when is_pid(PID), is_tuple(R) ->
 %%%
 
 err(Code) when is_integer(Code) ->
-  send(#bad{cmd = 0, error = Code}),
+  send(#notify_error{error = Code}),
   close_connection().
 
 close_connection() ->

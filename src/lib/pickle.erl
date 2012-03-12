@@ -62,6 +62,9 @@ read_sshort(Bin) ->
 int() -> 
     {fun write_int/2, fun read_int/1}.
 
+write_int(Acc, undefined) -> 
+    [<<0:32>>|Acc];
+
 write_int(Acc, Word) -> 
     [<<Word:32>>|Acc].
 

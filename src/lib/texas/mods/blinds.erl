@@ -16,7 +16,7 @@ start([], Ctx = #texas{gid = Id, limit = Limit}) ->
   {SmallAmt, BigAmt} = {Limit#limit.small, Limit#limit.big},
 
   Button = advance_button(Ctx),
-  game:broadcast(#notify_button{ game = Id, button = Button#seat.sn }, Ctx),
+  game:broadcast(#notify_button{ game = Id, b = Button#seat.sn }, Ctx),
 
   {Small, Big, Headsup} = advance_blinds(Button, Ctx),
   game:broadcast(#notify_sb{ game = Id, sb = Small#seat.sn }, Ctx),
