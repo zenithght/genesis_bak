@@ -23,7 +23,79 @@
 -define(DELAY, 500).
 -define(SLEEP, timer:sleep(?DELAY)).
 
-betting_test() ->
+normal_betting_test() ->
+  run_by_login_players([{blinds, []}, {betting, [?GS_PREFLOP]}, {betting, [?GS_FLOP]}], ?THREE_PLAYERS, fun() ->
+        Players = ?THREE_PLAYERS,
+        join_and_start_game(Players),
+
+        %% SB 10 BB 20
+        B = 1, SB = 2, BB = 3, 
+        check_blind(Players, B, SB, BB),
+
+        %% B CALL 20
+        check_notify_actor(B, Players),
+        ?assertMatch(#notify_betting{call = 20, min = 20, max = 80}, sim_client:head(?JACK)),
+        sim_client:send(?JACK, #cmd_raise{game = ?GAME, amount = 0}),
+        check_notify_raise(20, 0, Players),
+
+        %% SB CALL 10
+        check_notify_actor(SB, Players),
+        ?assertMatch(#notify_betting{call = 10, min = 20, max = 80}, sim_client:head(?TOMMY)),
+        sim_client:send(?TOMMY, #cmd_raise{game = ?GAME, amount = 0}),
+        check_notify_raise(10, 0, Players),
+
+        %% BB RAISE 20
+        check_notify_actor(BB, Players),
+        ?assertMatch(#notify_betting{call = 0, min = 20, max = 80}, sim_client:head(?FOO)),
+        sim_client:send(?FOO, #cmd_raise{game = ?GAME, amount = 20}),
+        check_notify_raise(0, 20, Players),
+
+        %% B CALL 20
+        check_notify_actor(B, Players),
+        ?assertMatch(#notify_betting{call = 20, min = 20, max = 60}, sim_client:head(?JACK)),
+        sim_client:send(?JACK, #cmd_raise{game = ?GAME, amount = 0}),
+        check_notify_raise(20, 0, Players),
+
+        %% SB CALL 20
+        check_notify_actor(SB, Players),
+        ?assertMatch(#notify_betting{call = 20, min = 20, max = 60}, sim_client:head(?TOMMY)),
+        sim_client:send(?TOMMY, #cmd_raise{game = ?GAME, amount = 0}),
+        check_notify_raise(20, 0, Players),
+
+        %% TURNOVER STAGE
+        check_notify_stage_end(?GS_PREFLOP, Players),
+        check_notify_stage(?GS_FLOP, Players),
+
+        %% SB CHECK
+        check_notify_actor(SB, Players),
+        ?assertMatch(#notify_betting{call = 0, min = 20, max = 60}, sim_client:head(?TOMMY)),
+        sim_client:send(?TOMMY, #cmd_raise{game = ?GAME, amount = 0}),
+        check_notify_raise(0, 0, Players),
+
+        %% BB RAISE 20
+        check_notify_actor(BB, Players),
+        ?assertMatch(#notify_betting{call = 0, min = 20, max = 60}, sim_client:head(?FOO)),
+        sim_client:send(?FOO, #cmd_raise{game = ?GAME, amount = 20}),
+        check_notify_raise(0, 20, Players),
+
+        %% B CALL 20
+        check_notify_actor(B, Players),
+        ?assertMatch(#notify_betting{call = 20, min = 20, max = 40}, sim_client:head(?JACK)),
+        sim_client:send(?JACK, #cmd_raise{game = ?GAME, amount = 0}),
+        check_notify_raise(20, 0, Players),
+
+        %% SB CALL
+        check_notify_actor(SB, Players),
+        ?assertMatch(#notify_betting{call = 20, min = 20, max = 40}, sim_client:head(?TOMMY)),
+        sim_client:send(?TOMMY, #cmd_raise{game = ?GAME, amount = 0}),
+        check_notify_raise(20, 0, Players),
+
+        %% FLOP OVER
+        check_notify_stage_end(?GS_FLOP, Players),
+        ?assertMatch(stop, game:state(?GAME))
+    end).
+
+headsup_betting_test() ->
   run_by_login_two_players([{blinds, []}, {betting, [?GS_PREFLOP]}, {betting, [?GS_FLOP]}], fun() ->
         join_and_start_game(?TWO_PLAYERS),
         SB = 1, BB = 2,

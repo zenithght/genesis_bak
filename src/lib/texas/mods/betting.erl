@@ -47,7 +47,7 @@ betting(#cmd_raise{ amount = Raise}, Ctx = #texas{exp_seat = Exp, exp_call = Cal
   BettedCtx = game:bet({Exp, Call, Raise}, Ctx),
   BettedSeats = seat:lookup(?PS_BET, BettedCtx#texas.seats),
   ResetedSeats = reset_seat(Exp#seat.sn, BettedSeats, BettedCtx#texas.seats),
-  RaisedCtx = BettedCtx#texas{max_betting = Call + Raise, seats = ResetedSeats},
+  RaisedCtx = BettedCtx#texas{max_betting = BettedCtx#texas.max_betting + Call + Raise, seats = ResetedSeats},
   next_turn(Exp, RaisedCtx);
 
 %%%
