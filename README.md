@@ -1,5 +1,5 @@
 # Genesis Texas hold'em Game Server & Client
-## This project is based on wagerlabs/openpoker, but I modified almost all of the code:
+#### This project is based on [wagerlabs/openpoker](https://github.com/wagerlabs/openpoker), but I modified almost all of the code:
 
 - Except distributed, I do not care about this.
 - Except object paramters from exch module.
@@ -8,7 +8,7 @@
 - Reflection all texas module and game module, game context struct.
 - Less protocol and client communications.
 
-## I added some feature:
+#### I added some feature:
 
 - HTML5 texas client, animate by CSS3, communicate by websocket API, NOT Flash!!!
 - Websocket communition layer based mochisocket.
