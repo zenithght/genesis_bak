@@ -1,5 +1,5 @@
 -module(hand).
--export([new/0, new/1, add/2, rank/1, merge/2]).
+-export([new/0, new/1, add/2, rank/1, merge/2, size/1]).
 -export([make_card/1, make_card/2, make_cards/1, print_bin/1, 
          print_rep/1, to_string/1, player_hand/1, card_to_string/1]).
 
@@ -10,7 +10,10 @@ new() -> new([]).
 new(Cards) -> #hand{ cards = Cards }.
 
 add(Hand, Card) ->
-    Hand#hand{ cards = [Card|Hand#hand.cards] }.
+  Hand#hand{ cards = [Card|Hand#hand.cards] }.
+
+size(Hand) ->
+  length(Hand#hand.cards).
 
 rank(Hand) ->
   %% 按照花色生成对牌型的位组合
