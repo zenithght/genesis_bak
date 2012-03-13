@@ -66,7 +66,7 @@ call({watch, {Identity, Process}}, Ctx = #texas{observers = Obs}) ->
       {ok, ok, Ctx#texas{observers = NewObs}}
   end;
 
-call({unwatch, {Identity, _Process}}, Ctx = #texas{observers = Obs}) ->
+call({unwatch, Identity}, Ctx = #texas{observers = Obs}) ->
   case proplists:lookup(Identity, Obs) of
     none ->
       {ok, ok, Ctx};
@@ -164,7 +164,7 @@ dispatch({join, Process, S = #seat{}, R = #cmd_join{identity = Identity}}, Ctx =
 
 dispatch(R = #cmd_leave{sn = SN, pid = PId}, Ctx = #texas{exp_seat = Exp, seats = Seats}) ->
   case seat:get(SN, Seats) of
-    #seat{pid = PId} ->
+    #seat{pid = PId, identity = Identity} ->
       Fun = fun() -> 
           [Info] = mnesia:read(tab_player_info, PId, write),
           [Inplay] = mnesia:read(tab_inplay, PId, write),
@@ -189,10 +189,9 @@ dispatch(R = #cmd_leave{sn = SN, pid = PId}, Ctx = #texas{exp_seat = Exp, seats 
           LeaveMsg = #notify_leave{
             sn = SN,
             game = Ctx#texas.gid,
-            player = R#cmd_leave.pid,
             proc = self()
           },
-          
+
           LeavedExp = case Exp#seat.pid =:= PId of
             true -> 
               game:fold(self(), #cmd_fold{pid = PId}),
@@ -203,7 +202,8 @@ dispatch(R = #cmd_leave{sn = SN, pid = PId}, Ctx = #texas{exp_seat = Exp, seats 
 
           broadcast(LeaveMsg, Ctx),
           LeavedSeats = seat:set(SN, ?PS_LEAVE, Seats),
-          Ctx#texas{seats = LeavedSeats, joined = Ctx#texas.joined - 1, exp_seat = LeavedExp};
+          LeavedObs = proplists:delete(Identity, Ctx#texas.observers),
+          Ctx#texas{observers = LeavedObs, seats = LeavedSeats, joined = Ctx#texas.joined - 1, exp_seat = LeavedExp};
         {aborted, Err} ->
           ?LOG([{game, error}, {leave, R}, {ctx, Ctx}, {error, Err}]),
           Ctx
@@ -325,7 +325,7 @@ watch(Game, Identity) when is_pid(Game), is_list(Identity) ->
   gen_server:call(Game, {watch, {Identity, self()}}).
 
 unwatch(Game, Identity) when is_pid(Game), is_list(Identity) ->
-  gen_server:call(Game, {unwatch, {Identity, self()}}).
+  gen_server:call(Game, {unwatch, Identity}).
 
 join(Game, R = #cmd_join{}) when is_pid(Game) ->
   gen_server:cast(Game, {join, self(), R}).

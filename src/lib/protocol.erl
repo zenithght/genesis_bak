@@ -152,7 +152,7 @@ read(<<?NOTIFY_JOIN, Bin/binary>>) ->
   unpickle(record(notify_join, {game_id(), player_id(), sn(), buyin(), nick(), photo(), internal(), internal()}), Bin);
 
 read(<<?NOTIFY_LEAVE, Bin/binary>>) ->
-  unpickle(record(notify_leave, {game_id(), player_id(), sn(), internal(), internal()}), Bin);
+  unpickle(record(notify_leave, {game_id(), sn(), internal(), internal()}), Bin);
 
 read(<<?NOTIFY_BUTTON, Bin/binary>>) ->
   unpickle(record(notify_button, {game_id(), b()}), Bin);
@@ -193,11 +193,14 @@ read(<<?NOTIFY_CARDS, Bin/binary>>) ->
 read(<<?NOTIFY_WIN, Bin/binary>>) ->
   unpickle(record(notify_win, {game_id(), player_id(), amount()}), Bin);
 
-read(<<?NOTIFY_ERROR, Bin/binary>>) ->
-  unpickle(record(notify_error, {error()}), Bin);
-
 read(<<?NOTIFY_PLAYER, Bin/binary>>) ->
   unpickle(record(notify_player, {player_id(), nick(), photo()}), Bin);
+
+read(<<?NOTIFY_FOLD, Bin/binary>>) ->
+  unpickle(record(notify_fold, {game_id(), sn()}), Bin);
+
+read(<<?NOTIFY_ERROR, Bin/binary>>) ->
+  unpickle(record(notify_error, {error()}), Bin);
 
 read(_ErrorBin) -> ok.
 
@@ -266,7 +269,7 @@ write(R) when is_record(R, notify_join) ->
   [?NOTIFY_JOIN | pickle(record(notify_join, {game_id(), player_id(), sn(), buyin(), nick(), photo(), internal(), internal()}), R)];
 
 write(R) when is_record(R, notify_leave) ->
-  [?NOTIFY_LEAVE | pickle(record(notify_leave, {game_id(), player_id(), sn(), internal(), internal()}), R)];
+  [?NOTIFY_LEAVE | pickle(record(notify_leave, {game_id(), sn(), internal(), internal()}), R)];
 
 write(R) when is_record(R, notify_button) ->
   [?NOTIFY_BUTTON | pickle(record(notify_button, {game_id(), b()}), R)];
@@ -307,10 +310,13 @@ write(R) when is_record(R, notify_cards) ->
 write(R) when is_record(R, notify_win) ->
   [?NOTIFY_WIN | pickle(record(notify_win, {game_id(), player_id(), amount()}), R)];
 
-write(R) when is_record(R, notify_error) ->
-  [?NOTIFY_ERROR | pickle(record(notify_error, {error()}), R)];
-
 write(R) when is_record(R, notify_player) ->
   [?NOTIFY_PLAYER | pickle(record(notify_player, {player_id(), nick(), photo()}), R)];
+
+write(R) when is_record(R, notify_fold) ->
+  [?NOTIFY_FOLD | pickle(record(notify_fold, {game_id(), sn()}), R)];
+
+write(R) when is_record(R, notify_error) ->
+  [?NOTIFY_ERROR | pickle(record(notify_error, {error()}), R)];
 
 write(_ErrorRecord) -> ok.

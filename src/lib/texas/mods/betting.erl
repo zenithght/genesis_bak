@@ -65,6 +65,7 @@ betting(#cmd_fold{}, Ctx = #texas{seats = S, exp_seat = Exp}) ->
       NotTimerCtx#texas{seats = seat:set(Exp#seat.sn, ?PS_FOLD, S)}
   end,
 
+  game:broadcast(#notify_fold{game = Ctx#texas.gid, sn = Exp#seat.sn}, FoldCtx),
   next_turn(Exp, FoldCtx);
 
 % skip

@@ -28,7 +28,7 @@
 -record(notify_join,          { game, player, sn, buyin, nick, photo, '|', proc }).
 
 -define(NOTIFY_LEAVE,         109).
--record(notify_leave,         { game, player, sn, '|', proc }).
+-record(notify_leave,         { game, sn, '|', proc }).
 
 -define(NOTIFY_BUTTON,        110).
 -record(notify_button,        { game, b}).
@@ -69,8 +69,12 @@
 -define(NOTIFY_WIN,           123).
 -record(notify_win,           { game, player, amount }).
 
+-define(NOTIFY_PLAYER,        124).
+-record(notify_player,        { player, nick, photo }).
+
+-define(NOTIFY_FOLD,          125).
+-record(notify_fold,          { game, sn }).
+
 -define(NOTIFY_ERROR,         255).
 -record(notify_error,         { error }).
 
--define(NOTIFY_PLAYER,        124).
--record(notify_player,        { player, nick, photo }).
