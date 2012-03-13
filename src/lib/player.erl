@@ -119,6 +119,10 @@ handle_cast(R = #cmd_raise{game = G}, Data = #pdata{playing = P}) when G =:= P -
   game:raise(G, R#cmd_raise{sn = Data#pdata.playing_sn, pid = Data#pdata.pid}),
   {noreply, Data};
 
+handle_cast(R = #cmd_fold{game = G}, Data = #pdata{playing = P}) when G =:= P ->
+  game:fold(G, R#cmd_fold{pid = Data#pdata.pid}),
+  {noreply, Data};
+
 handle_cast(R, Data) ->
   ?LOG([{unknown_cast, R}]),
   {noreply, Data}.

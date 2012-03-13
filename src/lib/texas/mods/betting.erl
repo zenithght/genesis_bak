@@ -58,7 +58,13 @@ betting(#cmd_fold{pid = PId}, Ctx = #texas{exp_seat = Exp}) when Exp#seat.pid /=
   {continue, Ctx};
 betting(#cmd_fold{}, Ctx = #texas{seats = S, exp_seat = Exp}) ->
   NotTimerCtx = cancel_timer(Ctx),
-  FoldCtx = NotTimerCtx#texas{seats = seat:set(Exp#seat.sn, ?PS_FOLD, S)},
+  FoldCtx = case Exp#seat.state =:= ?PS_LEAVE of
+    true ->
+      NotTimerCtx#texas{seats = seat:set(Exp#seat.sn, ?PS_LEAVE, S)};
+    _ ->
+      NotTimerCtx#texas{seats = seat:set(Exp#seat.sn, ?PS_FOLD, S)}
+  end,
+
   next_turn(Exp, FoldCtx);
 
 % skip

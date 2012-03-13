@@ -97,50 +97,81 @@ normal_betting_test() ->
 
 headsup_betting_test() ->
   run_by_login_two_players([{blinds, []}, {betting, [?GS_PREFLOP]}, {betting, [?GS_FLOP]}], fun() ->
-        join_and_start_game(?TWO_PLAYERS),
         SB = 1, BB = 2,
+        Players = set_sn([{?JACK, SB}, {?TOMMY, BB}], ?TWO_PLAYERS),
 
-        %%%% PREFLOP
-        check_blind(?TWO_PLAYERS, SB, SB, BB),
-        check_notify_actor(SB, ?TWO_PLAYERS),
+        join_and_start_game(Players),
+        check_blind(Players, SB, SB, BB),
 
-        %% CALL
-        ?assertMatch(#notify_betting{call = 10, min = 20, max = 80}, sim_client:head(?JACK)),
-        sim_client:send(?JACK, #cmd_raise{game = ?GAME, amount = 0}),
-        check_notify_raise(10, 0, ?TWO_PLAYERS),
-        check_notify_actor(BB, ?TWO_PLAYERS),
+        turnover_player_raise({?JACK, Players},  {10, 20, 80}, 0),
+        turnover_player_raise({?TOMMY, Players}, { 0, 20, 80}, 0),
 
-        %% CHECK -> TURNOVER
-        ?assertMatch(#notify_betting{call = 0, min = 20, max = 80}, sim_client:head(?TOMMY)),
-        sim_client:send(?TOMMY, #cmd_raise{game = ?GAME, amount = 0}),
-        check_notify_raise(0, 0, ?TWO_PLAYERS),
-        check_notify_stage_end(?GS_PREFLOP, ?TWO_PLAYERS),
+        check_notify_stage_end(?GS_PREFLOP, Players),
+        check_notify_stage(?GS_FLOP, Players),
 
-        %%%% TURNOVER -> FLOP
-        check_notify_stage(?GS_FLOP, ?TWO_PLAYERS),
-        check_notify_actor(BB, ?TWO_PLAYERS),
+        turnover_player_raise({?TOMMY, Players}, {0, 20, 80}, 0),
+        turnover_player_raise({?JACK, Players},  {0, 20, 80}, 20),
+        turnover_player_raise({?TOMMY, Players}, {20, 20, 60}, 0),
 
-        %% CHECK
-        ?assertMatch(#notify_betting{call = 0, min = 20, max = 80}, sim_client:head(?TOMMY)),
-        sim_client:send(?TOMMY, #cmd_raise{game = ?GAME, amount = 0}), %% check
-        check_notify_raise(0, 0, ?TWO_PLAYERS),
-        check_notify_actor(SB, ?TWO_PLAYERS),
-
-        %% RAISE
-        ?assertMatch(#notify_betting{call = 0, min = 20, max = 80}, sim_client:head(?JACK)),
-        sim_client:send(?JACK, #cmd_raise{game = ?GAME, amount = 20}),
-        check_notify_raise(0, 20, ?TWO_PLAYERS),
-        check_notify_actor(BB, ?TWO_PLAYERS),
-
-        %% CALL
-        ?assertMatch(#notify_betting{call = 20, min = 20, max = 60}, sim_client:head(?TOMMY)),
-        sim_client:send(?TOMMY, #cmd_raise{game = ?GAME, amount = 0}),
-        check_notify_raise(20, 0, ?TWO_PLAYERS),
-        check_notify_stage_end(?GS_FLOP, ?TWO_PLAYERS),
-
+        check_notify_stage_end(?GS_FLOP, Players),
         ?assertMatch(stop, game:state(?GAME))
     end).
 
+headsup_betting_and_fold_test() ->
+  run_by_login_two_players([{blinds, []}, {betting, [?GS_PREFLOP]}, {betting, [?GS_FLOP]}], fun() ->
+        SB = 1, BB = 2,
+        Players = set_sn([{?JACK, SB}, {?TOMMY, BB}], ?TWO_PLAYERS),
+
+        join_and_start_game(Players),
+        check_blind(Players, SB, SB, BB),
+
+        turnover_player_raise({?JACK, Players},  {10, 20, 80}, 0),
+        turnover_player_fold({?TOMMY, Players},  { 0, 20, 80}),
+
+        ?assertMatch(#texas{joined = 2}, game:ctx(?GAME)),
+        ?assertMatch(stop, game:state(?GAME))
+    end).
+
+headsup_betting_and_leave_test() ->
+  run_by_login_two_players([{blinds, []}, {betting, [?GS_PREFLOP]}, {betting, [?GS_FLOP]}], fun() ->
+        SB = 1, BB = 2,
+        Players = set_sn([{?JACK, SB}, {?TOMMY, BB}], ?TWO_PLAYERS),
+
+        join_and_start_game(Players),
+        check_blind(Players, SB, SB, BB),
+
+        turnover_player_raise({?JACK, Players},  {10, 20, 80}, 0),
+        turnover_player_leave({?TOMMY, Players},  { 0, 20, 80}),
+
+        check_notify_leave(?TOMMY_ID, Players),
+
+        ?assertMatch(#texas{joined = 1}, game:ctx(?GAME)),
+        ?assertMatch(stop, game:state(?GAME))
+    end).
+
+turnover_player_fold({Actor, Players}, {Call, Min, Max}) ->
+  {Actor, SN} = proplists:lookup(Actor, Players),
+  check_notify_actor(SN, Players),
+  ?assertMatch(#notify_betting{call = Call, min = Min, max = Max}, sim_client:head(Actor)),
+  sim_client:send(Actor, #cmd_fold{game = ?GAME}).
+
+turnover_player_leave({Actor, Players}, {Call, Min, Max}) ->
+  {Actor, SN} = proplists:lookup(Actor, Players),
+  check_notify_actor(SN, Players),
+  ?assertMatch(#notify_betting{call = Call, min = Min, max = Max}, sim_client:head(Actor)),
+  sim_client:send(Actor, #cmd_leave{game = ?GAME}).
+
+turnover_player_raise({Actor, Players}, {Call, Min, Max}, Raise) ->
+  {Actor, SN} = proplists:lookup(Actor, Players),
+  check_notify_actor(SN, Players),
+  ?assertMatch(#notify_betting{call = Call, min = Min, max = Max}, sim_client:head(Actor)),
+  sim_client:send(Actor, #cmd_raise{game = ?GAME, amount = Raise}),
+  check_notify_raise(Call, Raise, Players).
+
+check_notify_leave(_PId, []) -> ok;
+check_notify_leave(PId, [{Key, _Id}|T]) ->
+  ?assertMatch(#notify_leave{game = ?GAME, player = PId}, sim_client:head(Key)),
+  check_notify_leave(PId, T).
 check_notify_raise(_Call, _Raise, []) -> ok;
 check_notify_raise(Call, Raise, [{Key, _Id}|T]) ->
   ?assertMatch(#notify_raise{call = Call, raise = Raise}, sim_client:head(Key)),
@@ -226,3 +257,9 @@ check_notify_join([_|T], 0, S) ->
 check_notify_join(Players = [{Key, _Id}|_], N, S) ->
   ?assertMatch(#notify_join{}, sim_client:head(Key)),
   check_notify_join(Players, N - 1, S).
+
+set_sn([], Players) -> Players;
+set_sn([{Key, SN}|T], Players) ->
+  lists:keyreplace(Key, 1, Players, {Key, SN}),
+  set_sn(T, Players).
+

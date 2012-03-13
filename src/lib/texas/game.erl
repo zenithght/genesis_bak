@@ -25,7 +25,7 @@ id() ->
 init(GID, R = #tab_game_config{}) ->
   create_runtime(GID, R),
   #texas { 
-    gid = GID, 
+    gid = GID,
     seats = seat:new(R#tab_game_config.seat_count),
     max_joined = R#tab_game_config.seat_count,
     limit = R#tab_game_config.limit,
@@ -162,7 +162,7 @@ dispatch({join, Process, S = #seat{}, R = #cmd_join{identity = Identity}}, Ctx =
       Ctx
   end;
 
-dispatch({leave, _Process, R = #cmd_leave{sn = SN, pid = PId}}, Ctx = #texas{seats = Seats}) ->
+dispatch(R = #cmd_leave{sn = SN, pid = PId}, Ctx = #texas{exp_seat = Exp, seats = Seats}) ->
   case seat:get(SN, Seats) of
     #seat{pid = PId} ->
       Fun = fun() -> 
@@ -192,10 +192,18 @@ dispatch({leave, _Process, R = #cmd_leave{sn = SN, pid = PId}}, Ctx = #texas{sea
             player = R#cmd_leave.pid,
             proc = self()
           },
+          
+          LeavedExp = case Exp#seat.pid =:= PId of
+            true -> 
+              game:fold(self(), #cmd_fold{pid = PId}),
+              Exp#seat{state = ?PS_LEAVE};
+            _ ->
+              Exp
+          end,
 
           broadcast(LeaveMsg, Ctx),
           LeavedSeats = seat:set(SN, ?PS_LEAVE, Seats),
-          Ctx#texas{seats = LeavedSeats, joined = Ctx#texas.joined - 1};
+          Ctx#texas{seats = LeavedSeats, joined = Ctx#texas.joined - 1, exp_seat = LeavedExp};
         {aborted, Err} ->
           ?LOG([{game, error}, {leave, R}, {ctx, Ctx}, {error, Err}]),
           Ctx
@@ -323,7 +331,7 @@ join(Game, R = #cmd_join{}) when is_pid(Game) ->
   gen_server:cast(Game, {join, self(), R}).
 
 leave(Game, R = #cmd_leave{}) when is_pid(Game) ->
-  gen_server:cast(Game, {leave, self(), R}).
+  gen_server:cast(Game, R).
 
 raise(Game, R = #cmd_raise{}) when is_pid(Game) ->
   gen_server:cast(Game, R).
