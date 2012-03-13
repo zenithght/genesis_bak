@@ -27,65 +27,67 @@ betting_test() ->
   run_by_login_two_players([{blinds, []}, {betting, [?GS_PREFLOP]}, {betting, [?GS_FLOP]}], fun() ->
         join_and_start_game(?TWO_PLAYERS),
         SB = 1, BB = 2,
+
+        %%%% PREFLOP
         check_blind(?TWO_PLAYERS, SB, SB, BB),
+        check_notify_actor(SB, ?TWO_PLAYERS),
 
-        %% sb = 10, call = 10, raise_max = 80
-        ?assertMatch(#notify_actor{sn = SB}, sim_client:head(?JACK)),
-        ?assertMatch(#notify_actor{sn = SB}, sim_client:head(?TOMMY)),
-
+        %% CALL
         ?assertMatch(#notify_betting{call = 10, min = 20, max = 80}, sim_client:head(?JACK)),
-        sim_client:send(?JACK, #cmd_raise{game = ?GAME, amount = 0}), %% call
+        sim_client:send(?JACK, #cmd_raise{game = ?GAME, amount = 0}),
+        check_notify_raise(10, 0, ?TWO_PLAYERS),
+        check_notify_actor(BB, ?TWO_PLAYERS),
 
-        ?assertMatch(#notify_raise{game = ?GAME, raise = 0, call = 10}, sim_client:head(?JACK)),
-        ?assertMatch(#notify_raise{game = ?GAME, raise = 0, call = 10}, sim_client:head(?TOMMY)),
+        %% CHECK -> TURNOVER
+        ?assertMatch(#notify_betting{call = 0, min = 20, max = 80}, sim_client:head(?TOMMY)),
+        sim_client:send(?TOMMY, #cmd_raise{game = ?GAME, amount = 0}),
+        check_notify_raise(0, 0, ?TWO_PLAYERS),
+        check_notify_stage_end(?GS_PREFLOP, ?TWO_PLAYERS),
 
-        ?assertMatch(#notify_actor{sn = BB}, sim_client:head(?JACK)), %% turnover player
-        ?assertMatch(#notify_actor{sn = BB}, sim_client:head(?TOMMY)),
+        %%%% TURNOVER -> FLOP
+        check_notify_stage(?GS_FLOP, ?TWO_PLAYERS),
+        check_notify_actor(BB, ?TWO_PLAYERS),
 
+        %% CHECK
         ?assertMatch(#notify_betting{call = 0, min = 20, max = 80}, sim_client:head(?TOMMY)),
         sim_client:send(?TOMMY, #cmd_raise{game = ?GAME, amount = 0}), %% check
+        check_notify_raise(0, 0, ?TWO_PLAYERS),
+        check_notify_actor(SB, ?TWO_PLAYERS),
 
-        ?assertMatch(#notify_raise{game = ?GAME, raise = 0, call = 0}, sim_client:head(?JACK)),
-        ?assertMatch(#notify_raise{game = ?GAME, raise = 0, call = 0}, sim_client:head(?TOMMY)),
-
-        ?assertMatch(#notify_stage_end{game = ?GAME, stage = ?GS_PREFLOP}, sim_client:head(?JACK)),
-        ?assertMatch(#notify_stage_end{game = ?GAME, stage = ?GS_PREFLOP}, sim_client:head(?TOMMY)),
-
-        ?assertMatch(#notify_stage{stage = ?GS_FLOP}, sim_client:head(?JACK)),
-        ?assertMatch(#notify_stage{stage = ?GS_FLOP}, sim_client:head(?TOMMY)),
-
-        ?assertMatch(#notify_actor{sn = BB}, sim_client:head(?JACK)),
-        ?assertMatch(#notify_actor{sn = BB}, sim_client:head(?TOMMY)),
-
-        ?assertMatch(#notify_betting{call = 0, min = 20, max = 80}, sim_client:head(?TOMMY)),
-        sim_client:send(?TOMMY, #cmd_raise{game = ?GAME, amount = 0}), %% check
-
-        ?assertMatch(#notify_raise{game = ?GAME, raise = 0, call = 0}, sim_client:head(?JACK)),
-        ?assertMatch(#notify_raise{game = ?GAME, raise = 0, call = 0}, sim_client:head(?TOMMY)),
-
-        ?assertMatch(#notify_actor{sn = SB}, sim_client:head(?JACK)),
-        ?assertMatch(#notify_actor{sn = SB}, sim_client:head(?TOMMY)),
-
+        %% RAISE
         ?assertMatch(#notify_betting{call = 0, min = 20, max = 80}, sim_client:head(?JACK)),
-        sim_client:send(?JACK, #cmd_raise{game = ?GAME, amount = 20}), %% check
+        sim_client:send(?JACK, #cmd_raise{game = ?GAME, amount = 20}),
+        check_notify_raise(0, 20, ?TWO_PLAYERS),
+        check_notify_actor(BB, ?TWO_PLAYERS),
 
-        ?assertMatch(#notify_raise{game = ?GAME, raise = 20, call = 0}, sim_client:head(?JACK)),
-        ?assertMatch(#notify_raise{game = ?GAME, raise = 20, call = 0}, sim_client:head(?TOMMY)),
-
-        ?assertMatch(#notify_actor{sn = BB}, sim_client:head(?JACK)),
-        ?assertMatch(#notify_actor{sn = BB}, sim_client:head(?TOMMY)),
-
+        %% CALL
         ?assertMatch(#notify_betting{call = 20, min = 20, max = 60}, sim_client:head(?TOMMY)),
-        sim_client:send(?TOMMY, #cmd_raise{game = ?GAME, amount = 0}), %% call
-
-        ?assertMatch(#notify_raise{game = ?GAME, raise = 0, call = 20}, sim_client:head(?JACK)),
-        ?assertMatch(#notify_raise{game = ?GAME, raise = 0, call = 20}, sim_client:head(?TOMMY)),
-
-        ?assertMatch(#notify_stage_end{game = ?GAME, stage = ?GS_FLOP}, sim_client:head(?JACK)),
-        ?assertMatch(#notify_stage_end{game = ?GAME, stage = ?GS_FLOP}, sim_client:head(?TOMMY)),
+        sim_client:send(?TOMMY, #cmd_raise{game = ?GAME, amount = 0}),
+        check_notify_raise(20, 0, ?TWO_PLAYERS),
+        check_notify_stage_end(?GS_FLOP, ?TWO_PLAYERS),
 
         ?assertMatch(stop, game:state(?GAME))
     end).
+
+check_notify_raise(_Call, _Raise, []) -> ok;
+check_notify_raise(Call, Raise, [{Key, _Id}|T]) ->
+  ?assertMatch(#notify_raise{call = Call, raise = Raise}, sim_client:head(Key)),
+  check_notify_raise(Call, Raise, T).
+
+check_notify_actor(_SN, []) -> ok;
+check_notify_actor(SN, [{Key, _Id}|T]) ->
+  ?assertMatch(#notify_actor{sn = SN}, sim_client:head(Key)),
+  check_notify_actor(SN, T).
+
+check_notify_stage(_GS, []) -> ok;
+check_notify_stage(GS, [{Key, _}|T]) ->
+  ?assertMatch(#notify_stage{stage = GS}, sim_client:head(Key)),
+  check_notify_stage(GS, T).
+
+check_notify_stage_end(_GS, []) -> ok;
+check_notify_stage_end(GS, [{Key, _}|T]) ->
+  ?assertMatch(#notify_stage_end{stage = GS}, sim_client:head(Key)),
+  check_notify_stage_end(GS, T).
 
 run_by_login_two_players(Fun) ->
   run_by_login_players([], ?TWO_PLAYERS, Fun).
