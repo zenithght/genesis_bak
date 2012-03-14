@@ -49,7 +49,6 @@ merge(Hand, []) -> Hand;
 merge(Hand, [H|T]) ->
   merge(add(Hand, H), T).
 
-
 is_straight_flush(Hand, Rep) ->
     Mask = make_mask(Rep),
     case is_flush(Hand, Mask, Rep, ?CS_CLUBS) of
@@ -771,7 +770,6 @@ full_house_win1_test() ->
   ?assertEqual(?HC_FULL_HOUSE, H1#hand.rank),
   ?assertEqual(?HC_FULL_HOUSE, H2#hand.rank),
   ?assertEqual(true, short(H1) == short(H2)).
-
 
 gr(L) ->
   F = fun({Cards, Rank, High1, High2, Suit}) ->

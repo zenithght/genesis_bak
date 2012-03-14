@@ -46,8 +46,8 @@ when L#limit.min > Inplay ->
       
 broadcast_ranks([], _Ctx) -> ok;
 broadcast_ranks([#seat{pid = PId, hand = Hand}|T], Ctx = #texas{gid = Id}) ->
-  PH = hand:player_hand(Hand),
-  game:broadcast(#notify_hand{ player = PId, game = Id, hand = PH }, Ctx),
+  #player_hand{rank = Rank, high1 = H1, high2 = H2, suit = Suit} = hand:player_hand(Hand),
+  game:broadcast(#notify_hand{ player = PId, game = Id, rank = Rank, high1 = H1, high2 = H2, suit = Suit}, Ctx),
   broadcast_ranks(T, Ctx).
 
 broadcast_winners([], _Ctx) -> ok;

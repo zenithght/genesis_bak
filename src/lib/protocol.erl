@@ -50,11 +50,13 @@ face() -> ?byte.
 rank() -> ?byte.
 error() -> ?byte.
 
+high1() -> face().
+high2() -> face().
+
 card() -> short().
 cards() -> list(byte(), card()).
 
 limit() -> record(limit, {int(), int(), int(), int()}).
-hand() -> record(player_hand, {rank(), face(), face(), suit()}).
 
 game() -> game(get(pass_through)).
 player() -> player(get(pass_through)).
@@ -152,7 +154,7 @@ read(<<?NOTIFY_JOIN, Bin/binary>>) ->
   unpickle(record(notify_join, {game_id(), player_id(), sn(), buyin(), nick(), photo(), internal(), internal()}), Bin);
 
 read(<<?NOTIFY_LEAVE, Bin/binary>>) ->
-  unpickle(record(notify_leave, {game_id(), sn(), internal(), internal()}), Bin);
+  unpickle(record(notify_leave, {game_id(), sn(), player_id(), internal(), internal()}), Bin);
 
 read(<<?NOTIFY_BUTTON, Bin/binary>>) ->
   unpickle(record(notify_button, {game_id(), b()}), Bin);
@@ -185,7 +187,7 @@ read(<<?NOTIFY_SHARED, Bin/binary>>) ->
   unpickle(record(notify_shared, {game_id(), card()}), Bin);
 
 read(<<?NOTIFY_HAND, Bin/binary>>) ->
-  unpickle(record(notify_hand, {game_id(), player_id(), hand()}), Bin);
+  unpickle(record(notify_hand, {game_id(), player_id(), rank(), high1(), high2(), suit()}), Bin);
 
 read(<<?NOTIFY_CARDS, Bin/binary>>) ->
   unpickle(record(notify_cards, {game_id(), player_id(), cards()}), Bin);
@@ -269,7 +271,7 @@ write(R) when is_record(R, notify_join) ->
   [?NOTIFY_JOIN | pickle(record(notify_join, {game_id(), player_id(), sn(), buyin(), nick(), photo(), internal(), internal()}), R)];
 
 write(R) when is_record(R, notify_leave) ->
-  [?NOTIFY_LEAVE | pickle(record(notify_leave, {game_id(), sn(), internal(), internal()}), R)];
+  [?NOTIFY_LEAVE | pickle(record(notify_leave, {game_id(), sn(), player_id(), internal(), internal()}), R)];
 
 write(R) when is_record(R, notify_button) ->
   [?NOTIFY_BUTTON | pickle(record(notify_button, {game_id(), b()}), R)];
@@ -302,7 +304,7 @@ write(R) when is_record(R, notify_shared) ->
   [?NOTIFY_SHARED | pickle(record(notify_shared, {game_id(), card()}), R)];
 
 write(R) when is_record(R, notify_hand) ->
-  [?NOTIFY_HAND | pickle(record(notify_hand, {game_id(), player_id(), hand()}), R)];
+  [?NOTIFY_HAND | pickle(record(notify_hand, {game_id(), player_id(), rank(), high1(), high2(), suit()}), R)];
 
 write(R) when is_record(R, notify_cards) ->
   [?NOTIFY_CARDS | pickle(record(notify_cards, {game_id(), player_id(), cards()}), R)];

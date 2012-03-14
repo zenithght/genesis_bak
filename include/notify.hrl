@@ -28,7 +28,7 @@
 -record(notify_join,          { game, player, sn, buyin, nick, photo, '|', proc }).
 
 -define(NOTIFY_LEAVE,         109).
--record(notify_leave,         { game, sn, '|', proc }).
+-record(notify_leave,         { game, sn, player, '|', proc }).
 
 -define(NOTIFY_BUTTON,        110).
 -record(notify_button,        { game, b}).
@@ -61,7 +61,7 @@
 -record(notify_shared,        { game, card }).  
 
 -define(NOTIFY_HAND,          121).
--record(notify_hand,          { game, player, hand }).
+-record(notify_hand,          { game, player, rank, high1, high2, suit}).
 
 -define(NOTIFY_CARDS,         122).
 -record(notify_cards,         { game, player, cards }).

@@ -1,4 +1,4 @@
--module(sim_game_deal_card).
+-module(sim_deal).
 -compile([export_all]).
 
 -include("common.hrl").
@@ -26,15 +26,40 @@
 %%% test case
 %%%
 
-rank_test() ->
+private_rank_test() ->
+  RigCards = hand:make_cards("3H 4H 3D 4D"),
   run_by_login_two_players([
-      {blinds, []}, {deal_cards, [2, private]}, 
-      {deal_cards, [1, shared]}, {deal_cards, [1, shared]}, {deal_cards, [1, shared]}], fun() ->
+      {blinds, []}, {rig, [RigCards]}, {deal_cards, [2, private]}, {ranking, []}], fun() ->
         Players = ?TWO_PLAYERS,
         join_and_start_game(Players),
-        check_blind(Players, 1, 1, 2)
+        check_blind(Players, 1, 1, 2),
+        check_deal(),
 
-        
+        ?assertMatch(#notify_hand{rank = ?HC_PAIR, high1 = ?CF_FOUR}, sim_client:head(?JACK)),
+        ?assertMatch(#notify_hand{rank = ?HC_PAIR, high1 = ?CF_THREE}, sim_client:head(?TOMMY))
+    end).
+
+share_rank_test() ->
+  run_by_login_two_players([
+      {blinds, []}, {rig, [hand:make_cards("3H 4H 3D 4D 3C")]}, {deal_cards, [2, private]}, {deal_cards, [1, shared]}, {ranking, []}], fun() ->
+        Players = ?TWO_PLAYERS,
+        join_and_start_game(Players),
+        check_blind(Players, 1, 1, 2),
+        check_deal(),
+        check_shared(1, Players),
+        ?assertMatch(#notify_hand{rank = ?HC_PAIR, high1 = ?CF_FOUR}, sim_client:head(?JACK)),
+        ?assertMatch(#notify_hand{rank = ?HC_THREE_KIND, high1 = ?CF_THREE}, sim_client:head(?TOMMY))
+    end),
+  run_by_login_two_players([
+      {blinds, []}, {rig, [hand:make_cards("3H 4H 3D 4D 3C 4C 4S ")]}, 
+      {deal_cards, [2, private]}, {deal_cards, [3, shared]}, {ranking, []}], fun() ->
+        Players = ?TWO_PLAYERS,
+        join_and_start_game(Players),
+        check_blind(Players, 1, 1, 2),
+        check_deal(),
+        check_shared(3, Players),
+        ?assertMatch(#notify_hand{rank = ?HC_FOUR_KIND, high1 = ?CF_FOUR}, sim_client:head(?JACK)),
+        ?assertMatch(#notify_hand{rank = ?HC_FULL_HOUSE, high1 = ?CF_THREE, high2 = ?CF_FOUR}, sim_client:head(?TOMMY))
     end).
 
 deal_test() ->
@@ -45,24 +70,7 @@ deal_test() ->
         join_and_start_game(Players),
         check_blind(Players, 1, 1, 2),
 
-        %% Tommy is left button player, first deal card.
-        %% Button is last deal card player, in this is Jack.
-
-        %% tommy first card
-        ?assertMatch(#notify_draw{game = ?GAME, player = ?TOMMY_ID}, sim_client:head(?JACK)),
-        ?assertMatch(#notify_private{game = ?GAME, player = ?TOMMY_ID}, sim_client:head(?TOMMY)),
-
-        %% jack first card
-        ?assertMatch(#notify_draw{game = ?GAME, player = ?JACK_ID}, sim_client:head(?TOMMY)),
-        ?assertMatch(#notify_private{game = ?GAME, player = ?JACK_ID}, sim_client:head(?JACK)),
-
-        %% tommy second card
-        ?assertMatch(#notify_draw{game = ?GAME, player = ?TOMMY_ID}, sim_client:head(?JACK)),
-        ?assertMatch(#notify_private{game = ?GAME, player = ?TOMMY_ID}, sim_client:head(?TOMMY)),
-
-        %% jack second card
-        ?assertMatch(#notify_draw{game = ?GAME, player = ?JACK_ID}, sim_client:head(?TOMMY)),
-        ?assertMatch(#notify_private{game = ?GAME, player = ?JACK_ID}, sim_client:head(?JACK)),
+        check_deal(),
 
         check_shared(3, Players),
 
@@ -75,6 +83,27 @@ deal_test() ->
         ?assertEqual(2, hand:size(Tommy#seat.hand)),
         ?assertMatch(stop, game:state(?GAME))
     end).
+
+check_deal() ->
+  %% Tommy is left button player, first deal card.
+  %% Button is last deal card player, in this is Jack.
+
+  %% tommy first card
+  ?assertMatch(#notify_draw{game = ?GAME, player = ?TOMMY_ID}, sim_client:head(?JACK)),
+  ?assertMatch(#notify_private{game = ?GAME, player = ?TOMMY_ID}, sim_client:head(?TOMMY)),
+
+  %% jack first card
+  ?assertMatch(#notify_draw{game = ?GAME, player = ?JACK_ID}, sim_client:head(?TOMMY)),
+  ?assertMatch(#notify_private{game = ?GAME, player = ?JACK_ID}, sim_client:head(?JACK)),
+
+  %% tommy second card
+  ?assertMatch(#notify_draw{game = ?GAME, player = ?TOMMY_ID}, sim_client:head(?JACK)),
+  ?assertMatch(#notify_private{game = ?GAME, player = ?TOMMY_ID}, sim_client:head(?TOMMY)),
+
+  %% jack second card
+  ?assertMatch(#notify_draw{game = ?GAME, player = ?JACK_ID}, sim_client:head(?TOMMY)),
+  ?assertMatch(#notify_private{game = ?GAME, player = ?JACK_ID}, sim_client:head(?JACK)).
+
 
 %%%
 %%% private test until
@@ -89,9 +118,6 @@ check_shared(N, 0, [_|T]) ->
 check_shared(N, S, L = [{Key, _Id}|_T]) ->
   ?assertMatch(#notify_shared{game = ?GAME}, sim_client:head(Key)),
   check_shared(N, S - 1, L).
-
-  
-
 
 run_by_login_two_players(Fun) ->
   run_by_login_players([], ?TWO_PLAYERS, Fun).

@@ -1,4 +1,4 @@
--module(sim_game_timeout).
+-module(sim_timeout).
 -compile([export_all]).
 
 -include("common.hrl").

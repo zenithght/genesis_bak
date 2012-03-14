@@ -11,6 +11,7 @@
          tuple/1, record/2, binary/1, wstring/0]).
 -export([string/0]).
 
+-include("common.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
 %%% Pickle and unpickle. We accumulate into a list.
@@ -26,6 +27,8 @@ unpickle({_, Pickler}, Bin) ->
 byte() -> 
     {fun write_byte/2, fun read_byte/1}.
 
+write_byte(Acc, ?UNDEF) ->
+    [<<0:8>>|Acc];
 write_byte(Acc, Byte) -> 
     [<<Byte:8>>|Acc].
 

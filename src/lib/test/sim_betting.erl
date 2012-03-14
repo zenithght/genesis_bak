@@ -1,4 +1,4 @@
--module(sim_game).
+-module(sim_betting).
 -compile([export_all]).
 
 -include("common.hrl").

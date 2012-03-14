@@ -1,4 +1,4 @@
--module(sim_game_pre).
+-module(sim_join).
 -compile([export_all]).
 
 -include("common.hrl").

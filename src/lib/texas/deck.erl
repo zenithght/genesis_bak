@@ -1,10 +1,13 @@
 -module(deck).
--export([new/0, draw/1, size/1]).
+-export([new/0, new/1, draw/1, size/1]).
 
 -include("game.hrl").
 
 new() -> 
   shuffle(make_deck()).
+
+new(Cards) ->
+  Cards.
 
 draw([]) ->
   none;

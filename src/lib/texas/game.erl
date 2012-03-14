@@ -187,8 +187,8 @@ dispatch(R = #cmd_leave{sn = SN, pid = PId}, Ctx = #texas{exp_seat = Exp, seats 
       case mnesia:transaction(Fun) of
         {atomic, ok} ->
           LeaveMsg = #notify_leave{
-            sn = SN,
             game = Ctx#texas.gid,
+            sn = SN, player = PId,
             proc = self()
           },
 

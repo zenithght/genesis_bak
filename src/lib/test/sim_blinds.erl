@@ -1,4 +1,4 @@
--module(sim_game_blinds).
+-module(sim_blinds).
 -compile([export_all]).
 
 -include("common.hrl").

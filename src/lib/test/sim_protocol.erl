@@ -1,4 +1,4 @@
--module(protocol_test).
+-module(sim_protocol).
 -import(protocol, [write/1, read/1]).
 -include("common.hrl").
 -include("protocol.hrl").

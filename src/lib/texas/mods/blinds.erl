@@ -47,7 +47,7 @@ advance_blinds(B, #texas{seats = Seats}) ->
   end.
 
 blind([], Ctx) -> Ctx;
-blind([{Seat = #seat{pid = PId, sn = SN}, Amt}|T], Ctx = #texas{gid = Id}) ->
+blind([{Seat = #seat{sn = SN}, Amt}|T], Ctx = #texas{}) ->
   NewCtx = game:bet({Seat, Amt}, Ctx),
   RecoverSeats = seat:set(SN, ?PS_PLAY, NewCtx#texas.seats),
   blind(T, NewCtx#texas{seats = RecoverSeats}).
