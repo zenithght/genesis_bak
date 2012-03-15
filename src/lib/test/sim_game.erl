@@ -42,7 +42,7 @@ rank_test() ->
 shutdown_test() ->
   Mods = [{blinds, []}, {rig, [hand:make_cards("3H 4H 3D 4D 3C 4C 4S ")]}, 
     {deal_cards, [2, private]}, {deal_cards, [3, shared]}, {ranking, []},
-    {betting, [?GS_PREFLOP]}, {showdown, []}],
+    {betting, [?GS_PREFLOP]}, {showdown, []}, {wait_players, []}],
   run_by_login_two_players(Mods, fun() ->
         Players = ?TWO_PLAYERS,
         join_and_start_game(Players),
@@ -71,15 +71,36 @@ shutdown_test() ->
         check_notify_out(?TOMMY_ID, Players),
 
         ?assertMatch([#tab_inplay{inplay = 190}], mnesia:dirty_read(tab_inplay, ?JACK_ID)),
-        ?assertMatch([#tab_inplay{inplay = 10}], mnesia:dirty_read(tab_inplay, ?TOMMY_ID))
-        %?assertMatch([#tab_player_info{cash = -500}], mnesia:dirty_read(tab_player_info, ?JACK_ID)),
-        %?assertMatch([#tab_player_info{cash = -500}], mnesia:dirty_read(tab_player_info, ?TOMMY_ID)),
+        ?assertMatch([#tab_inplay{inplay = 10}], mnesia:dirty_read(tab_inplay, ?TOMMY_ID)),
+        ?assertMatch([#tab_player_info{cash = -100}], mnesia:dirty_read(tab_player_info, ?JACK_ID)),
+        ?assertMatch([#tab_player_info{cash = -100}], mnesia:dirty_read(tab_player_info, ?TOMMY_ID)),
 
+        check_notify_game_end(Players),
+
+        ?SLEEP,
+
+        check_notify_game_cancel(Players),
+        check_notify_leave(?TOMMY, Players)
     end).
 
 %%%
 %%% private test until
 %%%
+check_notify_game_end([]) -> ok;
+check_notify_game_end([{Key, _}|T]) ->
+  ?assertMatch(#notify_game_end{game = ?GAME}, sim_client:head(Key)),
+  check_notify_game_end(T).
+
+check_notify_game_cancel([]) -> ok;
+check_notify_game_cancel([{Key, _}|T]) ->
+  ?assertMatch(#notify_game_cancel{game = ?GAME}, sim_client:head(Key)),
+  check_notify_game_cancel(T).
+
+check_notify_leave(_Actor, []) -> ok;
+check_notify_leave(Actor, PL = [{Key, _SN}|T]) ->
+  {Actor, SN} = proplists:lookup(Actor, PL),
+  ?assertMatch(#notify_leave{game = ?GAME, sn = SN}, sim_client:head(Key)),
+  check_notify_leave(Actor, T).
 
 check_notify_win(_Player, _Amt, []) -> ok;
 check_notify_win(Player, Amt, [{Key, _Id}|T]) -> 

@@ -164,7 +164,7 @@ dispatch({join, Process, S = #seat{}, R = #cmd_join{identity = Identity}}, Ctx =
 
 dispatch(R = #cmd_leave{sn = SN, pid = PId}, Ctx = #texas{exp_seat = Exp, seats = Seats}) ->
   case seat:get(SN, Seats) of
-    #seat{pid = PId, identity = Identity} ->
+    #seat{pid = PId} ->
       Fun = fun() -> 
           [Info] = mnesia:read(tab_player_info, PId, write),
           [Inplay] = mnesia:read(tab_inplay, PId, write),
@@ -202,8 +202,7 @@ dispatch(R = #cmd_leave{sn = SN, pid = PId}, Ctx = #texas{exp_seat = Exp, seats 
 
           broadcast(LeaveMsg, Ctx),
           LeavedSeats = seat:set(SN, ?PS_LEAVE, Seats),
-          LeavedObs = proplists:delete(Identity, Ctx#texas.observers),
-          Ctx#texas{observers = LeavedObs, seats = LeavedSeats, joined = Ctx#texas.joined - 1, exp_seat = LeavedExp};
+          Ctx#texas{seats = LeavedSeats, joined = Ctx#texas.joined - 1, exp_seat = LeavedExp};
         {aborted, Err} ->
           ?LOG([{game, error}, {leave, R}, {ctx, Ctx}, {error, Err}]),
           Ctx
