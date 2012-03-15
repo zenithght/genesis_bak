@@ -281,7 +281,7 @@ bet({S = #seat{inplay = Inplay, bet = Bet, pid = PId}, Call, Raise}, Ctx = #texa
       ok = mnesia:write(R#tab_inplay{inplay = Inplay - CostAmt}),
       ok = mnesia:write(#tab_turnover_log{
           aid = S#seat.agent, pid = PId, game = Ctx#texas.gid,
-          amt = CostAmt, inplay = Inplay - CostAmt})
+          amt = 0 - CostAmt, cost = 0, inplay = Inplay - CostAmt})
   end,
   
   case mnesia:transaction(Fun) of
@@ -292,11 +292,27 @@ bet({S = #seat{inplay = Inplay, bet = Bet, pid = PId}, Call, Raise}, Ctx = #texa
       Ctx#texas{seats = NewSeats, pot = NewPot}
   end.
 
-reward(#hand{seat_sn = SN, pid = PId}, Amt, Ctx = #texas{seats = S}) when Amt > 0 ->
-  NewInplay = mnesia:dirty_update_counter(tab_inplay, PId, Amt),
-  Seat = seat:get(SN, S),
-  RewardedSeats = seat:set(Seat#seat{inplay = NewInplay}, S),
-  Ctx#texas{seats = RewardedSeats}.
+reward(#hand{seat_sn = SN, pid = PId}, Amt, Ctx = #texas{seats = Seats}) when Amt > 0 ->
+  WinAmt = Amt,
+  Seat = seat:get(SN, Seats),
+  PId = Seat#seat.pid,
+
+  Fun = fun() ->
+      [R] = mnesia:read(tab_inplay, PId, write),
+      RewardInplay = R#tab_inplay.inplay + WinAmt,
+      ok = mnesia:write(R#tab_inplay{inplay = R#tab_inplay.inplay + WinAmt}),
+      ok = mnesia:write(#tab_turnover_log{
+          aid = Seat#seat.agent, pid = Seat#seat.pid, game = Ctx#texas.gid,
+          amt = WinAmt, cost = Amt - WinAmt, inplay = RewardInplay}),
+      RewardInplay
+  end,
+  
+  case mnesia:transaction(Fun) of
+    {atomic, RewardInplay} ->
+      broadcast(#notify_win{ game = Ctx#texas.gid, player = PId, amount = WinAmt}, Ctx),
+      RewardedSeats = seat:set(Seat#seat{inplay = RewardInplay, bet = 0}, Seats),
+      Ctx#texas{seats = RewardedSeats}
+  end.
 
 broadcast(Msg, #texas{observers = Obs}, []) ->
   broadcast(Msg, Obs);

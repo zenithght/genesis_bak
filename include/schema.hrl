@@ -48,6 +48,7 @@
     pid,      %% pid
     game,     %% {gid, sn}
     amt,      %% amt
+    cost,     %% winner cost amt
     inplay,   %% in out result inplay
     date = date(),     %% {year, month, day}
     time = time()      %% {hour, min, sec}

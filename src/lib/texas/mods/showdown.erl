@@ -14,9 +14,7 @@ start([], Ctx = #texas{gid = Id, seats = S, pot = P}) ->
   Winners = winners(RankedSeats, pot:pots(P)),
 
   show_cards(seat:lookup(?PS_ANY, S), Ctx),
-
   broadcast_ranks(RankedSeats, Ctx),
-  broadcast_winners(Winners, Ctx),
 
   RewardedCtx = reward_winners(Winners, Ctx),
   RewardedSeats = RewardedCtx#texas.seats,
@@ -53,12 +51,6 @@ broadcast_ranks([#seat{pid = PId, hand = Hand}|T], Ctx = #texas{gid = Id}) ->
   game:broadcast(#notify_hand{ player = PId, game = Id, rank = Rank, high1 = H1, high2 = H2, suit = Suit}, Ctx),
   broadcast_ranks(T, Ctx).
 
-broadcast_winners([], _Ctx) -> ok;
-broadcast_winners([{#hand{pid = PId}, Amt}|T], Ctx = #texas{gid = Id}) ->
-  ?LOG([{PId, Id, Amt}]),
-  game:broadcast(#notify_win{ game = Id, player = PId, amount = Amt }, Ctx),
-  broadcast_winners(T, Ctx).
-
 %% fuck code is here, winners comput to depend on record field position
 %% e.g lists:keysort(5, M) is sort by hand record five point field rank
 %% TODO use lists:sort(Fun, List) rework winners function
@@ -89,7 +81,6 @@ winners(Ranks, [{Total, Members}|Rest], Winners) ->
     M7 = lists:reverse(lists:keysort(8, M6)),
     TopScore = element(8, hd(M7)),
     M8 = lists:filter(fun(R) -> element(8, R) == TopScore end, M7),
-    ?LOG([{total, Total}, {length, length(M8)}]),
     Win = Total div length(M8),
     Winners1 = update_winners(M8, Win, Winners),
     winners(Ranks, Rest, Winners1).
