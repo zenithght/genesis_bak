@@ -112,7 +112,7 @@ read(<<?CMD_UNWATCH, Bin/binary>>) ->
   unpickle(record(cmd_unwatch, {game(), internal(), internal()}), Bin);
 
 read(<<?CMD_JOIN, Bin/binary>>) ->
-  unpickle(record(cmd_join, {game(), sn(), buyin(), internal(), internal(), internal(), internal(), internal(), internal()}), Bin);
+  unpickle(record(cmd_join, {game(), sn(), buyin(), internal(), internal(), internal(), internal(), internal(), internal(), internal()}), Bin);
 
 read(<<?CMD_LEAVE, Bin/binary>>) ->
   unpickle(record(cmd_leave, {game(), internal(), internal(), internal(), internal()}), Bin);
@@ -125,6 +125,9 @@ read(<<?CMD_FOLD, Bin/binary>>) ->
 
 read(<<?CMD_QUERY_SEATS, Bin/binary>>) ->
   unpickle(record(cmd_query_seats, {game()}), Bin);
+
+read(<<?CMD_OUT, Bin/binary>>) ->
+  unpickle(record(cmd_out, {game(), sn(), buyin(), internal(), internal(), internal()}), Bin);
 
 read(<<?NOTIFY_ACOUNT, Bin/binary>>) ->
   unpickle(record(notify_acount, {balance(), inplay()}), Bin);
@@ -232,7 +235,7 @@ write(R) when is_record(R, cmd_unwatch) ->
   [?CMD_UNWATCH | pickle(record(cmd_unwatch, {game(), internal(), internal()}), R)];
 
 write(R) when is_record(R, cmd_join) ->
-  [?CMD_JOIN | pickle(record(cmd_join, {game(), sn(), buyin(), internal(), internal(), internal(), internal(), internal(), internal()}), R)];
+  [?CMD_JOIN | pickle(record(cmd_join, {game(), sn(), buyin(), internal(), internal(), internal(), internal(), internal(), internal(), internal()}), R)];
 
 write(R) when is_record(R, cmd_leave) ->
   [?CMD_LEAVE | pickle(record(cmd_leave, {game(), internal(), internal(), internal(), internal()}), R)];
@@ -245,6 +248,9 @@ write(R) when is_record(R, cmd_fold) ->
 
 write(R) when is_record(R, cmd_query_seats) ->
   [?CMD_QUERY_SEATS | pickle(record(cmd_query_seats, {game()}), R)];
+
+write(R) when is_record(R, cmd_out) ->
+  [?CMD_OUT | pickle(record(cmd_out, {game(), sn(), buyin(), internal(), internal(), internal()}), R)];
 
 write(R) when is_record(R, notify_acount) ->
   [?NOTIFY_ACOUNT | pickle(record(notify_acount, {balance(), inplay()}), R)];

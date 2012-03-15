@@ -31,7 +31,7 @@
 -record(cmd_unwatch,          { game, '|', player }).
 
 -define(CMD_JOIN,             33).
--record(cmd_join,             { game, sn, buyin, '|', pid, identity, nick, photo, agent }).
+-record(cmd_join,             { game, sn, buyin, '|', pid, identity, nick, photo, agent, proc }).
 
 -define(CMD_LEAVE,            34).
 -record(cmd_leave,            { game, '|', pid, sn, agent }).
@@ -44,5 +44,8 @@
 
 -define(CMD_QUERY_SEATS,      37).
 -record(cmd_query_seats,      { game }).
+
+-define(CMD_OUT,              38).
+-record(cmd_out,              { game, sn, buyin, '|', pid, proc }).
 
 -include("notify.hrl").

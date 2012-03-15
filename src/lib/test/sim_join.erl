@@ -28,12 +28,12 @@ list_test() ->
         % match two game by head
         ?assertMatch(#notify_game{
           name = <<"TEXAS_TABLE">>, 
-          limit = #limit{min = 100, max = 400, small = 5, big = 10}, 
+          limit = #limit{min = 100, max = 500, small = 5, big = 10}, 
           seats = 9, require = 2, joined = 0
         }, head()),
         ?assertMatch(#notify_game{
           name = <<"TEXAS_TABLE">>, 
-          limit = #limit{min = 100, max = 400, small = 5, big = 10}, 
+          limit = #limit{min = 100, max = 500, small = 5, big = 10}, 
           seats = 9, require = 2, joined = 0
         }, head())
     end).
@@ -136,7 +136,7 @@ run_by_login(Fun) ->
   Fun().
 
 start_game() ->
-  Limit = #limit{min = 100, max = 400, small = 5, big = 10},
+  Limit = #limit{min = 100, max = 500, small = 5, big = 10},
   Conf = #tab_game_config{module = game, mods = [{wait_players, []}], limit = Limit, seat_count = 9, start_delay = 3000, required = 2, timeout = 1000, max = 2},
   game:start(Conf).
   

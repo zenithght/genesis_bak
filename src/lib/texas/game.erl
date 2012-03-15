@@ -87,81 +87,23 @@ call(info, Ctx = #texas{gid = GId, joined = Joined, required = Required, seats =
 call(pdata, Ctx) ->
   {ok, Ctx, Ctx}.
 
-dispatch({join, _Process, _R}, Ctx = #texas{max_joined = Max, joined = Joined}) when Max =:= Joined ->
+dispatch(#cmd_join{buyin = Buyin}, Ctx = #texas{limit = Limit, joined = Joined, max_joined = MaxJoin})
+when Joined =:= MaxJoin; Buyin < Limit#limit.min; Buyin > Limit#limit.max ->
   Ctx;
 
-dispatch({join, Process, R = #cmd_join{sn = SN}}, Ctx = #texas{seats = Seats}) when SN /= 0 ->
+dispatch(R = #cmd_join{sn = SN}, Ctx = #texas{seats = Seats}) when SN /= 0 ->
   case seat:get(SN, Seats) of
     Seat = #seat{state = ?PS_EMPTY} ->
-      dispatch({join, Process, Seat, R}, Ctx);
+      do_join(R, Seat, Ctx);
     _ ->
-      dispatch({join, Process, R#cmd_join{sn = 0}}, Ctx)
+      dispatch(R#cmd_join{sn = 0}, Ctx)
   end;
 
-dispatch({join, Process, R = #cmd_join{sn = SN}}, Ctx = #texas{seats = Seats}) when SN =:= 0 ->
+dispatch(R = #cmd_join{sn = SN}, Ctx = #texas{seats = Seats}) when SN =:= 0 ->
   %% auto compute player seat number
   [H = #seat{}|_] = seat:lookup(?PS_EMPTY, Seats),
-  dispatch({join, Process, H, R}, Ctx);
+  do_join(R, H, Ctx);
   
-dispatch({join, Process, S = #seat{}, R = #cmd_join{identity = Identity}}, Ctx = #texas{observers = Obs, seats = Seats}) ->
-  case proplists:lookup(Identity, Obs) of
-    {Identity, Process} ->
-      JoinedSeats = seat:set(S#seat{
-          identity = Identity,
-          pid = R#cmd_join.pid,
-          process = Process,
-          agent = R#cmd_join.agent,
-          hand = hand:new(),
-          bet = 0,
-          inplay = R#cmd_join.buyin,
-          state = ?PS_WAIT,
-          nick = R#cmd_join.nick,
-          photo = R#cmd_join.photo
-        }, Seats),
-
-      JoinMsg = #notify_join{
-        game = Ctx#texas.gid,
-        player = R#cmd_join.pid,
-        sn = S#seat.sn,
-        buyin = R#cmd_join.buyin,
-        nick = R#cmd_join.nick,
-        photo = R#cmd_join.photo,
-        proc = self()
-      },
-
-      Fun = fun() ->
-          [] = mnesia:read(tab_inplay, R#cmd_join.pid), % check none inplay record
-          [Info] = mnesia:read(tab_player_info, R#cmd_join.pid, write),
-          Balance = Info#tab_player_info.cash + Info#tab_player_info.credit,
-
-          case Balance < R#cmd_join.buyin of
-            true ->
-              exit(err_join_less_balance);
-            _ ->
-              ok
-          end,
-
-          ok = mnesia:write(#tab_buyin_log{
-              aid = R#cmd_join.agent, pid = R#cmd_join.pid, gid = Ctx#texas.gid, 
-              amt = 0 - R#cmd_join.buyin, cash = Info#tab_player_info.cash - R#cmd_join.buyin,
-              credit = Info#tab_player_info.credit}),
-          ok = mnesia:write(#tab_inplay{pid = R#cmd_join.pid, inplay = R#cmd_join.buyin}),
-          ok = mnesia:write(Info#tab_player_info{cash = Info#tab_player_info.cash - R#cmd_join.buyin})
-      end,
-
-      case mnesia:transaction(Fun) of
-        {atomic, ok} ->
-          broadcast(JoinMsg, Ctx),
-          Ctx#texas{seats = JoinedSeats, joined = Ctx#texas.joined + 1};
-        {aborted, Err} ->
-          ?LOG([{game, error}, {join, R}, {ctx, Ctx}, {error, Err}]),
-          Ctx
-      end;
-    _ -> % not find watch in observers
-      ?LOG([{game, error}, {join, R}, {ctx, Ctx}, {error, not_find_observer}]),
-      Ctx
-  end;
-
 dispatch(R = #cmd_leave{sn = SN, pid = PId}, Ctx = #texas{exp_seat = Exp, seats = Seats}) ->
   case seat:get(SN, Seats) of
     #seat{pid = PId} ->
@@ -343,7 +285,7 @@ unwatch(Game, Identity) when is_pid(Game), is_list(Identity) ->
   gen_server:call(Game, {unwatch, Identity}).
 
 join(Game, R = #cmd_join{}) when is_pid(Game) ->
-  gen_server:cast(Game, {join, self(), R}).
+  gen_server:cast(Game, R#cmd_join{proc = self()}).
 
 leave(Game, R = #cmd_leave{}) when is_pid(Game) ->
   gen_server:cast(Game, R).
@@ -406,6 +348,66 @@ default_mods() ->
     {showdown, []},
     {restart, []}
   ].
+
+do_join(R = #cmd_join{identity = Identity, proc = Process}, Seat = #seat{}, Ctx = #texas{observers = Obs, seats = Seats}) ->
+  case proplists:lookup(Identity, Obs) of
+    {Identity, Process} ->
+      JoinedSeats = seat:set(Seat#seat{
+          identity = Identity,
+          pid = R#cmd_join.pid,
+          process = Process,
+          agent = R#cmd_join.agent,
+          hand = hand:new(),
+          bet = 0,
+          inplay = R#cmd_join.buyin,
+          state = ?PS_WAIT,
+          nick = R#cmd_join.nick,
+          photo = R#cmd_join.photo
+        }, Seats),
+
+      JoinMsg = #notify_join{
+        game = Ctx#texas.gid,
+        player = R#cmd_join.pid,
+        sn = Seat#seat.sn,
+        buyin = R#cmd_join.buyin,
+        nick = R#cmd_join.nick,
+        photo = R#cmd_join.photo,
+        proc = self()
+      },
+
+      Fun = fun() ->
+          [] = mnesia:read(tab_inplay, R#cmd_join.pid), % check none inplay record
+          [Info] = mnesia:read(tab_player_info, R#cmd_join.pid, write),
+          Balance = Info#tab_player_info.cash + Info#tab_player_info.credit,
+
+          case Balance < R#cmd_join.buyin of
+            true ->
+              exit(err_join_less_balance);
+            _ ->
+              ok
+          end,
+
+          ok = mnesia:write(#tab_buyin_log{
+              aid = R#cmd_join.agent, pid = R#cmd_join.pid, gid = Ctx#texas.gid, 
+              amt = 0 - R#cmd_join.buyin, cash = Info#tab_player_info.cash - R#cmd_join.buyin,
+              credit = Info#tab_player_info.credit}),
+          ok = mnesia:write(#tab_inplay{pid = R#cmd_join.pid, inplay = R#cmd_join.buyin}),
+          ok = mnesia:write(Info#tab_player_info{cash = Info#tab_player_info.cash - R#cmd_join.buyin})
+      end,
+
+      case mnesia:transaction(Fun) of
+        {atomic, ok} ->
+          broadcast(JoinMsg, Ctx),
+          Ctx#texas{seats = JoinedSeats, joined = Ctx#texas.joined + 1};
+        {aborted, Err} ->
+          ?LOG([{game, error}, {join, R}, {ctx, Ctx}, {error, Err}]),
+          Ctx
+      end;
+    _ -> % not find watch in observers
+      ?LOG([{game, error}, {join, R}, {ctx, Ctx}, {error, not_find_observer}]),
+      Ctx
+  end.
+
 
 %%%
 %%% unit test

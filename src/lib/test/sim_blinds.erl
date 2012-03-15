@@ -117,7 +117,7 @@ run_by_login_players(MixinMods, Players, Fun) ->
         ?assertMatch(#notify_acount{}, sim_client:head(Key))
     end, Players),
   Mods = [{wait_players, []}] ++ MixinMods ++ [{stop, []}],
-  Limit = #limit{min = 100, max = 400, small = 5, big = 10},
+  Limit = #limit{min = 100, max = 500, small = 5, big = 10},
   Conf = #tab_game_config{module = game, mods = Mods, limit = Limit, seat_count = 9, start_delay = ?DELAY, required = 2, timeout = 1000, max = 1},
     
   game:start(Conf),
