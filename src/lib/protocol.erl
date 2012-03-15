@@ -201,6 +201,9 @@ read(<<?NOTIFY_PLAYER, Bin/binary>>) ->
 read(<<?NOTIFY_FOLD, Bin/binary>>) ->
   unpickle(record(notify_fold, {game_id(), sn()}), Bin);
 
+read(<<?NOTIFY_OUT, Bin/binary>>) ->
+  unpickle(record(notify_out, {game_id(), player_id()}), Bin);
+
 read(<<?NOTIFY_ERROR, Bin/binary>>) ->
   unpickle(record(notify_error, {error()}), Bin);
 
@@ -317,6 +320,9 @@ write(R) when is_record(R, notify_player) ->
 
 write(R) when is_record(R, notify_fold) ->
   [?NOTIFY_FOLD | pickle(record(notify_fold, {game_id(), sn()}), R)];
+
+write(R) when is_record(R, notify_out) ->
+  [?NOTIFY_OUT | pickle(record(notify_out, {game_id(), player_id()}), R)];
 
 write(R) when is_record(R, notify_error) ->
   [?NOTIFY_ERROR | pickle(record(notify_error, {error()}), R)];

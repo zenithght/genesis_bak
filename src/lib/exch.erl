@@ -88,8 +88,7 @@ handle_call(Msg, _From, Data = #pdata{module = Module, ctx = Context}) ->
 
 terminate(normal, #pdata{module = Module, ctx = Ctx}) ->
   Module:stop(Ctx);
-terminate(Reason, #pdata{module = Module, ctx = Ctx}) ->
-  ?LOG([{exch, stop}, {reason, Reason}, {ctx, Ctx}]),
+terminate(_, #pdata{module = Module, ctx = Ctx}) ->
   Module:stop(Ctx).
 
 handle_info(Msg, Data) ->

@@ -19,6 +19,10 @@ notify_stage_test() ->
   R = turn(#notify_stage{game = 1, stage = 1}),
   ?assertMatch(#notify_stage{game = 1, stage = 1}, R).
 
+notify_win_test() ->
+  R = turn(#notify_win{game = 1, player = 1, amount = 100}),
+  ?assertMatch(#notify_win{game = 1, player = 1, amount = 100}, R).
+
 %%%
 %%% private
 %%%

@@ -20,7 +20,7 @@ start([], Ctx = #texas{gid = Id, seats = S, pot = P}) ->
 
   RewardedCtx = reward_winners(Winners, Ctx),
   RewardedSeats = RewardedCtx#texas.seats,
-  KickedCtx = kick_poor_players(set:lookup(?PS_READY, RewardedSeats), RewardedCtx),
+  KickedCtx = kick_poor_players(seat:lookup(?PS_READY, RewardedSeats), RewardedCtx),
 
   game:broadcast(#notify_game_end{ game = Id }, KickedCtx),
 
@@ -31,8 +31,8 @@ start([], Ctx = #texas{gid = Id, seats = S, pot = P}) ->
 %%%
 
 show_cards([], _Ctx) -> ok;
-show_cards([#seat{pid = PId, hand = Hand}|T], Ctx = #texas{gid = Id}) ->
-  game:broadcast(#notify_cards{ game = Id, player = PId, cards = Hand#hand.cards}, Ctx, [PId]),
+show_cards([#seat{pid = PId, identity = Identity, hand = Hand}|T], Ctx = #texas{gid = Id}) ->
+  game:broadcast(#notify_cards{ game = Id, player = PId, cards = Hand#hand.cards}, Ctx, [Identity]),
   show_cards(T, Ctx).
 
 reward_winners([], Ctx) -> Ctx;
@@ -40,9 +40,12 @@ reward_winners([{H = #hand{}, Amt}|T], Ctx) ->
   reward_winners(T, game:reward(H, Amt, Ctx)).
 
 kick_poor_players([], Ctx) -> Ctx;
-kick_poor_players([#seat{sn = SN, inplay = Inplay}|T], Ctx = #texas{seats = S, limit = L})
-when L#limit.min > Inplay ->
-  kick_poor_players(T, Ctx#texas{seats = seat:set(SN, ?PS_OUT, S)}).
+kick_poor_players([#seat{pid = PId, sn = SN, inplay = Inplay}|T], Ctx = #texas{seats = S, limit = L})
+when L#limit.big > Inplay ->
+  game:broadcast(#notify_out{ game = Ctx#texas.gid, player = PId }, Ctx),
+  kick_poor_players(T, Ctx#texas{seats = seat:set(SN, ?PS_OUT, S)});
+kick_poor_players([_|T], Ctx = #texas{}) ->
+  kick_poor_players(T, Ctx).
       
 broadcast_ranks([], _Ctx) -> ok;
 broadcast_ranks([#seat{pid = PId, hand = Hand}|T], Ctx = #texas{gid = Id}) ->
@@ -52,7 +55,8 @@ broadcast_ranks([#seat{pid = PId, hand = Hand}|T], Ctx = #texas{gid = Id}) ->
 
 broadcast_winners([], _Ctx) -> ok;
 broadcast_winners([{#hand{pid = PId}, Amt}|T], Ctx = #texas{gid = Id}) ->
-  game:broadcast(#notify_win{ game = Id, player = PId, amount = Amt }),
+  ?LOG([{PId, Id, Amt}]),
+  game:broadcast(#notify_win{ game = Id, player = PId, amount = Amt }, Ctx),
   broadcast_winners(T, Ctx).
 
 %% fuck code is here, winners comput to depend on record field position
@@ -64,7 +68,7 @@ winners(RankedSeats, Pots) ->
   Fun = fun(#seat{pid = PId, sn = SN, hand = Hand}) -> 
       Hand#hand{seat_sn = SN, pid = PId}
   end, 
-  FuckedHands = list:map(Fun, RankedSeats),
+  FuckedHands = lists:map(Fun, RankedSeats),
   gb_trees:to_list(winners(FuckedHands, Pots, gb_trees:empty())).
 
 winners(_Ranks, [], Winners) -> Winners;
@@ -85,7 +89,8 @@ winners(Ranks, [{Total, Members}|Rest], Winners) ->
     M7 = lists:reverse(lists:keysort(8, M6)),
     TopScore = element(8, hd(M7)),
     M8 = lists:filter(fun(R) -> element(8, R) == TopScore end, M7),
-    Win = Total / length(M8),
+    ?LOG([{total, Total}, {length, length(M8)}]),
+    Win = Total div length(M8),
     Winners1 = update_winners(M8, Win, Winners),
     winners(Ranks, Rest, Winners1).
 

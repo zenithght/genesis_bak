@@ -192,8 +192,8 @@ dispatch(R = #cmd_leave{sn = SN, pid = PId}, Ctx = #texas{exp_seat = Exp, seats 
             proc = self()
           },
 
-          LeavedExp = case Exp#seat.pid =:= PId of
-            true -> 
+          LeavedExp = case Exp of
+            #seat{pid = P} when P =:= PId ->
               game:fold(self(), #cmd_fold{pid = PId}),
               Exp#seat{state = ?PS_LEAVE};
             _ ->
@@ -376,22 +376,18 @@ default_mods() ->
     {ranking, []}, 
     %% start after BB, 3 raises
     {betting, [?GS_PREFLOP]}, 
-    %% show 3 shared cards
     {deal_cards, [3, shared]}, 
     {ranking, []}, 
     %% flop
     {betting, [?GS_FLOP]}, 
-    %% show 1 more shared card
     {deal_cards, [1, shared]}, 
     {ranking, []}, 
     %% turn
     {betting, [?GS_TURN]}, 
-    %% show 1 more shared card
     {deal_cards, [1, shared]}, 
     {ranking, []}, 
     %% river
     {betting, [?GS_RIVER]}, 
-    %% showdown
     {showdown, []},
     {restart, []}
   ].

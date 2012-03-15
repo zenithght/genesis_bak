@@ -75,6 +75,9 @@
 -define(NOTIFY_FOLD,          125).
 -record(notify_fold,          { game, sn }).
 
+-define(NOTIFY_OUT,           126).
+-record(notify_out,           { game, player }).
+
 -define(NOTIFY_ERROR,         255).
 -record(notify_error,         { error }).
 
