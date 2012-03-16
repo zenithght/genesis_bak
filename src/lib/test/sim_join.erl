@@ -54,11 +54,13 @@ watch_test() ->
   run_by_login(fun() ->
         start_game(),
         send(#cmd_query_seats{game = 1}),
-        ?assertMatch(T when length(T) =:= 9, box()),
+        ?assertMatch(9, length(box())),
         ?assertMatch(#texas{observers = []}, game:ctx(1)),
         send(#cmd_watch{game = 1}),
         ?assertMatch(#notify_game_detail{stage = ?GS_CANCEL, pot = 0, joined = 0, seats = 9}, head()),
-        ?assertMatch(#texas{observers = [{"jack", PID}]} when is_pid(PID), game:ctx(1))
+        [H|_] = (game:ctx(1))#texas.observers,
+        ?assertMatch("jack", element(1, H)),
+        ?assert(is_pid(element(2, H)))
     end
   ).
 
@@ -67,7 +69,10 @@ unwatch_test() ->
         start_game(),
         ?assertMatch(#texas{observers = []}, game:ctx(1)),
         send(#cmd_watch{game = 1}),
-        ?assertMatch(#texas{observers = [{"jack", _}]}, game:ctx(1)),
+        Ctx = game:ctx(1), % watched buy not join
+        [H|_] = Ctx#texas.observers,
+        ?assertMatch("jack", element(1, H)),
+        ?assert(is_pid(element(2, H))),
         send(#cmd_unwatch{game = 1}),
         ?assertMatch(#texas{observers = []}, game:ctx(1))
     end).
@@ -80,7 +85,10 @@ join_error_test() ->
         ?assertMatch(#notify_error{error = ?ERR_JOIN_LESS_BALANCE}, head()), % less balance
         %% check game context 
         Ctx = game:ctx(1), % watched buy not join
-        ?assertMatch(#texas{observers = [{"jack", PID}], joined = 0} when is_pid(PID), Ctx)
+        [H|_] = Ctx#texas.observers,
+        ?assertMatch("jack", element(1, H)),
+        ?assert(is_pid(element(2, H))),
+        ?assertMatch(#texas{joined = 0}, Ctx)
     end).
         
 join_test() ->
@@ -95,7 +103,10 @@ join_test() ->
         Ctx = game:ctx(1),
         Seat = seat:get(1, Ctx#texas.seats),
         Process = sim_client:where_player(?DEF_PLAYER_ID),
-        ?assertMatch(#texas{observers = [{"jack", PID}], joined = 1} when is_pid(PID), Ctx),
+        [H|_] = Ctx#texas.observers,
+        ?assertMatch("jack", element(1, H)),
+        ?assert(is_pid(element(2, H))),
+        ?assertMatch(#texas{joined = 1}, Ctx),
         ?assertMatch(#seat{process = Process, identity = "jack", photo = <<"default">>, nick = <<"Jack">>}, Seat),
         ?assertMatch(#notify_join{game = 1, player = 1, buyin = 500, sn = 1, photo = <<"default">>, nick = <<"Jack">>}, head())
     end

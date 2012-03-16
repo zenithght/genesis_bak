@@ -59,8 +59,8 @@ shutdown_test() ->
         turnover_player_raise({?JACK, Players},  {70, 70, 10}, 0),
         check_notify_stage_end(?GS_PREFLOP, Players),
 
-        ?assertMatch(#notify_cards{player = ?TOMMY_ID, cards = [_, _]}, sim_client:head(?JACK)),
-        ?assertMatch(#notify_cards{player = ?JACK_ID, cards = [_, _]}, sim_client:head(?TOMMY)),
+        ?assertMatch(#notify_cards{player = ?TOMMY_ID }, sim_client:head(?JACK)),
+        ?assertMatch(#notify_cards{player = ?JACK_ID }, sim_client:head(?TOMMY)),
 
         ?assertMatch(#notify_hand{player = ?TOMMY_ID, rank = ?HC_FULL_HOUSE, high1 = ?CF_THREE, high2 = ?CF_FOUR}, sim_client:head(?TOMMY)),
         ?assertMatch(#notify_hand{player = ?JACK_ID, rank = ?HC_FOUR_KIND, high1 = ?CF_FOUR}, sim_client:head(?TOMMY)),

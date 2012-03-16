@@ -113,7 +113,7 @@ install_test() ->
 reinstall_raise_error_test() ->
   ?assertEqual(ok, uninstall()),
   ?assertEqual(ok, install()),
-  ?assertMatch({error, _}, install()).
+  ?assertMatch(error, element(1, install())).
 
 buyin_log_test() ->
   BuyInLog = #tab_buyin_log{

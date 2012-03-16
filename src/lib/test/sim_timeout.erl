@@ -19,7 +19,11 @@ watch_empty_game_test() ->
   run_by_login_two_players(fun() ->
         sim_client:send(?JACK, #cmd_watch{game = ?GAME}),
         ?assertMatch(#notify_game_detail{stage = ?GS_CANCEL, pot = 0, joined = 0, seats = 9}, sim_client:head(?JACK)),
-        ?assertMatch(#texas{observers = [{"jack", PID}]} when is_pid(PID), ?GAME_CTX),
+
+        Ctx = game:ctx(1),
+        [H|_] = Ctx#texas.observers,
+        ?assertMatch("jack", element(1, H)),
+        ?assert(is_pid(element(2, H))),
         timer:sleep(3000),
         ?assertMatch(#notify_game_cancel{game = ?GAME}, sim_client:head(?JACK))
     end).
