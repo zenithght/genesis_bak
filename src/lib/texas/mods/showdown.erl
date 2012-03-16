@@ -23,7 +23,7 @@ start([], Ctx = #texas{gid = Id, seats = S, pot = P}) ->
   ResetCtx= KickedCtx#texas{
     pot = pot:new(),
     deck = deck:new(),
-    seats = reset_seat(seat:get(Ctx#texas.seats), Ctx#texas.seats)
+    seats = reset_seat(seat:get(KickedCtx#texas.seats), KickedCtx#texas.seats)
   },
 
   game:broadcast(#notify_game_end{ game = Id }, ResetCtx),
