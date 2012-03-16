@@ -1,6 +1,4 @@
--ifndef(UNDEF).
-  -define(UNDEF, undefined).
--endif.
+-define(GAME_UNDEF, undefined).
 
 -define(PLAYER_TIMEOUT, 15000).
 -define(PLAYER_OUT_TIMEOUT, 15000).
@@ -85,29 +83,29 @@
 -define(HC_STRAIGHT_FLUSH, 8).
 
 -record(hand, {
-    pid = ?UNDEF,
-    seat_sn = ?UNDEF,
+    pid = ?GAME_UNDEF,
+    seat_sn = ?GAME_UNDEF,
     cards = [], 
-    rank = ?UNDEF,
-    high1 = ?UNDEF,
-    high2 = ?UNDEF,
-    suit = ?UNDEF,
+    rank = ?GAME_UNDEF,
+    high1 = ?GAME_UNDEF,
+    high2 = ?GAME_UNDEF,
+    suit = ?GAME_UNDEF,
     score = 0
   }).
 
 -record(player_hand, {
     rank = ?HC_HIGH_CARD,
-    high1 = ?UNDEF,
-    high2 = ?UNDEF,
-    suit = ?UNDEF
+    high1 = ?GAME_UNDEF,
+    high2 = ?GAME_UNDEF,
+    suit = ?GAME_UNDEF
   }).
 
 -record(seat, {
-    sn = ?UNDEF,
-    pid = ?UNDEF,               %% player id
+    sn = ?GAME_UNDEF,
+    pid = ?GAME_UNDEF,               %% player id
     agent,
-    identity = ?UNDEF,          %% player identity
-    process = ?UNDEF,           %% player process
+    identity = ?GAME_UNDEF,          %% player identity
+    process = ?GAME_UNDEF,           %% player process
     hand = [],                  %% cards
     bet = 0,                    %% total bet
     inplay = 0,                 %% inplay balance
@@ -130,9 +128,9 @@
     required = 2,               %% players required to start a game
     joined = 0,                 %% joined players count
     max_joined = 0,             %% can joined players limit max
-    b = ?UNDEF,                 %% button
-    sb = ?UNDEF,                %% small blind
-    bb = ?UNDEF,                %% big blind
+    b = ?GAME_UNDEF,                 %% button
+    sb = ?GAME_UNDEF,                %% small blind
+    bb = ?GAME_UNDEF,                %% big blind
     sb_amt = 0,
     bb_amt = 0,
     headsup = false,
@@ -143,5 +141,5 @@
     exp_max = 0,                %% expecting raise max amount
     stage = ?GS_CANCEL,
     winners = [],               %% last winners
-    timer = ?UNDEF
+    timer = ?GAME_UNDEF
   }).
