@@ -211,13 +211,9 @@ auth(Info = #tab_player_info{password = Pwd}, Password) when is_list(Password) -
 
 auth(Info = #tab_player_info{disabled = Disabled}, player_disable) ->
   case Disabled of
-    false -> auth(Info, agent_disable);
+    false -> {ok, pass, Info};
     _ -> {ok, player_disable}
-  end;
-
-auth(Info = #tab_player_info{agent = _Agent}, agent_disable) ->
-  %% TODO: auth agnet is alive and disable
-  {ok, pass, Info}.
+  end.
 
 logout(Player) when is_pid(Player) ->
   gen_server:call(Player, logout).
@@ -288,9 +284,7 @@ auth_test() ->
   ?assertEqual({ok, player_disable}, player:auth(Info#tab_player_info{disabled = true}, ?DEF_PWD)).
 
 setup() ->
-  schema:uninstall(),
-  schema:install(),
-  schema:load_default_data(),
+  schema:init(),
 
   Players = [
     #tab_player_info {

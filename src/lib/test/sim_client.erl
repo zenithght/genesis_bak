@@ -15,6 +15,8 @@
     host = ?UNDEF
   }).
 
+-record(robot_data, { id, game }).
+
 %%%
 %%% client
 %%%
@@ -25,6 +27,12 @@ start() ->
 start(Id) when is_atom(Id) ->
   kill(Id),
   PID = spawn(?MODULE, loop, [fun client:loop/2, self()]),
+  true = register(Id, PID),
+  PID.
+
+start_robot(Id) ->
+  kill(Id),
+  PID = spawn(?MODULE, robot_loop, [fun client:loop/2, Id]),
   true = register(Id, PID),
   PID.
 
@@ -141,11 +149,44 @@ player(Identity) when is_atom(Identity) ->
 %%% callback
 %%%
 
+-define(PUTS(L), error_logger:info_report(L)).
+
+robot_loop(Fun, Id) ->
+  LoopData = Fun({connected, 0}, ?UNDEF),
+  robot_loop(Fun, LoopData, #robot_data{id = Id}).
+
+robot_loop(Fun, LoopData, Data = #robot_data{id = Id}) ->
+  receive
+    {send, Bin} when is_binary(Bin) ->
+      case protocol:read(Bin) of
+        #notify_game_start{game = Game} ->
+          robot_loop(Fun, LoopData, Data#robot_data{game = Game});
+        R = #notify_betting{call = Call, min = Min} ->
+          io:format("BETTING ~p:~p ~p~n", [Id, element(1,R), R]),
+          timer:sleep(100),
+          case Call of
+            0 ->
+              send(Id, #cmd_raise{game = Data#robot_data.game, amount = Min});
+            Call ->
+              send(Id, #cmd_raise{game = Data#robot_data.game, amount = 0})
+          end,
+          robot_loop(Fun, LoopData, Data);
+        R ->
+          io:format("PROTOCOL ~p:~p ~p~n", [Id, element(1,R), R]),
+          robot_loop(Fun, LoopData, Data)
+      end;
+    {send, R} when is_tuple(R) ->
+      NewLoopData = Fun({recv, list_to_binary(protocol:write(R))}, LoopData),
+      robot_loop(Fun, NewLoopData, Data);
+    _ ->
+      ok
+  end.
+
 loop(Fun, Host) ->
   loop(Fun, ?UNDEF, #pdata{host = Host}).
 
 loop(Fun, ?UNDEF, Data = #pdata{}) ->
-  LoopData = Fun(connected, ?UNDEF),
+  LoopData = Fun({connected, 60 * 1000}, ?UNDEF),
   loop(Fun, LoopData, Data);
 
 loop(Fun, LoopData, Data = #pdata{box = Box}) ->
@@ -213,3 +254,8 @@ kill_game_test() ->
   ?assertNot(is_pid(where_game(1))),
   ?assertNot(is_pid(where_game(2))),
   ?assertNot(is_pid(where_game(3))).
+
+sim_robot_test() ->
+  schema:init(),
+  sim_client:start_robot(test_robot),
+  sim_client:send(test_robot, #cmd_login{identity = <<"NIL">>, password = <<?DEF_PWD>>}).

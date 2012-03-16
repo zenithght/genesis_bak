@@ -1,7 +1,7 @@
 -define(UNDEF, undefined).
-
 -define(WAIT_TABLE, 10 * 1000).
 -define(CONNECT_TIMEOUT, 2000).
+
 
 %%% Error codes
 
@@ -16,4 +16,3 @@
 
 -define(DEF_PWD, "def_pwd").
 -define(DEF_HASH_PWD, erlang:phash2(?DEF_PWD, 1 bsl 32)).
-

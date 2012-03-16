@@ -20,13 +20,24 @@ start([], Ctx = #texas{gid = Id, seats = S, pot = P}) ->
   RewardedSeats = RewardedCtx#texas.seats,
   KickedCtx = kick_poor_players(seat:lookup(?PS_READY, RewardedSeats), RewardedCtx),
 
-  game:broadcast(#notify_game_end{ game = Id }, KickedCtx),
+  ResetCtx= KickedCtx#texas{
+    pot = pot:new(),
+    deck = deck:new(),
+    seats = reset_seat(seat:get(Ctx#texas.seats), Ctx#texas.seats)
+  },
 
-  {stop, KickedCtx}.
+  game:broadcast(#notify_game_end{ game = Id }, ResetCtx),
+
+  {stop, ResetCtx}.
 
 %%%
 %%% private
 %%%
+
+reset_seat([], Seats) -> Seats;
+reset_seat([H|T], Seats) ->
+  reset_seat(T, seat:set(H#seat{hand = hand:new()}, Seats)).
+
 
 show_cards([], _Ctx) -> ok;
 show_cards([#seat{pid = PId, identity = Identity, hand = Hand}|T], Ctx = #texas{gid = Id}) ->

@@ -29,22 +29,27 @@ betting({timeout, _, ?MODULE}, Ctx = #texas{exp_seat = Exp}) ->
 
 %%% player call
 betting(#cmd_raise{ amount = ?ZERO }, Ctx = #texas{exp_seat = Exp, exp_call = ?ZERO}) ->              % check
-  CheckedCtx = game:bet({Exp, ?ZERO}, Ctx),
+  NotTimerCtx = cancel_timer(Ctx),
+  CheckedCtx = game:bet({Exp, ?ZERO}, NotTimerCtx),
   next_turn(Exp, CheckedCtx);
 betting(#cmd_raise{ amount = ?ZERO }, Ctx = #texas{exp_seat = Exp, exp_call = ExpCall})               % poor all_in
 when Exp#seat.inplay < ExpCall ->
-  PooredCtx = game:bet({Exp, Exp#seat.inplay}, Ctx),
+  NotTimerCtx = cancel_timer(Ctx),
+  PooredCtx = game:bet({Exp, Exp#seat.inplay}, NotTimerCtx),
   next_turn(Exp, PooredCtx);
 betting(#cmd_raise{ amount = ?ZERO }, Ctx = #texas{exp_seat = Exp, exp_call = ExpCall}) ->            % call & check
-  CalledCtx = game:bet({Exp, ExpCall}, Ctx),
+  NotTimerCtx = cancel_timer(Ctx),
+  CalledCtx = game:bet({Exp, ExpCall}, NotTimerCtx),
   next_turn(Exp, CalledCtx);
 
 %%% player raise
 betting(R = #cmd_raise{ amount = Raise}, Ctx = #texas{exp_min = Min, exp_max = Max}) when Raise < Min; Raise > Max  ->
-  betting(#cmd_fold{ pid = R#cmd_raise.pid }, Ctx);
+  NotTimerCtx = cancel_timer(Ctx),
+  betting(#cmd_fold{ pid = R#cmd_raise.pid }, NotTimerCtx);
 
 betting(#cmd_raise{ amount = Raise}, Ctx = #texas{exp_seat = Exp, exp_call = Call}) -> % raise & all_in
-  BettedCtx = game:bet({Exp, Call, Raise}, Ctx),
+  NotTimerCtx = cancel_timer(Ctx),
+  BettedCtx = game:bet({Exp, Call, Raise}, NotTimerCtx),
   BettedSeats = seat:lookup(?PS_BET, BettedCtx#texas.seats),
   ResetedSeats = reset_seat(Exp#seat.sn, BettedSeats, BettedCtx#texas.seats),
   RaisedCtx = BettedCtx#texas{max_betting = BettedCtx#texas.max_betting + Call + Raise, seats = ResetedSeats},
@@ -56,6 +61,7 @@ betting(#cmd_raise{ amount = Raise}, Ctx = #texas{exp_seat = Exp, exp_call = Cal
 
 betting(#cmd_fold{pid = PId}, Ctx = #texas{exp_seat = Exp}) when Exp#seat.pid /= PId ->
   {continue, Ctx};
+
 betting(#cmd_fold{}, Ctx = #texas{seats = S, exp_seat = Exp}) ->
   NotTimerCtx = cancel_timer(Ctx),
   FoldCtx = case Exp#seat.state =:= ?PS_LEAVE of

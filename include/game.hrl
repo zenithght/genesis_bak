@@ -6,12 +6,6 @@
 -define(PLAYER_OUT_TIMEOUT, 15000).
 -define(START_DELAY, 6000).
 
-%%% Tournaments
-
--define(TT_SIT_GO, 0). % starts when N players register
--define(TT_NORMAL, 1). % starts at a given time
--define(TT_REBUY, 2). 
-
 %%% Game stage
 
 -define(GS_CANCEL, 0).
@@ -20,34 +14,11 @@
 -define(GS_TURN, 3).
 -define(GS_RIVER, 4).
 
-%%% Game type
-
--define(GT_TEXAS_HOLDEM, 0).
--define(GT_IRC_TEXAS, 1). % IRC poker db
-
-%%% Limit type
-
--define(LT_FIXED_LIMIT, 0).
--define(LT_NO_LIMIT, 1).
--define(LT_POT_LIMIT, 2).
-
 -record(limit, {
     small,       % small blind
     big,         % big blind
     min,         % min buyin
     max          % max buyin
-  }).
-
-%%% Query operator
-
--define(OP_IGNORE, 0).
--define(OP_EQUAL, 1).
--define(OP_LESS, 2).
--define(OP_GREATER, 3).
-
--record(query_op, {
-    op,
-    val
   }).
 
 %%% Player state
@@ -174,4 +145,3 @@
     winners = [],               %% last winners
     timer = ?UNDEF
   }).
-

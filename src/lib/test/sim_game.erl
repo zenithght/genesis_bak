@@ -177,7 +177,6 @@ run_by_login_two_players(Mods, Fun) ->
 
 run_by_login_players(MixinMods, Players, Fun) ->
   schema:init(),
-  mnesia:dirty_write(sim_client:player(?TOMMY)),
 
   sim_client:kill_games(),
 

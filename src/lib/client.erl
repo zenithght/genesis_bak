@@ -6,6 +6,7 @@
 -include("protocol.hrl").
 
 -record(pdata, { 
+    agent_timeout = 1000, %% player login success
     timer = ?UNDEF, 
     server = global:whereis_name(server),
     player = ?UNDEF 
@@ -13,6 +14,9 @@
 
 loop(connected, ?UNDEF) ->
   #pdata{timer = erlang:start_timer(?CONNECT_TIMEOUT, self(), ?MODULE)};
+
+loop({connected, AgentTimeout}, ?UNDEF) ->
+  #pdata{agent_timeout = AgentTimeout, timer = erlang:start_timer(?CONNECT_TIMEOUT, self(), ?MODULE)};
 
 loop(disconnected, _Data = #pdata{}) -> ok;
 
