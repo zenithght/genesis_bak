@@ -16,17 +16,17 @@
     identity,
     cash = 0,
     credit = 0,
-    turnover = 0,                     
-    subordinate = gb_trees:empty(),   
+    turnover = 0,
+    subordinate = gb_trees:empty(),
     players = gb_trees:empty(),
-    record,                           
+    record,
     disable = false
   }).
 
 %% Server Function
 
 init([R = #tab_agent{}]) ->
-  Agent = #pdata { 
+  {ok, #pdata { 
     aid = R#tab_agent.aid,
     identity = R#tab_agent.identity,
     cash = R#tab_agent.cash,
@@ -35,8 +35,7 @@ init([R = #tab_agent{}]) ->
     players = setup_players(R#tab_agent.identity),
     subordinate = lists:foldl(fun(Sub, Acc) -> gb_trees:insert(Sub, 0, Acc) end, gb_trees:empty(), R#tab_agent.subordinate),
     record = R
-  },
-  {ok, Agent}.
+  }}.
 
 handle_cast(_Msg, Agent) ->
   {noreply, Agent}.
@@ -180,10 +179,10 @@ start() ->
   end, 
 
   ok = mnesia:wait_for_tables([tab_agent], 1000),
-  {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, nil, tab_agent) end).
+  {atomic, _Result} = mnesia:transaction(fun() -> mnesia:foldl(Fun, [], tab_agent) end).
 
 start(Identity, R) ->
-  case gen_server:start(?AGENT(Identity), agent, [R], []) of
+  case gen_server:start(?AGENT(Identity), ?MODULE, [R], []) of
     {ok, _Pid} -> ok
   end.
 
@@ -205,7 +204,7 @@ create(Identity, R, {Credit, Cash}) ->
   gen_server:call(?AGENT(Identity), {create, R, {Credit, Cash}}).
 
 auth(Identity, Password) when is_list(Identity), is_list(Password) ->
-  gen_server:call(?AGENT(Identity), {auth, erlang:phash2(Password, 1 bsl 32)}).
+  gen_server:call(?AGENT(Identity), {auth, erlang:md5(Password)}).
 
 betting(Identity, Player, Bet) when is_list(Identity), is_list(Player), is_integer(Bet), Bet > 0 ->
   gen_server:call(?AGENT(Identity), {betting, Player, Bet}).
