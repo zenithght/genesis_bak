@@ -3,80 +3,15 @@
   <head>
     <meta charset='utf-8' />
     <title>創世紀-系统管理-{% block title %}{% endblock %}</title>
+    <link href='/static/css/thickbox.css' rel='stylesheet' type='text/css' />
     <link href='/static/css/admin/index.css' rel='stylesheet' type='text/css' />
     <script src='/static/js/jquery/jquery.js' type='text/javascript'></script>
-    <script src='/static/js/jquery/jquery.blockUI.js' type='text/javascript'></script>
+    <script src='/static/js/jquery/jquery.thickbox.js' type='text/javascript'></script>
     <script src='/static/js/jquery/jquery.base64.js' type='text/javascript'></script>
     <script src='/static/js/jquery/jquery.form.js' type='text/javascript'></script>
     <script src='/static/js/admin/index.js' type='text/javascript'></script>
   </head>
   <body>
-    <div id='nil'>
-      <div class='pop' id='create_agent_wapper'>
-        <h2>創建代理</h2>
-        <hr />
-        <form action='/agent/create' id='create_agent_form' method='post'>
-          <div class='rowElem'>
-            <label for='identity'>登錄名</label>
-            <input id='identity' name='identity' required='required' type='text' />
-          </div>
-          <div class='rowElem'>
-            <label for='password'>密碼</label>
-            <input id='password' name='password' required='required' type='password' />
-          </div>
-          <div class='rowElem'>
-            <label for='re-password'>確認密碼</label>
-            <input id='re-password' name='re-password' required='required' type='password' />
-          </div>
-          <div class='rowElem'>
-            <label for='nick'>中文標識</label>
-            <input id='nick' name='nick' required='required' type='text' />
-          </div>
-          <div class='rowElem'>
-            <label for='credit'>信用账户</label>
-            <input id='credit' min='0' name='credit' required='required' type='number' value='0' />
-          </div>
-          <div class='rowElem'>
-            <label for='cash'>現金账户</label>
-            <input id='cash' min='0' name='cash' required='required' type='number' value='0' />
-          </div>
-          <div class='rowElem'>
-            <input type='submit' value='創建' />
-            <a class='cancel'>取消</a>
-          </div>
-        </form>
-      </div>
-      <div class='pop' id='create_player_wapper'>
-        <h2>創建玩家</h2>
-        <hr />
-        <form action='{% url controller="player" action="create" %}' id='create_player_form' method='post'>
-          <div class='rowElem'>
-            <label for='identity'>登錄名</label>
-            <input id='identity' name='identity' required='required' type='text' />
-          </div>
-          <div class='rowElem'>
-            <label for='password'>密碼</label>
-            <input id='password' name='password' required='required' type='password' />
-          </div>
-          <div class='rowElem'>
-            <label for='re-password'>確認密碼</label>
-            <input id='re-password' name='re-password' required='required' type='password' />
-          </div>
-          <div class='rowElem'>
-            <label for='credit'>信用账户</label>
-            <input id='credit' min='0' name='credit' required='required' type='number' value='0' />
-          </div>
-          <div class='rowElem'>
-            <label for='cash'>現金账户</label>
-            <input id='cash' min='0' name='cash' required='required' type='number' value='0' />
-          </div>
-          <div class='rowElem'>
-            <input type='submit' value='創建' />
-            <a class='cancel'>取消</a>
-          </div>
-        </form>
-      </div>
-    </div>
     <div id='header'>
       <div id='main'>
         <label id='logo'>Genesis 創世紀</label>
@@ -90,10 +25,10 @@
             <span class='title'>用户管理</span>
             <ul class='group'>
               <li class='item'>
-                <a class='pop' href='{% url controller="player" action="create" %}' id='create_player'>創建玩家</a>
+                <a class='thickbox' href='/player/create?height=160&amp;width=218' id='create_player' title='請輸入玩家信息'>創建玩家</a>
               </li>
               <li class='item'>
-                <a class='pop' href='/agent/create' id='create_agent'>創建代理</a>
+                <a class='thickbox' href='/agent/create?height=180&amp;width=218' id='create_agent' title='請輸入代理信息'>創建代理</a>
               </li>
             </ul>
           </div>

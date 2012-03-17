@@ -134,6 +134,10 @@ form {
 	    padding-right: 10px;
 	    text-align: right;
     }
+
+    input {
+      margin-bottom: 5px;
+    }
   }
 
   input::-webkit-input-placeholder  {
@@ -153,16 +157,6 @@ form {
     margin-right: 8px;
     display: block;
     float: right;
-  }
-}
-
-div.pop {
-  text-align: left;
-  margin: 0px 15px;
-  font-size: 1.1em;
-
-  h2 {
-    font-size: 1.3em;
   }
 }
 

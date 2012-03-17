@@ -86,6 +86,8 @@ form .rowElem label {
   font-weight: bold;
   padding-right: 10px;
   text-align: right; }
+form .rowElem input {
+  margin-bottom: 5px; }
 form input::-webkit-input-placeholder {
   color: #a1b2c3;
   text-shadow: 0px -1px 0px #38506b; }
@@ -102,13 +104,6 @@ form a.cancel {
   margin-right: 8px;
   display: block;
   float: right; }
-
-div.pop {
-  text-align: left;
-  margin: 0px 15px;
-  font-size: 1.1em; }
-  div.pop h2 {
-    font-size: 1.3em; }
 
 div.acount_info label {
   display: block-inline;

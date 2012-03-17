@@ -1,4 +1,4 @@
-%form{:id => 'create_player_form', :action => '{% url controller="player" action="create" %}', :method => "post"}
+%form{:id => 'create_agent_form', :action => '/agent/create', :method => "post"}
   .rowElem
     %label{:for => 'identity'} 登錄名
     %input{:type => 'text', :name => 'identity', :id => 'identity', :required => 'required'}
@@ -9,6 +9,9 @@
     %label{:for => 're-password'} 確認密碼
     %input{:type => 'password', :name => 're-password', :id => 're-password', :required => 'required'}
   .rowElem
+    %label{:for => 'nick'} 中文標識
+    %input{:type => 'text', :name => 'nick', :id => 'nick', :required => 'required'}
+  .rowElem
     %label{:for => 'credit'} 信用账户
     %input{:type => 'number', :name => 'credit', :id => 'credit', :min => 0, :value => 0, :required => 'required'}
   .rowElem
@@ -16,4 +19,4 @@
     %input{:type => 'number', :name => 'cash', :id => 'cash', :min => 0, :value => 0, :required => 'required'}
   .rowElem
     %input{:type => 'submit', :value => '創建'}
-    %a.cancel 取消        
+    %a.cancel 取消
