@@ -91,14 +91,14 @@ setup_counters()->
   counter:reset(game),
   counter:reset(player),
   counter:reset(inplay_xref),
-  counter:reset(agent),
+  counter:reset(agent, 10),
   ok.
 
 setup_games() ->
   ok.
 
 setup_agent() ->
-  Root = #tab_agent{ aid = counter:bump(agent), identity = "root", password = erlang:md5("password"), root = true, parent = nil, cash = 100 * 10000 },
+  Root = #tab_agent{ aid = 1, identity = "root", password = erlang:md5("password"), root = true, parent = nil, cash = 100 * 10000 },
   {atomic, _} = mnesia:transaction( fun() -> mnesia:write(Root) end).
   
 %% EUnit Test Case
