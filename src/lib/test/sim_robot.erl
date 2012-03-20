@@ -37,7 +37,6 @@ run_by_login_two_players(Fun) ->
   run_by_login_players(?TWO_PLAYERS, Fun).
 
 run_by_login_players(Players, Fun) ->
-  schema:init(),
   sim_client:kill_games(),
 
   lists:map(fun({Key, Id}) ->
