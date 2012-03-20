@@ -24,3 +24,14 @@
     <a class='cancel'>取消</a>
   </div>
 </form>
+<script type='text/javascript'>
+  //<![CDATA[
+    $.init_form("create_player_form", function(formData, form) {
+      identity = $.get(formData, "identity")
+      formData.push({name: "nick", type: "text", value: $.base64Encode(identity)})
+      return $.check_password(formData)
+    }, function() {
+      console.log("create_successful")
+    })
+  //]]>
+</script>

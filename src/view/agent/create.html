@@ -28,3 +28,12 @@
     <a class='cancel'>取消</a>
   </div>
 </form>
+<script type='text/javascript'>
+  //<![CDATA[
+    $.init_form("create_agent_form", function(formData) {
+      return $.check_password(formData)
+    }, function() {
+      console.log("create_successful")
+    })
+  //]]>
+</script>

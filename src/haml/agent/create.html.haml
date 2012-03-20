@@ -20,3 +20,10 @@
   .rowElem
     %input{:type => 'submit', :value => '創建'}
     %a.cancel 取消
+
+:javascript
+  $.init_form("create_agent_form", function(formData) {
+    return $.check_password(formData)
+  }, function() {
+    console.log("create_successful")
+  })

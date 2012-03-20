@@ -16,4 +16,13 @@
     %input{:type => 'number', :name => 'cash', :id => 'cash', :min => 0, :value => 0, :required => 'required'}
   .rowElem
     %input{:type => 'submit', :value => '創建'}
-    %a.cancel 取消        
+    %a.cancel 取消
+
+:javascript
+  $.init_form("create_player_form", function(formData, form) {
+    identity = $.get(formData, "identity")
+    formData.push({name: "nick", type: "text", value: $.base64Encode(identity)})
+    return $.check_password(formData)
+  }, function() {
+    console.log("create_successful")
+  })

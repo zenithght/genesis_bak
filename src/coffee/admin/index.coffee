@@ -9,37 +9,6 @@ $ ->
     "invalidate_amount": "账户信息輸入有誤，請輸入正確的账户額度信息。"
   }
 
-  $('a.pop').bind 'click', ->
-    $.blockUI({ message: $("##{$(@).attr("id")}_wapper"), css: { width: 'auto', left: '40%' } })
-    $("#create_agent_form, #create_player_form").clearForm()
-    $("[type=number]").val(0)
-    return false
-
-  $("a.cancel").click ->
-    $(@).parent().parent().clearForm()
-    $.unblockUI()
-
-  $("#create_agent_form, #create_player_form").ajaxForm {
-    dataType: 'json'
-
-    success: (data, st, xhr, form) ->
-      show_error data.errors[0] if !data.successful
-      if data.successful
-        $("[type=number]").val(0)
-        $(form).clearForm()
-        show_successful()
-
-    beforeSubmit: (formData, form) ->
-      if $(form).attr('id') == "create_player_form"
-        identity = get(formData, "identity")
-        formData.push({name: "nick", type: "text", value: $.base64Encode(identity)})
-
-      if get(formData, "password") != get(formData, "re-password")
-        show_error "invalidate_password"
-        return false
-  }
-
-
   show_successful = (key) ->
     alert "操作成功" if key == undefined
 
@@ -49,7 +18,31 @@ $ ->
     else
       alert "ERROR: #{key}"
 
-  get = (array, name) ->
+  $.init_form = (form_id, before, successful) ->
+    $("a.cancel").click ->
+      tb_remove()
+
+    $("##{form_id}").ajaxForm {
+      dataType: 'json'
+      beforeSubmit: before
+      success: (data, st, xhr, form) ->
+        if data.successful
+          $("[type=number]").val(0)
+          $(form).clearForm()
+          show_successful()
+          successful()
+        else
+          show_error data.errors[0]
+    }
+
+  $.check_password = (formData) ->
+    if $.get(formData, "password") != $.get(formData, "re-password")
+      show_error "invalidate_password"
+      return false
+
+    return true
+
+  $.get = (array, name) ->
     val = null
     $.each array, (i, o) ->
       val = o if o.name == name

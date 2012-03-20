@@ -79,31 +79,33 @@ div.menu {
       margin-top: 5px;
       margin-left: 150px; }
 
-form .rowElem label {
-  width: 80px;
-  display: inline-block;
-  color: #666666;
-  font-weight: bold;
-  padding-right: 10px;
-  text-align: right; }
-form .rowElem input {
-  margin-bottom: 5px; }
-form input::-webkit-input-placeholder {
-  color: #a1b2c3;
-  text-shadow: 0px -1px 0px #38506b; }
-form input[type=submit] {
-  float: right;
-  margin-top: 10px;
-  margin-bottom: 10px;
-  width: 50px;
-  cursor: pointer;
-  border: 1px solid #556f8c;
-  box-shadow: 0px 0px 2px #999; }
-form a.cancel {
-  margin-top: 16px;
-  margin-right: 8px;
-  display: block;
-  float: right; }
+form {
+  padding-top: 10px; }
+  form .rowElem label {
+    width: 80px;
+    display: inline-block;
+    color: #666666;
+    font-weight: bold;
+    padding-right: 10px;
+    text-align: right; }
+  form .rowElem input {
+    margin-bottom: 5px; }
+  form input::-webkit-input-placeholder {
+    color: #a1b2c3;
+    text-shadow: 0px -1px 0px #38506b; }
+  form input[type=submit] {
+    float: right;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    width: 50px;
+    cursor: pointer;
+    border: 1px solid #556f8c;
+    box-shadow: 0px 0px 2px #999; }
+  form a.cancel {
+    margin-top: 16px;
+    margin-right: 8px;
+    display: block;
+    float: right; }
 
 div.acount_info label {
   display: block-inline;
