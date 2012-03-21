@@ -4,23 +4,45 @@
 -export([init/1, handle_call/3, handle_cast/2, 
     handle_info/2, terminate/2, code_change/3]).
 
--export([start/0, start/1]).
+-export([start/0, auth/2, turnover/1, turnover/2, betting/3, subordinate/1, players/1, sum_info/1]).
 
 -include("common.hrl").
 -include("schema.hrl").
 
 -include_lib("stdlib/include/qlc.hrl").
 
+-record(ply, {
+    pid = ?UNDEF,
+    cash = 0,
+    credit = 0
+  }).
+
+-record(sub, {
+    identity = ?UNDEF,
+    cash = 0,
+    credit = 0,
+    balance = 0,
+    sub_count = 0,
+    ply_count = 0,
+    turnover = 0,
+    turnover_today = 0
+  }).
+
 -record(pdata, {
-    aid = 0,
+    aid = ?UNDEF,
+    level = 1,
     identity,
     cash = 0,
     credit = 0,
     turnover_daily = [],
-    subordinate = gb_trees:empty(),   %% {identity, balance, turnover}
-    players = gb_trees:empty(),       %% {identity, balance, turnover}
+    exp_collect_subordinate = [],     %% identity
+    last_collect_time = now(),
+    subordinate = [],                 %% {identity, balance, turnover}
+    players = [],                     %% {identity, balance}
     disable = false,
-    password = ?UNDEF
+    password = ?UNDEF,
+    parent = ?UNDEF,
+    sum = ?UNDEF
   }).
 
 %% Server Function
@@ -28,17 +50,52 @@
 init([R = #tab_agent{}]) ->
   process_flag(trap_exit, true),
 
+  Agents = mnesia:dirty_index_read(tab_agent, R#tab_agent.identity, parent),
+  Subordinate = lists:map(fun(#tab_agent{identity = Identity}) -> #sub{identity = Identity} end, Agents),
+  ExpSubordinate = lists:map(fun(#sub{identity = Identity}) -> Identity end, Subordinate),
+
   {ok, #pdata { 
     aid = R#tab_agent.aid,
     identity = R#tab_agent.identity,
     cash = R#tab_agent.cash,
     credit = R#tab_agent.credit,
     disable = R#tab_agent.disable,
-    password = R#tab_agent.password,
     players = reload_players(R#tab_agent.identity),
-    subordinate = reload_subordinate(R#tab_agent.identity),
-    turnover_daily = reload_turnover(R#tab_agent.identity)
+    password = R#tab_agent.password,
+    subordinate = Subordinate,
+    exp_collect_subordinate = ExpSubordinate,
+    turnover_daily = reload_turnover(R#tab_agent.identity),
+    parent = R#tab_agent.parent
   }}.
+
+handle_cast(collect, Data = #pdata{subordinate = Sub, exp_collect_subordinate = ExpSub})
+when Sub =:= []; ExpSub =:= [] ->
+  {noreply, report(Data)};
+
+handle_cast(collect, Data = #pdata{}) -> 
+  ExpSub = lists:map(
+    fun(#sub{identity = Identity}) -> 
+        collect(?LOOKUP_AGENT(Identity)),
+        Identity
+    end, Data#pdata.subordinate),
+  {noreply, Data#pdata{exp_collect_subordinate = ExpSub}};
+
+handle_cast({report, R = #sub{identity = Identity}}, Data = #pdata{}) ->
+  NewData = case lists:member(Identity, Data#pdata.exp_collect_subordinate) of
+    true ->
+      Sub = lists:keyreplace(Identity, 1, Data#pdata.subordinate, R),
+      ExpSub = lists:delete(Identity, Data#pdata.exp_collect_subordinate),
+      Data#pdata{subordinate = Sub, exp_collect_subordinate = ExpSub};
+    _ ->
+      Data
+  end,
+
+  case NewData#pdata.exp_collect_subordinate of
+    [] ->
+      {noreply, report(NewData)};
+    _ ->
+      {noreply, NewData}
+  end;
 
 handle_cast({betting, Date, Amt}, Data = #pdata{turnover_daily = Daily}) ->
   case proplists:lookup(Date, Daily) of
@@ -69,6 +126,15 @@ handle_call({turnover, today}, _From, Data) ->
     Today ->
       {reply, Today, Data}
   end;
+
+handle_call(subordinate, _From, Data) ->
+  {reply, Data#pdata.subordinate, Data};
+
+handle_call(players, _From, Data) ->
+  {reply, Data#pdata.players, Data};
+
+handle_call(sum_info, _From, Data) ->
+  {reply, Data#pdata.sum, Data};
 
 %handle_call({create, R = #tab_player_info{identity = Identity}, {Credit, Cash}}, _Form, Data = #pdata{}) ->
   %transaction(fun() ->
@@ -130,20 +196,66 @@ terminate(normal, _Server) ->
 
 %% Private Function
 
+report(Data = #pdata{}) ->
+  Sum = sum(Data),
+  ExpSub = lists:map(fun(#sub{identity = Identity}) -> Identity end, Data#pdata.subordinate),
+
+  case Data#pdata.identity of
+    "root" -> ok;
+    _ -> gen_server:cast(?LOOKUP_AGENT(Data#pdata.parent), {report, Sum})
+  end,
+
+  Data#pdata{sum = Sum, exp_collect_subordinate = ExpSub}.
+
+sum(Data = #pdata{subordinate = Sub, cash = Cash, credit = Credit, players = Ply, turnover_daily = Daily}) ->
+  {SubTurnoverToday, SubTurnover} = sum_turnover(Sub),
+
+  #sub{
+    identity = Data#pdata.identity,
+    cash = Data#pdata.cash,
+    credit = Data#pdata.credit,
+    balance = sum_balance(Sub) + sum_balance(Ply) + Cash + Credit,
+    ply_count = length(Ply),
+    sub_count = length(Sub),
+    turnover = SubTurnover + get_turnover(Daily, 7),
+    turnover_today = SubTurnoverToday + get_turnover(Daily)
+  }.
+
+sum_balance([]) -> 0;
+sum_balance(L = [#sub{}|_]) ->
+  lists:sum(lists:map(fun(#sub{balance = B}) -> B end, L));
+sum_balance(L = [#ply{}|_]) ->
+  lists:sum(lists:map(fun(R) -> R#ply.cash + R#ply.credit end, L)).
+
+sum_turnover([])  -> {0, 0};
+sum_turnover(L = [#sub{}|_]) ->
+  {lists:sum(lists:map(fun(#sub{turnover_today = T}) -> T end, L)), lists:sum(lists:map(fun(#sub{turnover = T}) -> T end, L))}.
+
+get_turnover(Daily) ->
+  get_turnover(Daily, 0, 0).
+
+get_turnover(Daily, N) ->
+  get_turnover(Daily, N, 0).
+
+get_turnover(_Daily, N, Sum) when N < 0 -> Sum;
+get_turnover(Daily, N, Sum) ->
+  case proplists:lookup(shift_date(N), Daily) of
+    {_Date, Turnover} ->
+      get_turnover(Daily, N - 1, Sum + Turnover);
+    none ->
+      get_turnover(Daily, N - 1, Sum)
+  end.
+
 reload_players(Agent) ->
   Players = mnesia:dirty_index_read(tab_player_info, Agent, agent),
-  lists:map(fun(#tab_player_info{pid = PId, identity = Identity}) -> {PId, Identity} end, Players).
-
-reload_subordinate(Agent) ->
-  Agents = mnesia:dirty_index_read(tab_agent, Agent, parent),
-  lists:map(fun(#tab_agent{identity = Identity}) -> {Identity, 0} end, Agents).
+  lists:map(fun(#tab_player_info{pid = PId, cash = Cash, credit = Credit}) -> #ply{pid = PId, cash = Cash, credit = Credit} end, Players).
 
 reload_turnover(Agent) ->
   F = fun() ->
       Query = qlc:q(
         [{T#tab_turnover_log.date, T#tab_turnover_log.amt} || 
           T <- mnesia:table(tab_turnover_log),
-          T#tab_turnover_log.aid =:= Agent, T#tab_turnover_log.date >= date_add(-30)
+          T#tab_turnover_log.aid =:= Agent, T#tab_turnover_log.date >= shift_date(-30)
         ]
       ),
 
@@ -171,6 +283,10 @@ group_turnover_log([{Date, Amt}|T], Date, Sum, Daily) ->
 group_turnover_log(L = [{_Date, _Amt}|_T], OldDate, Sum, Daily) ->
   group_turnover_log(L, ?UNDEF, ?UNDEF,  Daily ++ [{OldDate, Sum}]).
   
+shift_date(N) ->
+  Days = calendar:date_to_gregorian_days(date()),
+  calendar:gregorian_days_to_date(Days + N).
+
 %cost(#pdata{cash = Cash, credit = Credit}, Amount) when (Cash + Credit) < Amount -> 
   %case mnesia:is_transaction() 
     %of true -> exit(less_balance); 
@@ -195,24 +311,23 @@ group_turnover_log(L = [{_Date, _Amt}|_T], OldDate, Sum, Daily) ->
 
 start() ->
   ok = mnesia:wait_for_tables([tab_agent], 1000),
-  mnesia:transaction(
-    fun() -> mnesia:foldl(
-          fun(R = #tab_agent{}, _) -> 
-              start(R) 
-          end, [], tab_agent) 
-    end).
+  {atomic, Agents} = mnesia:transaction(fun() -> qlc:e(mnesia:table(tab_agent)) end),
 
-start(R = #tab_agent{identity = Identity}) ->
-  gen_server:start_link(?AGENT(Identity), ?MODULE, [R], []).
+  lists:map(
+    fun(R = #tab_agent{identity = Identity}) -> 
+        case ?LOOKUP_AGENT(Identity) of
+          PID when is_pid(PID) ->
+            exit(PID, normal),
+            timer:sleep(500);
+          _ -> ok
+        end,
+        gen_server:start_link(?AGENT(Identity), ?MODULE, [R], [])
+    end, Agents),
 
-create(Identity, R) ->
-  gen_server:call(?AGENT(Identity), {create, R}).
-
-create(Identity, R, {Credit, Cash}) ->
-  gen_server:call(?AGENT(Identity), {create, R, {Credit, Cash}}).
+  collect(?LOOKUP_AGENT("root")).
 
 auth(Identity, Password) when is_list(Identity), is_list(Password) ->
-  gen_server:call(?AGENT(Identity), {auth, erlang:md5(Password)}).
+  gen_server:call(?LOOKUP_AGENT(Identity), {auth, erlang:md5(Password)}).
 
 betting(Identity, Date, Amt) when is_list(Identity) ->
   betting(?LOOKUP_AGENT(Identity), Date, Amt);
@@ -226,14 +341,22 @@ turnover(Identity, today) when is_list(Identity) ->
   gen_server:call(?LOOKUP_AGENT(Identity), {turnover, today}).
 
 subordinate(Identity) when is_list(Identity) ->
-  gen_server:call(?AGENT(Identity), subordinate).
+  gen_server:call(?LOOKUP_AGENT(Identity), subordinate).
 
 players(Identity) when is_list(Identity) ->
-  gen_server:call(?AGENT(Identity), players).
+  gen_server:call(?LOOKUP_AGENT(Identity), players).
 
-balance(Identity) when is_list(Identity) ->
-  [R] = mnesia:dirty_index_read(tab_agent, Identity, identity),
-  R#tab_agent.cash + R#tab_agent.credit.
+sum_info(Identity) when is_list(Identity) ->
+  gen_server:call(?LOOKUP_AGENT(Identity), sum_info).
+
+create(Identity, R) ->
+  gen_server:call(?AGENT(Identity), {create, R}).
+
+create(Identity, R, {Credit, Cash}) ->
+  gen_server:call(?AGENT(Identity), {create, R, {Credit, Cash}}).
+
+collect(Proc) ->
+  gen_server:cast(Proc, collect).
 
 %% Eunit Test Case
 
@@ -287,10 +410,6 @@ balance(Identity) when is_list(Identity) ->
   %setup(),
   %?assertEqual(10000, balance("agent_1")).
 
-date_add(N) ->
-  Days = calendar:date_to_gregorian_days(date()),
-  calendar:gregorian_days_to_date(Days + N).
-
 -include_lib("eunit/include/eunit.hrl").
 
 start_test() ->
@@ -316,10 +435,10 @@ generate_test() ->
   ?assertMatch(#tab_agent{aid = 3, parent = "root", disable = false, identity = "agent3"}, lists:last(Agents)).
 
 group_turnover_log_test() ->
-  Date = date(),
+  NowDate = date(),
   Data = [{Date, Amt} || Date <- [{2012, 1, 1}, {2012, 1, 2}], Amt <- [5, 10]],
-  ?assertMatch([{{2012, 1, 1}, 15}, {{2012, 1, 2}, 15}, {Date, 0}], group_turnover_log(Data)),
-  ?assertMatch([{{2012, 1, 1}, 15}, {{2012, 1, 2}, 15}, {{2012, 1, 3}, 5}, {Date, 0}], group_turnover_log(Data ++ [{{2012, 1, 3}, 5}])).
+  ?assertMatch([{{2012, 1, 1}, 15}, {{2012, 1, 2}, 15}, {NowDate, 0}], group_turnover_log(Data)),
+  ?assertMatch([{{2012, 1, 1}, 15}, {{2012, 1, 2}, 15}, {{2012, 1, 3}, 5}, {NowDate, 0}], group_turnover_log(Data ++ [{{2012, 1, 3}, 5}])).
 
 reload_turnover_log_empty_test() ->
   schema:init(),
@@ -328,14 +447,14 @@ reload_turnover_log_empty_test() ->
 
 reload_turnover_log_test() ->
   schema:init(),
-  Logs = [#tab_turnover_log{aid = "root", date = Date, amt = Amt} || Date <- [date_add(-40), date_add(-10)], Amt <- [10, 5]],
-  Logs1 = Logs ++ [#tab_turnover_log{aid = "test", date = date_add(-10), amt = 10}], %% add other user check aid condition
-  Logs2 = Logs1 ++ [#tab_turnover_log{aid = "root", date = date_add(-1), amt = 10}],
+  Logs = [#tab_turnover_log{aid = "root", date = Date, amt = Amt} || Date <- [shift_date(-40), shift_date(-10)], Amt <- [10, 5]],
+  Logs1 = Logs ++ [#tab_turnover_log{aid = "test", date = shift_date(-10), amt = 10}], %% add other user check aid condition
+  Logs2 = Logs1 ++ [#tab_turnover_log{aid = "root", date = shift_date(-1), amt = 10}],
   lists:map(fun(R) -> mnesia:dirty_write(R) end, Logs2),
   
   DateNow = date(),
-  DateBeforTen = date_add(-10),
-  DateBeforOne = date_add(-1),
+  DateBeforTen = shift_date(-10),
+  DateBeforOne = shift_date(-1),
 
   ?assertMatch([{DateBeforOne, 10}, {DateBeforTen, 15}, {DateNow, 0}], reload_turnover("root")).
 
@@ -344,7 +463,7 @@ betting_turnover_today_test() ->
   agent:start(),
 
   Date = date(),
-  BeforDate = date_add(-1),
+  BeforDate = shift_date(-1),
 
   ?assertMatch({Date, 0}, turnover("root", today)),
   betting("root", Date, 10),
@@ -353,6 +472,25 @@ betting_turnover_today_test() ->
   betting("root", BeforDate, 10),
   ?assertMatch({Date, 10}, turnover("root", today)),
   ?assertMatch([{Date, 10}, {BeforDate, 10}], turnover("root")).
+
+collect_test() ->
+  setup(),
+
+  Players = [#tab_player_info{
+      pid = Id,
+      identity = "player" ++ integer_to_list(Id),
+      password = ?DEF_HASH_PWD,
+      agent = "root"}
+    || Id <- lists:seq(11,13)],
+
+  lists:foreach(fun(R) -> mnesia:dirty_write(R) end, Players),
+
+  agent:start(),
+  timer:sleep(1500),
+  ?assertMatch(#sub{sub_count = 3, ply_count = 3}, agent:sum_info("root")),
+  ?assertMatch(#sub{sub_count = 0, ply_count = 1}, agent:sum_info("agent1")),
+  ?assertMatch(#sub{sub_count = 0, ply_count = 1}, agent:sum_info("agent2")),
+  ?assertMatch(#sub{sub_count = 0, ply_count = 1}, agent:sum_info("agent3")).
 
 setup() ->
   schema:init(),
@@ -369,8 +507,8 @@ setup() ->
       pid = Id,
       identity = "player" ++ integer_to_list(Id),
       password = ?DEF_HASH_PWD,
-      agent = "agent" ++ integer_to_list(AId)} 
-    || Id <- lists:seq(1,3), AId <- lists:seq(11,13)],
+      agent = "agent" ++ integer_to_list(Id)} 
+    || Id <- lists:seq(1,3)],
 
   lists:foreach(fun(R) -> mnesia:dirty_write(R) end, Agents),
   lists:foreach(fun(R) -> mnesia:dirty_write(R) end, Players).
