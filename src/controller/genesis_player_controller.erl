@@ -11,7 +11,6 @@ create('GET', []) ->
 
 create('POST', []) ->
   Errors = validation:check_request(Req, [
-      fun repeat_identity/1,
       fun validation:validate_password/1,
       fun validation:validate_repassword/1,
       fun validation:validate_identity/1,
@@ -26,13 +25,12 @@ create('POST', []) ->
         nick = Req:post_param("nick"),
         identity = Req:post_param("identity"), 
         password = Req:post_param("password"),
-        agent = Identity
+        agent = Identity,
+        cash = list_to_integer(Req:post_param("cash")),
+        credit = list_to_integer(Req:post_param("credit"))
       },
 
-      Cash = list_to_integer(Req:post_param("cash")),
-      Credit = list_to_integer(Req:post_param("credit")),
-
-      Result = agent:create(Identity, PlayerInfo, {Credit, Cash}),
+      Result = agent:create(Identity, PlayerInfo),
 
       case Result of
         ok ->
@@ -42,12 +40,4 @@ create('POST', []) ->
       end;
     _ ->
       ?ERROR(Errors)
-  end.
-
-repeat_identity(Req) ->
-  case mnesia:dirty_index_read(tab_player_info, Req:post_param("identity"), identity) of
-    [] ->
-      ok;
-    _ ->
-      repeat_identity
   end.

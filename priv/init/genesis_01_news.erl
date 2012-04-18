@@ -10,6 +10,9 @@ init() ->
     {ok, [["sim"]]} -> 
       schema:init(),
       agent:start();
+    {ok, [["dev"]]} -> 
+      schema:init(),
+      agent:start();
     _ -> 
       ok
     end,

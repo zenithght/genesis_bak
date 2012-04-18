@@ -4,7 +4,7 @@
 -export([init/1, handle_call/3, handle_cast/2, 
     handle_info/2, terminate/2, code_change/3]).
 
--export([start/0, auth/2, turnover/1, turnover/2, betting/3, subordinate/1, players/1, sum_info/1]).
+-export([start/0, auth/2, create/2, turnover/1, turnover/2, betting/3, subordinate/1, players/1, sum_info/1]).
 
 -include("common.hrl").
 -include("schema.hrl").
@@ -34,15 +34,15 @@
     identity,
     cash = 0,
     credit = 0,
-    turnover_daily = [],
+    turnover_daily = [],              %% proplist [{date, turnover},...]
     exp_collect_subordinate = [],     %% identity
     last_collect_time = now(),
-    subordinate = [],                 %% {identity, balance, turnover}
-    players = [],                     %% {identity, balance}
+    subordinate = [],                 %% #sub
+    players = [],                     %% #ply
     disable = false,
     password = ?UNDEF,
     parent = ?UNDEF,
-    sum = ?UNDEF
+    sum = ?UNDEF                      %% myself #sub
   }).
 
 %% Server Function
@@ -136,51 +136,63 @@ handle_call(players, _From, Data) ->
 handle_call(sum_info, _From, Data) ->
   {reply, Data#pdata.sum, Data};
 
-%handle_call({create, R = #tab_player_info{identity = Identity}, {Credit, Cash}}, _Form, Data = #pdata{}) ->
-  %transaction(fun() ->
-        %ok = mnesia:write_lock_table(tab_player_info),
-        %case mnesia:index_read(tab_player_info, Identity, identity) of
-          %[] ->
-            %PaymentData = cost(Data, Credit + Cash),
-            %JoinedData = join(PaymentData, R),
+handle_call({create, R = #tab_player_info{}}, _Form, Data = #pdata{}) ->
+  Fun = fun() ->
+      Amt = R#tab_player_info.cash + R#tab_player_info.credit,
+      ok = mnesia:write_lock_table(tab_player_info),
 
-            %NewRecord = R#tab_player_info{
-              %pid = counter:bump(player),
-              %password = erlang:md5(R#tab_player_info.password)
-            %},
+      [Agent] = mnesia:wread(tab_agent, Data#pdata.aid),
+      ok = check_identity(R),
+      ok = check_amt(Agent, Amt),
 
-            %ok = mnesia:write(NewRecord),
-            %ok = mnesia:write(JoinedData#pdata.record),
+      PId = counter:bump(player),
 
-            %{ok, JoinedData};
-          %_ ->
-            %exit(repeat_identity)
-        %end
-    %end, Data);
+      mnesia:write(Agent#tab_agent{cash = Agent#tab_agent.cash - Amt}),
+      mnesia:write(R#tab_player_info{
+          pid = counter:bump(player),
+          password = erlang:md5(R#tab_player_info.password)}),
 
-%handle_call({create, R = #tab_agent{identity = Identity, parent = Parent}}, _Form, Data = #pdata{identity = Parent}) ->
-  %Sum = R#tab_agent.cash + R#tab_agent.credit,
-  %transaction(fun() -> 
-        %ok = mnesia:write_lock_table(tab_agent),
-        %case mnesia:index_read(tab_agent, Identity, identity) of
-          %[] ->
-            %PaymentData = cost(Data, Sum),
-            %JoinedData = join(PaymentData, R),
+      {ok, #ply{
+          pid = PId,
+          cash = R#tab_player_info.cash,
+          credit = R#tab_player_info.credit
+        }}
+  end, 
 
-            %NewRecord = R#tab_agent{
-              %aid = counter:bump(agent),
-              %password = erlang:md5(R#tab_agent.password)
-            %},
+  case mnesia:transaction(Fun) of
+    {atomic, {ok, Ply}} ->
+      {reply, ok, Data#pdata{players = Data#pdata.players ++ [Ply]}};
+    {abort, Reason} ->
+      {reply, Reason, Data}
+  end;
 
-            %ok = mnesia:write(NewRecord),
-            %ok = mnesia:write(JoinedData#pdata.record),
-            %ok = start(NewRecord),
+handle_call({create, R = #tab_agent{identity = Identity, parent = Parent}}, _Form, Data = #pdata{identity = Parent}) ->
+  Fun = fun() ->
+      ok = mnesia:write_lock_table(tab_agent),
 
-            %{ok, JoinedData};
-          %_ ->
-            %exit(repeat_identity)
-        %end
-  %end, Data);
+      [Agent] = mnesia:index_read(tab_agent, Parent, identity),
+      ok = check_identity(R),
+      ok = check_amt(Agent, R#tab_agent.cash + R#tab_agent.credit),
+
+      DesignateR = R#tab_agent{aid = counter:bump(agent), password = erlang:md5(R#tab_agent.password)},
+
+      mnesia:write(Agent#tab_agent{cash = Agent#tab_agent.cash - (R#tab_agent.cash + R#tab_agent.credit)}),
+      mnesia:write(DesignateR),
+
+      gen_server:start_link(?AGENT(Identity), ?MODULE, [DesignateR], []),
+
+      {ok, #sub{
+          identity = Identity, 
+          cash = R#tab_agent.cash, credit = R#tab_agent.credit,
+          balance = R#tab_agent.cash + R#tab_agent.credit }}
+  end,
+
+  case mnesia:transaction(Fun) of
+    {atomic, {ok, Sub}} ->
+      {reply, ok, Data#pdata{subordinate = Data#pdata.subordinate ++ [Sub]}};
+    {abort, Reason} ->
+      {reply, Reason, Data}
+  end;
 
 handle_call(_Msg, _From, Agent) ->
   {noreply, Agent}.
@@ -197,15 +209,21 @@ terminate(normal, _Server) ->
 %% Private Function
 
 report(Data = #pdata{}) ->
-  Sum = sum(Data),
-  ExpSub = lists:map(fun(#sub{identity = Identity}) -> Identity end, Data#pdata.subordinate),
+  [Agent] = mnesia:dirty_index_read(tab_agent, Data#pdata.identity, identity),
+  ReloadData = Data#pdata{
+    cash = Agent#tab_agent.cash,
+    credit = Agent#tab_agent.credit
+  },
 
-  case Data#pdata.identity of
+  Sum = sum(ReloadData),
+  ExpSub = lists:map(fun(#sub{identity = Identity}) -> Identity end, ReloadData#pdata.subordinate),
+
+  case ReloadData#pdata.identity of
     "root" -> ok;
-    _ -> gen_server:cast(?LOOKUP_AGENT(Data#pdata.parent), {report, Sum})
+    _ -> gen_server:cast(?LOOKUP_AGENT(ReloadData#pdata.parent), {report, Sum})
   end,
 
-  Data#pdata{sum = Sum, exp_collect_subordinate = ExpSub}.
+  ReloadData#pdata{sum = Sum, exp_collect_subordinate = ExpSub}.
 
 sum(Data = #pdata{subordinate = Sub, cash = Cash, credit = Credit, players = Ply, turnover_daily = Daily}) ->
   {SubTurnoverToday, SubTurnover} = sum_turnover(Sub),
@@ -287,25 +305,22 @@ shift_date(N) ->
   Days = calendar:date_to_gregorian_days(date()),
   calendar:gregorian_days_to_date(Days + N).
 
-%cost(#pdata{cash = Cash, credit = Credit}, Amount) when (Cash + Credit) < Amount -> 
-  %case mnesia:is_transaction() 
-    %of true -> exit(less_balance); 
-    %false -> less_balance 
-  %end;
+check_amt(#tab_agent{cash = Cash, credit = Credit}, Amt) when Amt > (Cash + Credit) ->
+  exit(less_balance);
+check_amt(#tab_agent{}, _) -> 
+  ok.
 
-%cost(Data = #pdata{cash = Cash, record = R}, Amount) ->
-  %Data#pdata{cash = Cash - Amount, record = R#tab_agent{cash = Cash - Amount}}.
+check_identity(#tab_player_info{identity = Identity}) ->
+  case mnesia:read_index(tab_player_info, Identity, identity) of
+    [] -> ok;
+    _ -> exit(repeat_identity)
+  end;
 
-%join(Data = #pdata{record = R, subordinate = Subordinate}, #tab_agent{identity = Identity}) ->
-  %%% update record & pdata subordinate data.
-  %NewRecord = R#tab_agent{subordinate = [ Identity | R#tab_agent.subordinate]},
-  %NewTree = gb_trees:insert(Identity, nil, Subordinate),
-  %Data#pdata{record = NewRecord, subordinate = NewTree};
-
-%join(Data = #pdata{players = Players}, #tab_player_info{identity = Identity}) ->
-  %%% update record & pdata players data.
-  %NewTree = gb_trees:insert(Identity, nil, Players),
-  %Data#pdata{players = NewTree}.
+check_identity(#tab_agent{identity = Identity}) ->
+  case mnesia:read_index(tab_agent, Identity, identity) of
+    [] -> ok;
+    _ -> exit(repeat_identity)
+  end.
 
 %% Client Function
 
@@ -351,9 +366,6 @@ sum_info(Identity) when is_list(Identity) ->
 
 create(Identity, R) ->
   gen_server:call(?AGENT(Identity), {create, R}).
-
-create(Identity, R, {Credit, Cash}) ->
-  gen_server:call(?AGENT(Identity), {create, R, {Credit, Cash}}).
 
 collect(Proc) ->
   gen_server:cast(Proc, collect).
@@ -418,7 +430,14 @@ start_test() ->
   ?assert(is_pid(?LOOKUP_AGENT("root"))),
   ?assert(is_pid(?LOOKUP_AGENT("agent1"))),
   ?assert(is_pid(?LOOKUP_AGENT("agent2"))),
-  ?assert(is_pid(?LOOKUP_AGENT("agent3"))).
+  ?assert(is_pid(?LOOKUP_AGENT("agent3"))),
+
+  timer:sleep(500),
+
+  ?assertMatch(#sub{sub_count = 3, ply_count = 0}, agent:sum_info("root")),
+  ?assertMatch(#sub{sub_count = 0, ply_count = 1}, agent:sum_info("agent1")),
+  ?assertMatch(#sub{sub_count = 0, ply_count = 1}, agent:sum_info("agent2")),
+  ?assertMatch(#sub{sub_count = 0, ply_count = 1}, agent:sum_info("agent3")).
 
 generate_test() ->
   Agents = [#tab_agent{
@@ -476,6 +495,7 @@ betting_turnover_today_test() ->
 collect_test() ->
   setup(),
 
+  %% generate many players for root agent.
   Players = [#tab_player_info{
       pid = Id,
       identity = "player" ++ integer_to_list(Id),
@@ -486,7 +506,7 @@ collect_test() ->
   lists:foreach(fun(R) -> mnesia:dirty_write(R) end, Players),
 
   agent:start(),
-  timer:sleep(1500),
+  timer:sleep(500),
   ?assertMatch(#sub{sub_count = 3, ply_count = 3}, agent:sum_info("root")),
   ?assertMatch(#sub{sub_count = 0, ply_count = 1}, agent:sum_info("agent1")),
   ?assertMatch(#sub{sub_count = 0, ply_count = 1}, agent:sum_info("agent2")),
