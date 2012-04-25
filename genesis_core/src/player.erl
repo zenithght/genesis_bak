@@ -10,8 +10,6 @@
 
 -export([ctx/1, ctx/2]).
 
--include_lib("eunit/include/eunit.hrl").
-
 -include("common.hrl").
 -include("protocol.hrl").
 -include("schema.hrl").
@@ -249,6 +247,9 @@ forward_to_client(R, #pdata{client = Client}) -> client:send(Client, R).
 %%% unit test
 %%%
 
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
 %start_all_test() ->
   %setup(),
   %start("player_1"),
@@ -284,9 +285,7 @@ start_test() ->
   %?assertEqual({ok, player_disable}, player:auth(Info#tab_player_info{disabled = true}, ?DEF_PWD)).
 
 setup() ->
-  ?LOG([{error_logger, 0}]),
   schema:init(),
-  ?LOG([{error_logger, 1}]),
 
   Players = [
     #tab_player_info {
@@ -327,3 +326,4 @@ setup() ->
 
 pdata(Id) ->
   gen_server:call(?PLAYER(Id), pdata).
+-endif.

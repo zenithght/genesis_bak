@@ -422,12 +422,11 @@ collect(Proc) ->
   %setup(),
   %?assertEqual(10000, balance("agent_1")).
 
+-ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
 start_test() ->
-  ?LOG([{start, test}]),
   setup(),
-  ?LOG([{before_start_after_setup, mnesia:dirty_index_read(tab_player_info, "root", agent)}]),
   agent:start(),
   ?assert(is_pid(?LOOKUP_AGENT("root"))),
   ?assert(is_pid(?LOOKUP_AGENT("agent1"))),
@@ -495,7 +494,6 @@ betting_turnover_today_test() ->
   ?assertMatch([{Date, 10}, {BeforDate, 10}], turnover("root")).
 
 collect_test() ->
-  ?LOG([{collect, test}]),
   setup(),
 
   %% generate many players for root agent.
@@ -518,7 +516,6 @@ collect_test() ->
 setup() ->
   schema:init(),
 
-  ?LOG([{before_start_before_setup, mnesia:dirty_index_read(tab_player_info, "root", agent)}]),
   Agents = [#tab_agent{
       aid = Id, 
       identity = "agent" ++ integer_to_list(Id rem 10), 
@@ -536,3 +533,5 @@ setup() ->
 
   lists:foreach(fun(R) -> mnesia:dirty_write(R) end, Agents),
   lists:foreach(fun(R) -> mnesia:dirty_write(R) end, Players).
+
+-endif.

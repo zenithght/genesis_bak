@@ -1,11 +1,11 @@
 -module(hand).
+
 -export([new/0, new/1, add/2, rank/1, merge/2, size/1]).
 -export([make_card/1, make_card/2, make_cards/1, print_bin/1, 
          print_rep/1, to_string/1, player_hand/1, card_to_string/1]).
 
 -include("common.hrl").
 -include("game.hrl").
--include_lib("eunit/include/eunit.hrl").
 
 new() -> new([]).
 new(Cards) -> #hand{ cards = Cards }.
@@ -405,8 +405,6 @@ to_string(H = #player_hand{ rank = ?HC_HIGH_CARD }) ->
     "high card "
   ++ face_to_string(H#player_hand.high1).
 
-%%% Hand description for the poker client
-  
 player_hand(#hand{ rank = Rank, high1 = High3, high2 = High2 }) 
   when Rank == ?HC_FULL_HOUSE;
        Rank == ?HC_TWO_PAIR ->
@@ -423,9 +421,26 @@ player_hand(#hand{ rank = Rank, high1 = High3, suit = Suit })
 player_hand(#hand{ rank = Rank, high1 = High }) ->
     #player_hand{ rank = Rank, high1 = face_from_mask(High) }.
 
+print_bin(X) ->
+    io:format("AKQJT98765432A~n"),
+    io:format("~14.2.0B~n", [X]).
+
+print_rep([C, D, H, S]) ->
+    print_rep({C, D, H, S});
+
+print_rep({C, D, H, S}) ->
+    io:format("   AKQJT98765432A~n"),
+    io:format("C: ~14.2.0B~n", [C]),
+    io:format("D: ~14.2.0B~n", [D]),
+    io:format("H: ~14.2.0B~n", [H]),
+    io:format("S: ~14.2.0B~n", [S]).
+
 %%%
 %%% Test suite
 %%%
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
 
 make_rep_test() ->
     %%  AKQJT98765432A
@@ -855,16 +870,4 @@ rank_player_staright_flush_test() ->
   ],
   gr([{Cards, ?HC_STRAIGHT_FLUSH, High1, ?UNDEF, Suit} || {Cards, High1, Suit} <- L]).
 
-print_bin(X) ->
-    io:format("AKQJT98765432A~n"),
-    io:format("~14.2.0B~n", [X]).
-
-print_rep([C, D, H, S]) ->
-    print_rep({C, D, H, S});
-
-print_rep({C, D, H, S}) ->
-    io:format("   AKQJT98765432A~n"),
-    io:format("C: ~14.2.0B~n", [C]),
-    io:format("D: ~14.2.0B~n", [D]),
-    io:format("H: ~14.2.0B~n", [H]),
-    io:format("S: ~14.2.0B~n", [S]).
+-endif.

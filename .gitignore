@@ -5,3 +5,5 @@ ebin
 *.dump
 Mnesia.*
 stats.csv
+.eunit
+test.tar

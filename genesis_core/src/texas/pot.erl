@@ -3,8 +3,6 @@
 -export([new/0, reset/1, new_stage/1, split/3,
          add/4, pots/1, total/1]).
 
--include_lib("eunit/include/eunit.hrl").
-
 -record(side_pot, {
           members,
           all_in
@@ -207,6 +205,9 @@ update_counter(Key, Amount, Tree) ->
 %%%
 %%% Test suite
 %%%
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
 
 is_member(Pot, Player) 
   when is_record(Pot, side_pot) ->
@@ -439,4 +440,4 @@ all_in_example13_test() ->
     { Pot1, 0 } = add_bet(Pot, 'A', 20),
     { Pot2, 0 } = add_bet(Pot1, 'B', 10),
     ?assertEqual(30, total(Pot2)).
-
+-endif.

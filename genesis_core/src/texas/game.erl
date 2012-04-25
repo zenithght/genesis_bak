@@ -413,6 +413,7 @@ do_join(R = #cmd_join{identity = Identity, proc = Process}, Seat = #seat{}, Ctx 
 %%% unit test
 %%%
 
+-ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
 start_test() ->
@@ -466,3 +467,4 @@ setup() ->
     end
   ),
   schema:init().
+-endif.

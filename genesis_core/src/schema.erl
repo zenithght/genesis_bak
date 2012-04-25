@@ -4,8 +4,6 @@
 -include("schema.hrl").
 -include("common.hrl").
 
--include_lib("eunit/include/eunit.hrl").
-
 -define(RAM, {ram_copies, Nodes}).
 -define(DISC, {disc_copies, Nodes}).
 
@@ -56,15 +54,14 @@ load_default_data() ->
   setup_games().
 
 init() ->
-  TabLists = [tab_game_xref, tab_player, tab_agent, tab_palyer_info, 
+  TabLists = [tab_game_xref, tab_player, tab_agent, tab_player_info, 
       tab_inplay, tab_game_config, tab_cluster_config, 
       tab_counter, tab_charge_log, tab_turnover_log, tab_buyin_log],
 
-  schema:install(),
-
-  %% EUnit reset database
-  lists:map(fun(Table) -> mnesia:clear_table(Table) end, TabLists),
-
+  install(),
+  lists:map(fun(Table) -> 
+        {atomic, ok} = mnesia:clear_table(Table) 
+    end, TabLists),
   schema:load_default_data().
 
 %% Private
@@ -107,11 +104,16 @@ setup_agent() ->
   
 %% EUnit Test Case
 
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
 init_test() ->
   init(),
+  [] = mnesia:dirty_read(tab_inplay, 1),
   mnesia:dirty_write(#tab_inplay{pid = 1, inplay = 500}),
   init(),
-  [] = mnesia:dirty_read(tab_inplay, 1).
+  [] = mnesia:dirty_read(tab_inplay, 1),
+  mnesia:dirty_write(#tab_inplay{pid = 1, inplay = 500}).
 
 %buyin_log_test() ->
   %BuyInLog = #tab_buyin_log{
@@ -137,3 +139,4 @@ init_test() ->
         %mnesia:delete_object(Inplay)
     %end),
   %?assertMatch([], mnesia:dirty_read(tab_inplay, 1)).
+-endif.

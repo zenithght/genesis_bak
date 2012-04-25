@@ -12,7 +12,6 @@
 -export([string/0]).
 
 -include("common.hrl").
--include_lib("eunit/include/eunit.hrl").
 
 %%% Pickle and unpickle. We accumulate into a list.
 
@@ -352,6 +351,9 @@ string() ->
 %%% Unit test
 %%%
 
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
 -define(pickle(Value, Pickler),
         fun() ->
                 ?assertEqual(Value, 
@@ -499,3 +501,4 @@ binary_test() ->
 wstring_test() ->
     X = "This is a wide string",
     ?pickle(X, wstring()).
+-endif.

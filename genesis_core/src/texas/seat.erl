@@ -69,6 +69,7 @@ check(State, Mask) ->
 %%% unit test
 %%%
 
+-ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
 new_test() ->
@@ -126,3 +127,4 @@ set_list_test() ->
   Seats = set([#seat{sn = 2}, #seat{sn = 4}], ?PS_PLAY, new(4)),
   ?assertEqual(#seat{state = ?PS_PLAY, sn = 2}, get(2, Seats)),
   ?assertEqual(#seat{state = ?PS_PLAY, sn = 4}, get(4, Seats)).
+-endif.
