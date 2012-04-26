@@ -1,0 +1,85 @@
+body {
+  border: 0px;
+  margin: 0px;
+  padding: 0px;
+
+  width: 100%;
+
+  font-size: 11px;
+  font-family: "lucida grande",tahoma,verdana,arial,sans-serif;
+  color: #333;
+  line-height: 1.28;
+
+  a {
+    cursor: pointer;
+    color: rgb(59, 89, 152);
+    text-decoration: none;
+  }
+
+}
+
+#header {
+  height: 50px;
+  background-color: rgb(59, 89, 152);
+
+  #logo {
+    margin: 0px auto;
+    padding-top: 10px;
+    width: 970px;
+
+    .app {
+      color: white;
+      font-size: 2.5em;
+    }
+
+    .help {
+      color: white;
+      float: right;
+      padding-top: 22px;
+    }
+  }
+}
+  
+#content {
+  height: 577px;
+  background: -webkit-linear-gradient(top, white, rgb(211, 216, 232));
+
+  #login {
+    margin: 0px auto;
+    width: 970px;
+
+    form {
+      top: 200px;
+      left: 460px;
+      width: 500px;
+      position: relative;
+
+      input[type=text],
+      input[type=password] {
+        width: 182px;
+        padding: 6px;
+        font-size: 16px;
+      }
+
+      label {
+        font-weight: normal;
+        cursor: pointer;
+        font-size: 13px;
+      }
+    }
+  }
+}
+
+#footer {
+  height: 100px;
+
+  #languages, #info, hr {
+    width: 970px;
+    margin: 0px auto;
+  }
+
+  #languages, #info {
+    padding: 8px 0px 8px 0px;
+  }
+}
+

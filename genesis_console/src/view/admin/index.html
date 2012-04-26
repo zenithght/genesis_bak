@@ -1,0 +1,22 @@
+{% extends "templates/layout.html" %}
+{% block title %}首頁{% endblock %}
+{% block body %}
+<h2>账户信息</h2>
+<hr />
+<div class='acount_info'>
+  <label>账户總額</label>
+  <span class='sum'>10000</span>
+  <label></label>
+  <span class='sum'>10000</span>
+  <label>可用餘額</label>
+  <span class='balance'>10000</span>
+  <label>當日流水</label>
+  <span class='turnover'>10000</span>
+  <label>本周流水</label>
+  <span class='turnover_week'>10000</span>
+  <label>用户總量</label>
+  <span class='player_sum'>10000</span>
+  <input type='button' value='刷新' />
+</div>
+<hr />
+{% endblock %}

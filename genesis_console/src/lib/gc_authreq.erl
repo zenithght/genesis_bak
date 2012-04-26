@@ -1,4 +1,4 @@
--module(authreq).
+-module(gc_authreq).
 -compile([export_all]).
 
 require_login(Req, SessionID) ->

@@ -1,4 +1,4 @@
--module(validation).
+-module(gc_validation).
 -compile([export_all]).
 
 -include_lib("eunit/include/eunit.hrl").

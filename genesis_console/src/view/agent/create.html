@@ -1,0 +1,39 @@
+<form action='/agent/create' id='create_agent_form' method='post'>
+  <div class='rowElem'>
+    <label for='identity'>登錄名</label>
+    <input id='identity' name='identity' required='required' type='text' />
+  </div>
+  <div class='rowElem'>
+    <label for='password'>密碼</label>
+    <input id='password' name='password' required='required' type='password' />
+  </div>
+  <div class='rowElem'>
+    <label for='re-password'>確認密碼</label>
+    <input id='re-password' name='re-password' required='required' type='password' />
+  </div>
+  <div class='rowElem'>
+    <label for='nick'>中文標識</label>
+    <input id='nick' name='nick' required='required' type='text' />
+  </div>
+  <div class='rowElem'>
+    <label for='credit'>信用账户</label>
+    <input id='credit' min='0' name='credit' required='required' type='number' value='0' />
+  </div>
+  <div class='rowElem'>
+    <label for='cash'>現金账户</label>
+    <input id='cash' min='0' name='cash' required='required' type='number' value='0' />
+  </div>
+  <div class='rowElem'>
+    <input type='submit' value='創建' />
+    <a class='cancel'>取消</a>
+  </div>
+</form>
+<script type='text/javascript'>
+  //<![CDATA[
+    $.init_form("create_agent_form", function(formData) {
+      return $.check_password(formData)
+    }, function() {
+      console.log("create_successful")
+    })
+  //]]>
+</script>
