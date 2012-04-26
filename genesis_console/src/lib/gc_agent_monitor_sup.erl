@@ -14,3 +14,14 @@ init([]) ->
           permanent, 1000, worker, [gc_agent_monitor]}
       ]
     }}.
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+start_link_test() ->
+  {ok, _} = gc_agent_monitor_sup:start_link(),
+  timer:sleep(100),
+  ?assert(is_pid(whereis(gc_agent_monitor))),
+  ?assert(is_pid(whereis(gc_agent_monitor_sup))).
+
+-endif.
