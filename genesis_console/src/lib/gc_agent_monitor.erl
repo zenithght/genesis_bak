@@ -3,7 +3,7 @@
 -export([init/1, terminate/2, handle_call/3, handle_cast/2]).
 -behavior(gen_server).
 
--include_lib("genesis/include/common.hrl").
+-include("common.hrl").
 
 start_link() ->
   gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
@@ -28,10 +28,5 @@ handle_cast(Msg, _LoopData) ->
   ?LOG([{gc_agent_monitor, cast}, {msg, Msg}]),
   {noreply, _LoopData}.
 
-handle_call(error, _From, _LoopData) ->
-  A = 1/0,
-  {reply, ok, _LoopData};
-
 handle_call(Msg, _From, _LoopData) ->
-  ?LOG([{gc_agent_monitor, call}, {msg, Msg}]),
   {reply, ok, _LoopData}.

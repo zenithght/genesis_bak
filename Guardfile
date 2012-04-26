@@ -1,11 +1,16 @@
 group :backend do
-  guard 'erlang' do
-    watch(/^.+\.erl$/)
+  guard 'shell' do
+    watch(/(.*)_test\.erl/) do |m|
+      `cd genesis_console && ./rebar boss c=test_eunit`
+    end
   end
+  #guard 'erlang' do
+    #watch(/^.+\.erl$/)
+  #end
 
-  guard 'eunit' do
-    watch(%r{^ebin/(.+)\.beam$}) do |m| "#{m[1]}" end
-  end
+  #guard 'eunit' do
+    #watch(%r{^ebin/(.+)\.beam$}) do |m| "#{m[1]}" end
+  #end
 end
 
 group :console do
@@ -45,3 +50,4 @@ group :client do
     watch(%r{client/.+\.html$})
   end
 end
+
