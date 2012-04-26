@@ -1,5 +1,5 @@
 -module(schema).
--export([install/0, load_default_data/0]).
+-export([rebuild_mnesia_schema/0, install/0, load_default_data/0]).
 
 -ifdef(TEST).
 -export([init/0]).
@@ -12,6 +12,15 @@
 -define(DISC, {disc_copies, Nodes}).
 
 -define(TABLE_DEF(Name, Type, Copies, Fields), {Name, [Copies, {type, Type}, {attributes, Fields}]}).
+
+rebuild_mnesia_schema() ->
+  pong = net_adm:ping('genesis_console@air'),
+  stopped = mnesia:stop(),
+  ok = mnesia:delete_schema(nodes() ++ [node()]),
+  timer:sleep(500),
+  ok = mnesia:create_schema(nodes() ++ [node()]),
+  timer:sleep(500),
+  ok = mnesia:start().
 
 install() ->
   install(nodes() ++ [node()]).
