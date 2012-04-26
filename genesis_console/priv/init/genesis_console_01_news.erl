@@ -7,6 +7,8 @@
 % function below (stop is executed if the script is ever reloaded).
 init() ->
   mnesia:start(),
+  gc_agent_monitor_sup:start_link(),
+
   {ok, []}.
 
 stop(ListOfWatchIDs) ->
