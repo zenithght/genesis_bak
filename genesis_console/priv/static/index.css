@@ -89,7 +89,9 @@ form {
     padding-right: 10px;
     text-align: right; }
   form .rowElem input {
-    margin-bottom: 5px; }
+    margin-bottom: 5px;
+    height: 18px;
+    width: 100px; }
   form input::-webkit-input-placeholder {
     color: #a1b2c3;
     text-shadow: 0px -1px 0px #38506b; }

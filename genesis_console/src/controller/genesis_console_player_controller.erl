@@ -3,10 +3,10 @@
 
 -include_lib("genesis/include/schema.hrl").
 
-%before_(_Act) -> authreq:require_login(Req, SessionID).
+before_(_Act) -> gc_authreq:require_login(Req, SessionID).
 
-%create('GET', []) ->
-  %{ok, []};
+create('GET', []) ->
+  {ok, []}.
 
 %create('POST', []) ->
   %Errors = validation:check_request(Req, [

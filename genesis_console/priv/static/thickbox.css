@@ -109,6 +109,7 @@ margin-top: expression(0 - parseInt(this.offsetHeight / 2) + (TBWindowMargin = d
 	overflow:auto;
 	text-align:left;
 	line-height:1.4em;
+  overflow: hidden;
 }
 
 #TB_ajaxContent.TB_modal{

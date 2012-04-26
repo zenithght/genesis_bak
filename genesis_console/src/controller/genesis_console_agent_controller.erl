@@ -3,26 +3,26 @@
 
 -include_lib("genesis/include/schema.hrl").
 
-%before_(_Act) -> authreq:require_login(Req, SessionID).
+before_(_Act) -> gc_authreq:require_login(Req, SessionID).
 
-%index('GET', []) ->
-  %{ok, []}.
+index('GET', []) ->
+  {ok, []}.
 
-%create('GET', []) ->
-  %{ok, []};
+create('GET', []) ->
+  {ok, []}.
 
 %create('POST', []) ->
-  %Errors = validation:check_request(Req, [
+  %Errors = gc_validation:check_request(Req, [
       %fun repeat_identity/1,
-      %fun validation:validate_password/1,
-      %fun validation:validate_repassword/1,
-      %fun validation:validate_identity/1,
-      %fun validation:validate_amount/1
+      %fun gc_validation:validate_password/1,
+      %fun gc_validation:validate_repassword/1,
+      %fun gc_validation:validate_identity/1,
+      %fun gc_validation:validate_amount/1
     %], []),
 
   %case Errors of
     %[] ->
-      %Identity = authreq:get_login(SessionID),
+      %Identity = gc_authreq:get_login(SessionID),
       %Result = agent:create(Identity,
         %#tab_agent {
           %identity = Req:post_param("identity"), 
