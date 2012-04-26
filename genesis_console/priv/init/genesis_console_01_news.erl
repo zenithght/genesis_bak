@@ -2,13 +2,12 @@
 
 -export([init/0, stop/1]).
 
+-include_lib("genesis/include/common.hrl").
+
 % This script is first executed at server startup and should
 % return a list of WatchIDs that should be cancelled in the stop
 % function below (stop is executed if the script is ever reloaded).
 init() ->
-  mnesia:start(),
-  gc_agent_monitor_sup:start_link(),
-
   {ok, []}.
 
 stop(ListOfWatchIDs) ->
