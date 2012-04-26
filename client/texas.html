@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8' />
+    <title>創世紀-德州撲克</title>
+    <script src='/static/js/jquery/jquery.js' type='text/javascript'></script>
+    <script src='/static/js/header.js' type='text/javascript'></script>
+    <script src='/static/js/positions.js' type='text/javascript'></script>
+    <script src='/static/js/jquery/jquery.base64.js' type='text/javascript'></script>
+    <script src='/static/js/jquery/jquery.blockUI.js' type='text/javascript'></script>
+    <script src='/static/js/jquery/jquery.timers.js' type='text/javascript'></script>
+    <script src='/static/js/jquery/jquery.tools.js' type='text/javascript'></script>
+    <script src='/static/js/plugins/resloader.js' type='text/javascript'></script>
+    <script src='/static/js/plugins/prototype.js' type='text/javascript'></script>
+    <script src='/static/js/plugins/websocket.js' type='text/javascript'></script>
+    <script src='/static/js/header.js' type='text/javascript'></script>
+    <script src='/static/js/positions.js' type='text/javascript'></script>
+    <script src='/static/js/player.js' type='text/javascript'></script>
+    <script src='/static/js/preview.js' type='text/javascript'></script>
+    <script src='/static/js/hall.js' type='text/javascript'></script>
+    <script src='/static/js/seat.js' type='text/javascript'></script>
+    <script src='/static/js/game.js' type='text/javascript'></script>
+    <script src='/static/js/index.js' type='text/javascript'></script>
+    <link href='/static/css/index.css' rel='stylesheet' type='text/css' />
+  </head>
+  <body>
+    <div id='page'>
+      <div class='growlUI' id='tips_empty'>請等待其他玩家的加入</div>
+      <h3 id='msg_connect'>連線中...</h3>
+      <h3 id='msg_loading'>加載中...</h3>
+      <h3 id='msg_joining'>進入中...</h3>
+      <h3 id='msg_singin'>登陸中...</h3>
+      <h3 id='err_network'>抱歉，網絡連線錯誤，請稍後刷新重試。</h3>
+      <div id='err_buyin'>
+        <h3>抱歉，您的账户餘額不足。</h3>
+        <h3>請確保有足够的游戏币方可加入此游戏。</h3>
+      </div>
+      <nav id='toolbar'>
+        <div id='title'></div>
+        <img id='logo' src='/static/css/logo.png' />
+        <div id='player'>
+          <img class='photo' />
+          <label class='nick'></label>
+          <label class='balance'></label>
+        </div>
+        <div id='tools'>
+          <div id='settings'>設置</div>
+          <div class='split'></div>
+          <div id='helps'>幫助</div>
+          <div class='split'></div>
+          <div id='logout'>登出</div>
+        </div>
+      </nav>
+      <div id='content'>
+        <div id='singin'>
+          <form method='post'>
+            <label>帳號</label>
+            <input id='txt_identity' placeholder='請輸入您的帳號' required='required' />
+            <br />
+            <label>密碼</label>
+            <input id='txt_password' placeholder='請輸入您的密碼' required='required' type='password' />
+            <br />
+            <div>
+              <input checked='checked' id='ckb_save' type='checkbox'>存儲帳號信息</input>
+              <br />
+              <label id='lab_err_singin'>帳號密碼有誤</label>
+              <br />
+              <button id='cmd_singin' type='submit'>登陸</button>
+            </div>
+          </form>
+        </div>
+        <div id='hall'>
+          <div id='game_preview'>
+            <textarea class='template'><div class='seat'>
+              <div class='nick'></div>
+              <img class='photo' />
+              <div class='inplay'></div>
+            </div></textarea>
+          </div>
+          <table cellspacing='0px' id='game_list'>
+            <thead>
+              <tr>
+                <th class='col_longest'>房間</th>
+                <th class='col_short'>大/小盲注</th>
+                <th class='col_short'>攜帶額</th>
+                <th class='col_short'>人數</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class='autofill'></tr>
+            </tbody>
+          </table>
+          <div class='actions'>
+            <button class='cmdred' id='cmd_join' type='command'>加入</button>
+            <br />
+            <button class='cmdblue' id='cmd_watch' type='command'>觀戰</button>
+          </div>
+          <textarea class='template'><tr>
+            <td class='name'></td>
+            <td class='blind'></td>
+            <td class='limit'></td>
+            <td class='player'></td>
+          </tr></textarea>
+        </div>
+        <div id='game'>
+          <div class='table' src='/static/css/gametable.png'></div>
+          <div class='tips'>
+            <label id='wait_next'>請等待參與下局游戏。</label>
+            <label id='wait_player'>請等待其他玩家參與。</label>
+          </div>
+          <div id='logs'></div>
+          <div class='actions'>
+            <a class='action' id='cmd_fold'>蓋牌</a>
+            <a class='action' id='cmd_check'>過牌</a>
+            <a class='action' id='cmd_call'>跟注</a>
+            <a class='action' id='cmd_raise'>加注</a>
+            <input id='raise_range' max='50' min='0' type='range' value='0' />
+            <input id='raise_number' max='50' min='0' step='1' type='number' value='0' />
+          </div>
+          <a class='action' id='cmd_leave'>起立</a>
+          <a class='action' id='cmd_cancel'>退出</a>
+          <div class='buyin'>
+            <h3>參與游戏</h3>
+            <table>
+              <tr>
+                <td class='key'>最小代入:</td>
+                <td class='value' id='min'></td>
+              </tr>
+              <tr>
+                <td class='key'>最大代入:</td>
+                <td class='value' id='max'></td>
+              </tr>
+              <tr>
+                <td class='key'>您的餘額:</td>
+                <td class='value' id='balance'></td>
+              </tr>
+            </table>
+            <label id='lab_buyin'></label>
+            <label id='lab_min'></label>
+            <label id='lab_max'></label>
+            <input id='range_buy' type='range' />
+            <a id='cmd_cancel'>返回</a>
+            <button id='cmd_buy' type='command'>確定</button>
+          </div>
+          <div class='template'>
+            <div class='seat'></div>
+            <div class='empty_seat'>加入</div>
+            <div class='playing_seat'>
+              <label class='nick'></label>
+              <img class='photo' />
+              <label class='inplay'></label>
+              <img class='draw_card' src='/static/css/poker_back.png' />
+              <label class='bet_lab'></label>
+            </div>
+            <div class='dealer'></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
