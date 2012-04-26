@@ -6,7 +6,8 @@
 % return a list of WatchIDs that should be cancelled in the stop
 % function below (stop is executed if the script is ever reloaded).
 init() ->
-    {ok, []}.
+  mnesia:start(),
+  {ok, []}.
 
 stop(ListOfWatchIDs) ->
     lists:map(fun boss_news:cancel_watch/1, ListOfWatchIDs).
