@@ -1,5 +1,9 @@
 -module(schema).
--export([init/0, install/0, load_default_data/0]).
+-export([install/0, load_default_data/0]).
+
+-ifdef(TEST).
+-export([init/0]).
+-endif.
 
 -include("schema.hrl").
 -include("common.hrl").
@@ -10,59 +14,43 @@
 -define(TABLE_DEF(Name, Type, Copies, Fields), {Name, [Copies, {type, Type}, {attributes, Fields}]}).
 
 install() ->
-  install([node()]).
+  install(nodes() ++ [node()]).
 
 install(Nodes) when is_list(Nodes) ->
-  case mnesia:create_schema(Nodes) of
-    {error, _Reason} -> 
-      mnesia:start(),
-      timer:sleep(100),
-      ok;
-    _ ->
-      RamTables = [
-        ?TABLE_DEF(tab_game_xref, set, ?RAM, record_info(fields, tab_game_xref)),
-        ?TABLE_DEF(tab_player, set, ?RAM, record_info(fields, tab_player))
-      ],
-      DiscTables = [
-        ?TABLE_DEF(tab_agent, set, ?DISC, record_info(fields, tab_agent)),
-        ?TABLE_DEF(tab_player_info, set, ?DISC, record_info(fields, tab_player_info)),
-        ?TABLE_DEF(tab_inplay, set, ?DISC, record_info(fields, tab_inplay)),
-        ?TABLE_DEF(tab_game_config, set, ?DISC, record_info(fields, tab_game_config)),
-        ?TABLE_DEF(tab_cluster_config, set, ?DISC, record_info(fields, tab_cluster_config)),
-        ?TABLE_DEF(tab_counter, set, ?DISC, record_info(fields, tab_counter)),
-        ?TABLE_DEF(tab_charge_log, bag, ?DISC, record_info(fields, tab_charge_log)),
-        ?TABLE_DEF(tab_turnover_log, bag, ?DISC, record_info(fields, tab_turnover_log)),
-        ?TABLE_DEF(tab_buyin_log, bag, ?DISC, record_info(fields, tab_buyin_log))
-      ],
+  RamTables = [
+    ?TABLE_DEF(tab_game_xref, set, ?RAM, record_info(fields, tab_game_xref)),
+    ?TABLE_DEF(tab_player, set, ?RAM, record_info(fields, tab_player))
+  ],
+  DiscTables = [
+    ?TABLE_DEF(tab_agent, set, ?DISC, record_info(fields, tab_agent)),
 
-      mnesia:start(),
+    ?TABLE_DEF(tab_player_info, set, ?DISC, record_info(fields, tab_player_info)),
+    ?TABLE_DEF(tab_inplay, set, ?DISC, record_info(fields, tab_inplay)),
+    ?TABLE_DEF(tab_game_config, set, ?DISC, record_info(fields, tab_game_config)),
+    ?TABLE_DEF(tab_cluster_config, set, ?DISC, record_info(fields, tab_cluster_config)),
+    ?TABLE_DEF(tab_counter, set, ?DISC, record_info(fields, tab_counter)),
 
-      create_tables(RamTables),
-      create_tables(DiscTables),
+    ?TABLE_DEF(tab_charge_log, bag, ?DISC, record_info(fields, tab_charge_log)),
+    ?TABLE_DEF(tab_turnover_log, bag, ?DISC, record_info(fields, tab_turnover_log)),
+    ?TABLE_DEF(tab_buyin_log, bag, ?DISC, record_info(fields, tab_buyin_log))
+  ],
 
-      create_indices(tab_agent, [identity, parent]),
-      create_indices(tab_player_info, [agent, identity]),
-      create_indices(tab_buyin_log, [aid, pid, date]),
-      create_indices(tab_turnover_log, [aid, pid, date]),
-      create_indices(tab_charge_log, [aid, target, date])
-  end.
+  mnesia:start(),
+
+  create_tables(RamTables),
+  create_tables(DiscTables),
+
+  create_indices(tab_agent, [identity, parent]),
+  create_indices(tab_player_info, [agent, identity]),
+  create_indices(tab_buyin_log, [aid, pid, date]),
+  create_indices(tab_turnover_log, [aid, pid, date]),
+  create_indices(tab_charge_log, [aid, target, date]).
 
 load_default_data() ->
   setup_counters(),
   setup_cluster([node()]),
   setup_agent(),
   setup_games().
-
-init() ->
-  TabLists = [tab_game_xref, tab_player, tab_agent, tab_player_info, 
-      tab_inplay, tab_game_config, tab_cluster_config, 
-      tab_counter, tab_charge_log, tab_turnover_log, tab_buyin_log],
-
-  install(),
-  lists:map(fun(Table) -> 
-        {atomic, ok} = mnesia:clear_table(Table) 
-    end, TabLists),
-  schema:load_default_data().
 
 %% Private
 
@@ -106,6 +94,24 @@ setup_agent() ->
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
+
+init() ->
+  case mnesia:system_info(is_running) of
+    yes ->
+      TabLists = [tab_game_xref, tab_player, tab_agent, tab_player_info, 
+        tab_inplay, tab_game_config, tab_cluster_config, 
+        tab_counter, tab_charge_log, tab_turnover_log, tab_buyin_log],
+      lists:map(fun(Table) -> {atomic, ok} = mnesia:clear_table(Table) end, TabLists);
+    no ->
+      mnesia:delete_schema([node()]),
+      mnesia:create_schema([node()]),
+      mnesia:start(),
+      timer:sleep(100),
+      install([node()])
+  end,
+
+  schema:load_default_data(),
+  timer:sleep(100).
 
 init_test() ->
   init(),
