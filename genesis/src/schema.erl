@@ -1,5 +1,5 @@
 -module(schema).
--export([rebuild_mnesia_schema/0, install/0, load_default_data/0]).
+-export([rebuild_mnesia_schema/0, rebuild_table/0, install/0, load_default_data/0]).
 
 -ifdef(TEST).
 -export([init/0]).
@@ -22,6 +22,10 @@ rebuild_mnesia_schema() ->
   timer:sleep(500),
   ok = mnesia:start().
 
+rebuild_table() ->
+  install(),
+  load_default_data().
+
 install() ->
   install(nodes() ++ [node()]).
 
@@ -31,13 +35,14 @@ install(Nodes) when is_list(Nodes) ->
     ?TABLE_DEF(tab_player, set, ?RAM, record_info(fields, tab_player))
   ],
   DiscTables = [
-    ?TABLE_DEF(tab_agent, set, ?DISC, record_info(fields, tab_agent)),
-
     ?TABLE_DEF(tab_player_info, set, ?DISC, record_info(fields, tab_player_info)),
     ?TABLE_DEF(tab_inplay, set, ?DISC, record_info(fields, tab_inplay)),
     ?TABLE_DEF(tab_game_config, set, ?DISC, record_info(fields, tab_game_config)),
     ?TABLE_DEF(tab_cluster_config, set, ?DISC, record_info(fields, tab_cluster_config)),
     ?TABLE_DEF(tab_counter, set, ?DISC, record_info(fields, tab_counter)),
+
+    ?TABLE_DEF(tab_agent, set, ?DISC, record_info(fields, tab_agent)),
+    ?TABLE_DEF(tab_agent_daily, set, ?DISC, record_info(fields, tab_agent_daily)),
 
     ?TABLE_DEF(tab_charge_log, bag, ?DISC, record_info(fields, tab_charge_log)),
     ?TABLE_DEF(tab_turnover_log, bag, ?DISC, record_info(fields, tab_turnover_log)),
@@ -107,7 +112,7 @@ setup_agent() ->
 init() ->
   case mnesia:system_info(is_running) of
     yes ->
-      TabLists = [tab_game_xref, tab_player, tab_agent, tab_player_info, 
+      TabLists = [tab_game_xref, tab_player, tab_agent, tab_agent_daily, tab_player_info, 
         tab_inplay, tab_game_config, tab_cluster_config, 
         tab_counter, tab_charge_log, tab_turnover_log, tab_buyin_log],
       lists:map(fun(Table) -> {atomic, ok} = mnesia:clear_table(Table) end, TabLists);

@@ -42,6 +42,14 @@
     time = time()      %% {hour, min, sec}
   }).
 
+-record(tab_agent_daily, {
+    id,       %% {id, {y, m, d}}
+    balance,  %% amt
+    turnover, %% amt
+    profit,   %% amt
+    update_time
+  }).
+
 -record(tab_turnover_log, {
     id = now(),
     aid,      %% aid
