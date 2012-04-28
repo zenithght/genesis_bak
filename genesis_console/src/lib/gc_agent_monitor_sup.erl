@@ -10,11 +10,14 @@ start_link() ->
   supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-  Spec = [
-    {gc_agent_monitor, {gc_agent_monitor, start_link, []}, 
-      permanent, 1000, worker, [gc_agent_monitor]}
-  ] ++ spec(gc_db:get_all(tab_agent), []),
-  {ok, {{one_for_one, 1, 1}, Spec}}.
+  AgentSpec = get_agent_spec(),
+  MonitorSpec = [{gc_agent_monitor, {gc_agent_monitor, start_link, []}, 
+      permanent, 1000, worker, [gc_agent_monitor]}],
+
+  {ok, {{one_for_one, 1, 1}, AgentSpec ++ MonitorSpec}}.
+
+get_agent_spec() ->
+  spec(gc_db:get_all(tab_agent), []).
 
 spec([], L) -> L;
 spec([H = #tab_agent{identity = Id}|T], L) ->
