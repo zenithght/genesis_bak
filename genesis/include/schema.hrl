@@ -1,15 +1,3 @@
--record(tab_agent, {
-    aid,
-    identity,
-    password,
-    root = false,
-    disable = false,
-    parent = root,
-    subordinate = [],
-    cash = 0,
-    credit = 0
-  }).
-
 -record(tab_player_info, {
     pid,
     identity,
@@ -40,14 +28,6 @@
     b_credit, %% balance credit
     date = date(),     %% {year, month, day}
     time = time()      %% {hour, min, sec}
-  }).
-
--record(tab_agent_daily, {
-    id,       %% {id, {y, m, d}}
-    balance,  %% amt
-    turnover, %% amt
-    profit,   %% amt
-    update_time
   }).
 
 -record(tab_turnover_log, {
@@ -108,13 +88,27 @@
     required % min player count 
   }).
 
--record(tab_cluster_config, {
-    id,
-    gateways = [],
-    mnesia_masters = [],
-    logdir = "/tmp",
-    max_login_errors = 5,
-    %% players can start games
-    enable_dynamic_games = false,
-    test_game_pass
+-record(tab_agent, {
+    aid,
+    identity,
+    password,
+    cash = 0,
+    credit = 0,
+    root = false,
+    disable = false,
+    parent = root
   }).
+
+%% agent 1 <-> * player
+-record(tab_agent_player, { 
+    pid,
+    aid
+  }).
+
+-record(tab_agent_daily, {
+    id,       %% {id, {y, m, d}}
+    balance,  %% amt
+    turnover, %% amt
+    update_time
+  }).
+
