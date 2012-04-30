@@ -6,8 +6,8 @@
 
 -include("common.hrl").
 
-start_link(R = #tab_agent{identity = Id}) ->
-  gen_server:start_link({local, ?GC_AGENT_NAME(Id)}, ?MODULE, [R], []).
+start_link(S = #tab_agent{identity = Id}) ->
+  gen_server:start_link({local, ?GC_AGENT_NAME(Id)}, ?MODULE, [S], []).
 
 stop() ->
   gen_server:cast(?MODULE, stop).
@@ -16,18 +16,18 @@ stop() ->
 %% Callback
 %%
 
-init([R = #tab_agent{}]) ->
-  ok = gc_db:init_xref(agent, R#tab_agent.aid),
-  ok = gc_db:init_xref(player, R#tab_agent.aid),
+init([S = #tab_agent{}]) ->
+  ok = gc_db:init_xref(agent, S#tab_agent.aid),
+  ok = gc_db:init_xref(player, S#tab_agent.aid),
 
-  WeekTurnover = gc_db:get_turnover(week, R#tab_agent.aid),
-  TodayTurnover = gc_db:get_turnover(today, R#tab_agent.aid),
+  WeekTurnover = gc_db:get_turnover(week, S#tab_agent.aid),
+  TodayTurnover = gc_db:get_turnover(today, S#tab_agent.aid),
 
   {ok, #gc_agent{
-      balance = R#tab_agent.cash + R#tab_agent.credit,
+      balance = S#tab_agent.cash + S#tab_agent.credit,
 
-      cash = R#tab_agent.cash,
-      credit = R#tab_agent.credit,
+      cash = S#tab_agent.cash,
+      credit = S#tab_agent.credit,
 
       week_turnover = WeekTurnover,
       today_turnover = TodayTurnover,
@@ -36,39 +36,39 @@ init([R = #tab_agent{}]) ->
       week_collect_turnover = ?UNDEF
     }}.
 
-terminate(Reason, _R) ->
+terminate(Season, _S) ->
   ok.
 
-handle_cast(collect, R = #gc_agent{collect_timer = T}) when is_reference(T) ->
-  {noreply, R};
+handle_cast(collect, S = #gc_agent{collect_timer = T}) when is_reference(T) ->
+  {noreply, S};
 
-handle_cast(collect, R = #gc_agent{}) ->
-  case gen_collect_list(R#gc_agent.aid) of
+handle_cast(collect, S = #gc_agent{}) ->
+  case gen_collect_list(S#gc_agent.aid) of
     [] ->
       gen_server:cast(report, self()),
-      {noreply, R};
+      {noreply, S};
     L ->
       T = erlang:start_timer(?GC_COLLECT_TIME, self(), collect),
-      {noreply, R#gc_agent{collect_list = L, collect_timer = T}}
+      {noreply, S#gc_agent{collect_list = L, collect_timer = T}}
   end;
 
-handle_cast(report, R = #gc_agent{level = L}) when L =:= ?GC_ROOT_LEVEL ->
-  {noreply, R};
-handle_cast(report, R = #gc_agent{}) ->
-  gen_server:cast({report, #agt{}}, R#gc_agent.parent),
-  {noreply, R};
+handle_cast(report, S = #gc_agent{level = L}) when L =:= ?GC_ROOT_LEVEL ->
+  {noreply, S};
+handle_cast(report, S = #gc_agent{}) ->
+  gen_server:cast({report, #agt{}}, S#gc_agent.parent),
+  {noreply, S};
 
-handle_cast({report, Agt = #agt{}}, R) ->
-  TodayCollectTurnover = R#gc_agent.today_collect_turnover + Agt#agt.today_turnover,
-  WeekCollectTurnover = R#gc_agent.week_collect_turnover + Agt#agt.week_turnover,
+handle_cast({report, Agt = #agt{}}, S) ->
+  TodayCollectTurnover = S#gc_agent.today_collect_turnover + Agt#agt.today_turnover,
+  WeekCollectTurnover = S#gc_agent.week_collect_turnover + Agt#agt.week_turnover,
   gc_db:update(Agt),
-  {noreply, R};
+  {noreply, S};
 
-handle_cast(stop, _R) ->
-  {stop, normal, _R}.
+handle_cast(stop, _S) ->
+  {stop, normal, _S}.
 
-handle_call(detail, _From, R = #gc_agent{}) ->
-  {reply, R, R}.
+handle_call(detail, _From, S = #gc_agent{}) ->
+  {reply, S, S}.
 
 %%%
 %%% Client Function
