@@ -16,7 +16,26 @@ stop() ->
 %%
 
 init([R = #tab_agent{}]) ->
-  {ok, #gc_agent{}}.
+  ok = gc_db:init_xref(agent, R#tab_agent.aid),
+  ok = gc_db:init_xref(player, R#tab_agent.aid),
+
+  WeekTurnover = gc_db:get_turnover(week, R#tab_agent.aid),
+  TodayTurnover = gc_db:get_turnover(today, R#tab_agent.aid),
+
+  Balance = gc_db:get_balance(R#tab_agent.aid),
+  
+  {ok, #gc_agent{
+      balance = Balance,
+
+      cash = R#tab_agent.cash,
+      credit = R#tab_agent.credit,
+
+      week_turnover = WeekTurnover,
+      today_turnover = TodayTurnover,
+
+      today_collect_turnover = ?UNDEF,
+      week_collect_turnover = ?UNDEF
+    }}.
 
 terminate(Reason, _LoopData) ->
   ok.

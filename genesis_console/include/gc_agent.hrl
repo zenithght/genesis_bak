@@ -23,8 +23,8 @@
       week_turnover,          %% init by tab_agent_daily
       week_collect_turnover,  %% collect
 
-      players,          %% [ply, ...] init by tab_agent_player
-      agents,           %% [agt, ...] init by tab_agent
+      %% players,          %% [ply, ...] init by tab_agent_player
+      %% agents,           %% [agt, ...] init by tab_agent 
 
       cash,             %% amt
       credit,           %% amt

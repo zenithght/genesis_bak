@@ -6,8 +6,8 @@
 start() ->
   mnesia:start().
 
-get_daily_turnover() ->
-  get_daily_turnover(10).
+get_daily_turnover(Agent) ->
+  get_daily_turnover(Agent, 10).
 
-get_daily_turnover(Days) ->
+get_daily_turnover(Agent, Days) ->
   [{{y, m, d}, turnover}].
