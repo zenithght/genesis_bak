@@ -96,7 +96,8 @@
     credit = 0,
     root = false,
     disable = false,
-    parent = root
+    parent = root,
+    level 
   }).
 
 %% agent 1 <-> * player
