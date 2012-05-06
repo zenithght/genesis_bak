@@ -1,16 +1,13 @@
 group :backend do
   guard 'shell' do
-    watch(/(.*)_test\.erl/) do |m|
-      `cd genesis_console && ./rebar boss c=test_eunit`
+    watch(/(.*)\.erl/) do |m|
+      if system('cd genesis_console && ./rebar compile && ./rebar boss c=test_eunit')
+        n "TEST SUCCESS"
+      else
+        n "TEST FAILED"
+      end
     end
   end
-  #guard 'erlang' do
-    #watch(/^.+\.erl$/)
-  #end
-
-  #guard 'eunit' do
-    #watch(%r{^ebin/(.+)\.beam$}) do |m| "#{m[1]}" end
-  #end
 end
 
 group :console do
