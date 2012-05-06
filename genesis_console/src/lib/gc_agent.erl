@@ -39,30 +39,35 @@ init([S = #tab_agent{}]) ->
 terminate(Season, _S) ->
   ok.
 
-handle_cast(collect, S = #gc_agent{collect_timer = T}) when is_reference(T) ->
+handle_cast(collect, S) when is_reference(S#gc_agent.clct_t) ->
   {noreply, S};
-
 handle_cast(collect, S = #gc_agent{}) ->
-  case gen_collect_list(S#gc_agent.aid) of
+  case gen_clct_l(S#gc_agent.aid) of
     [] ->
       gen_server:cast(report, self()),
       {noreply, S};
     L ->
       T = erlang:start_timer(?GC_COLLECT_TIME, self(), collect),
-      {noreply, S#gc_agent{collect_list = L, collect_timer = T}}
+      {noreply, S#gc_agent{clct_l = L, clct_t = T}}
   end;
 
 handle_cast(report, S = #gc_agent{level = L}) when L =:= ?GC_ROOT_LEVEL ->
   {noreply, S};
 handle_cast(report, S = #gc_agent{}) ->
-  gen_server:cast({report, #agt{}}, S#gc_agent.parent),
+  gen_server:cast(#agt{}, S#gc_agent.parent),
   {noreply, S};
 
-handle_cast({report, Agt = #agt{}}, S) ->
-  TodayCollectTurnover = S#gc_agent.today_collect_turnover + Agt#agt.today_turnover,
-  WeekCollectTurnover = S#gc_agent.week_collect_turnover + Agt#agt.week_turnover,
-  gc_db:update(Agt),
+handle_cast(#agt{}, S) when not is_reference(S#gc_agent.clct_t) ->
   {noreply, S};
+handle_cast(A = #agt{}, S = #gc_agent{}) ->
+  L = {WL, CL} = update_agt_sum(A, S#gc_agent.clct_l),
+  case WL of
+    [] ->
+      compute_collect_data(S#gc_agent.aid),
+      gen_server:cast(report, self());
+    _ -> ok
+  end,
+  {noreply, S#gc_agent{clct_l = L}};
 
 handle_cast(stop, _S) ->
   {stop, normal, _S}.
@@ -77,10 +82,23 @@ handle_call(detail, _From, S = #gc_agent{}) ->
 collect() ->
   gen_server:cast(collect, whereis(gc_root_agent)).
 
-%%%
 %%% Private Function
 %%%
 
-gen_collect_list(Id) ->
-  L = gc_db:get_collect_list(Id),
-  lists:map(fun(I) -> {I, false} end, L).
+gen_clct_l(Id) ->
+  {gc_db:get_clct_l(Id), []}.
+
+%%% WL not collect list
+%%% CL cllected list
+update_agt_sum(Agt = #agt{id = Id}, {WL, CL}) ->
+  case lists:keyfind(Id, WL) of
+    false ->
+      %% TODO log this error
+      {WL, CL};
+    Reporter ->
+      gc_db:update(Agt),
+      {lists:keydelete(Id, WL), CL ++ [Reporter]}
+  end.
+
+compute_collect_data(Id) ->
+  ok.

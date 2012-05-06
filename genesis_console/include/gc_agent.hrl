@@ -40,6 +40,6 @@
       %% It is used to collect data timer
       %% to accept the data report during the timer 
       %% survival as much as possible,
-      collect_list,
-      collect_timer     
+      clct_t,           %% collecting timer
+      clct_l            %% collecting list
     }).
