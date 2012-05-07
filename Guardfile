@@ -2,9 +2,9 @@ group :backend do
   guard 'shell' do
     watch(/(.*)\.erl/) do |m|
       if system('cd genesis_console && ./rebar compile && ./rebar boss c=test_eunit')
-        n "TEST SUCCESS"
+        Notifier.notify("SUCCESS", :title => "Genesis Console")
       else
-        n "TEST FAILED"
+        Notifier.notify("ERROR", :title => "Genesis Console", :image => :failed)
       end
     end
   end
