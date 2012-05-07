@@ -42,7 +42,7 @@ terminate(Season, _S) ->
 handle_cast(collect, S) when is_reference(S#gc_agent.clct_t) ->
   {noreply, S};
 handle_cast(collect, S = #gc_agent{}) ->
-  case gen_clct_l(S#gc_agent.aid) of
+  case gen_clct_l(S#gc_agent.id) of
     [] ->
       gen_server:cast(report, self()),
       {noreply, S};
@@ -63,7 +63,7 @@ handle_cast(A = #agt{}, S = #gc_agent{}) ->
   L = {WL, CL} = update_agt_sum(A, S#gc_agent.clct_l),
   case WL of
     [] ->
-      compute_collect_data(S#gc_agent.aid),
+      compute_collect_data(S#gc_agent.id),
       gen_server:cast(report, self());
     _ -> ok
   end,
@@ -82,6 +82,7 @@ handle_call(detail, _From, S = #gc_agent{}) ->
 collect() ->
   gen_server:cast(collect, whereis(gc_root_agent)).
 
+%%%
 %%% Private Function
 %%%
 
