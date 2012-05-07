@@ -1,18 +1,20 @@
--record(ply, {         %% by db
+%% 收集的用户数据
+-record(ply, {
       id,
-      identity,
-      cash,
-      credit,
-      update_time
+      identity,         %% 玩家ID
+      cash,             %% 现金
+      credit,           %% 信用额
+      update_time       %% 最后更新时间
     }).
 
+%% 收集的代理数据
 -record(agt, {
-      id,               %% by db
-      identity,         %% by db
-      cash,             %% by db
-      credit,           %% by db
-      balance,          %% by report
-      today_turnover,   %% collect turnover by report
+      id,               %% 代理编号
+      identity,         %% 代理ID
+      cash,             %% 现金
+      credit,           %% 信用额
+      balance,          %% 余额
+      today_turnover,   %% 当日流
       week_turnover,    %% collect turnover by report
       update_time
     }).
