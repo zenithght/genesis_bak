@@ -4,7 +4,14 @@
 -include_lib("eunit/include/eunit.hrl").
 
 init_test_() -> ?SPAWN_TEST([
-  ]).
+      fun () -> 
+          gc_agent:collect(),
+          ?SLEEP,
+          ?assertMatch(
+            [{identity, root}, {credit, _}, {cash, _}, {balance, _}, {today_turnover, _}, {week_turnover, _}], 
+            gc_agent:detail(root))
+      end
+    ]).
 
 setup() ->
   Root = #tab_agent{aid = 1, identity = "root", level = ?GC_ROOT_LEVEL, parent = "root", cash = 0, credit = 0},

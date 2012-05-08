@@ -1,7 +1,7 @@
 -module(gc_agent).
 -export([start_link/1, stop/0]).
 -export([init/1, terminate/2, handle_call/3, handle_cast/2]).
--export([collect/0]).
+-export([collect/0, detail/1]).
 -behavior(gen_server).
 
 -include("common.hrl").
@@ -39,7 +39,9 @@ init([S = #tab_agent{}]) ->
 terminate(Season, _S) ->
   ok.
 
-handle_cast(collect, S) when is_reference(S#gc_agent.clct_t) ->
+%% 通知进程向下级代理进程发送“发送汇总数据”的消息。
+%% 此消息从ROOT始发，以递归形式向下级发送。
+handle_cast(collect, S) when is_reference(S#gc_agent.clct_t) ->                     
   {noreply, S};
 handle_cast(collect, S = #gc_agent{}) ->
   case gen_clct_l(S#gc_agent.id) of
@@ -51,15 +53,18 @@ handle_cast(collect, S = #gc_agent{}) ->
       {noreply, S#gc_agent{clct_l = L, clct_t = T}}
   end;
 
+%% 通知进程向上级代理进程发送汇总数据
 handle_cast(report, S = #gc_agent{level = L}) when L =:= ?GC_ROOT_LEVEL ->
-  {noreply, S};
+    {noreply, S};
 handle_cast(report, S = #gc_agent{}) ->
-  gen_server:cast(#agt{}, S#gc_agent.parent),
-  {noreply, S};
+    gen_server:cast(#agt{}, S#gc_agent.parent),
+    {noreply, S};
 
-handle_cast(#agt{}, S) when not is_reference(S#gc_agent.clct_t) ->
-  {noreply, S};
-handle_cast(A = #agt{}, S = #gc_agent{}) ->
+%% 接收下级代理进程发送的汇总数据
+handle_cast({to_receive, #agt{}}, S) 
+  when not is_reference(S#gc_agent.clct_t) ->
+    {noreply, S};
+handle_cast({to_receive, A = #agt{}}, S = #gc_agent{}) ->
   L = {WL, CL} = update_agt_sum(A, S#gc_agent.clct_l),
   case WL of
     [] ->
@@ -73,7 +78,17 @@ handle_cast(stop, _S) ->
   {stop, normal, _S}.
 
 handle_call(detail, _From, S = #gc_agent{}) ->
-  {reply, S, S}.
+  Week = S#gc_agent.week_turnover + S#gc_agent.week_collect_turnover,
+  Today = S#gc_agent.today_turnover + S#gc_agent.today_collect_turnover,
+
+  Result = [
+    {identity, S#gc_agent.identity},
+    {credit, S#gc_agent.credit}, {cash, S#gc_agent.cash}, {balance, S#gc_agent.balance}, 
+    {today_turnover, Today}, {week_turnover, Week}],
+
+  ?LOG([{test, test}]),
+
+  {reply, Result, S}.
 
 %%%
 %%% Client Function
@@ -81,6 +96,10 @@ handle_call(detail, _From, S = #gc_agent{}) ->
 
 collect() ->
   gen_server:cast(collect, whereis(gc_root_agent)).
+
+detail(Identity) ->
+  Name = "gc_" ++ Identity ++ "_agent",
+  gen_server:call(detail, whereis(list_to_existing_atom(Name))).
 
 %%%
 %%% Private Function

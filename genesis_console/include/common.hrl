@@ -7,5 +7,6 @@
 -define(GC_ROOT_LEVEL, 0).
 
 -ifdef(TEST).
--define(SPAWN_TEST(Tests), {spawn, {setup, fun setup/0, fun cleanup/1, Tests } }).
+-define(SPAWN_TEST(Tests), {spawn, {setup, fun setup/0, fun cleanup/1, Tests}}).
+-define(SLEEP, timer:sleep(500)).
 -endif.
