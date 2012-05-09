@@ -24,6 +24,7 @@ init([S = #tab_agent{}]) ->
   TodayTurnover = gc_db:get_turnover(today, S#tab_agent.aid),
 
   {ok, #gc_agent{
+      identity = S#tab_agent.identity,
       balance = S#tab_agent.cash + S#tab_agent.credit,
 
       cash = S#tab_agent.cash,
@@ -32,8 +33,8 @@ init([S = #tab_agent{}]) ->
       week_turnover = WeekTurnover,
       today_turnover = TodayTurnover,
 
-      today_collect_turnover = ?UNDEF,
-      week_collect_turnover = ?UNDEF
+      today_collect_turnover = 0,
+      week_collect_turnover = 0
     }}.
 
 terminate(Season, _S) ->
@@ -98,8 +99,9 @@ collect() ->
   gen_server:cast(collect, whereis(gc_root_agent)).
 
 detail(Identity) ->
-  Name = "gc_" ++ Identity ++ "_agent",
-  gen_server:call(detail, whereis(list_to_existing_atom(Name))).
+  Name = "gc_" ++ atom_to_list(Identity) ++ "_agent",
+  Agent = whereis(list_to_existing_atom(Name)),
+  gen_server:call(Agent, detail).
 
 %%%
 %%% Private Function

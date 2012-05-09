@@ -20,7 +20,7 @@ get_agent_spec() ->
   spec(gc_db:get_all(tab_agent), []).
 
 spec([], L) -> L;
-spec([H = #tab_agent{identity = Id}|T], L) ->
+spec([H = #tab_agent{}|T], L) ->
   NL = L ++ [{erlang:make_ref(), {gc_agent, start_link, [H]},
       permanent, 1000, worker, []}],
   spec(T, NL).

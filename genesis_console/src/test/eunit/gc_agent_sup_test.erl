@@ -11,7 +11,7 @@ gc_agent_sup_test_() -> ?SPAWN_TEST([
 
 setup() ->
   meck:new(gc_db),
-  meck:expect(gc_db, get_all, fun(tab_agent) -> [#tab_agent{identity = "root"}] end),
+  meck:expect(gc_db, get_all, fun(tab_agent) -> [#tab_agent{identity = root}] end),
   meck:expect(gc_db, init_xref, fun(_Type, _Agent) -> ok end),
   meck:expect(gc_db, get_turnover, 
     fun(week, _Agent) -> [{date(), 10}]; 

@@ -3,9 +3,11 @@
 -include("common.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
+-define(ROOT_ID, 1).
+-define(LV1_ID, 2).
+
 init_test_() -> ?SPAWN_TEST([
       fun () -> 
-          gc_agent:collect(),
           ?SLEEP,
           ?assertMatch(
             [{identity, root}, {credit, _}, {cash, _}, {balance, _}, {today_turnover, _}, {week_turnover, _}], 
@@ -14,20 +16,24 @@ init_test_() -> ?SPAWN_TEST([
     ]).
 
 setup() ->
-  Root = #tab_agent{aid = 1, identity = "root", level = ?GC_ROOT_LEVEL, parent = "root", cash = 0, credit = 0},
-  Lv1 = #tab_agent{aid = 2, identity = "lv1", level = 1, parent = "root", cash = 10, credit = 10},
+  Root = #tab_agent{aid = ?ROOT_ID, identity = root, level = ?GC_ROOT_LEVEL, parent = root, cash = 0, credit = 0},
+  Lv1 = #tab_agent{aid = ?LV1_ID, identity = lv1, level = 1, parent = root, cash = 10, credit = 10},
 
   meck:new(gc_db),
   lists:map(fun({N, F}) -> meck:expect(gc_db, N, F) end, 
     [
-      {get_all, fun(tab_agent) -> [Root, Lv1] end},
-      {init_xref, fun(_Type, _Agent) -> ok end},
-      {get_collect_list, fun(1) -> [2]; 
-          (2) -> [] end},
-      {get_turnover, fun(week, 2) -> [{date(), 10}, {date(), 20}];
-          (week, _Agent) -> [];
-          (today, 2) -> 10;
-          (today, _Agent) -> 0 end}
+      {get_all, fun (tab_agent) -> [Root, Lv1] end},
+
+      {init_xref, fun (player, _Agent) -> ok;
+                      (agent, _Agent) -> ok end},
+
+      {get_sub_list, fun (?ROOT_ID) -> [?LV1_ID]; 
+                         (?LV1_ID) -> [] end},
+
+      {get_turnover, fun (week, ?LV1_ID) -> 10;
+                         (week, _Agent) -> 0;
+                         (today, ?LV1_ID) -> 10;
+                         (today, _Agent) -> 0 end}
     ]),
 
   ?assertMatch({ok, _}, gc_agent_sup:start_link()),
