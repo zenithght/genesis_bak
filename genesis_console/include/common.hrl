@@ -10,3 +10,6 @@
 -define(SPAWN_TEST(Tests), {spawn, {setup, fun setup/0, fun cleanup/1, Tests}}).
 -define(SLEEP, timer:sleep(500)).
 -endif.
+
+-define(DATE(Day), calendar:gregorian_days_to_date(calendar:date_to_gregorian_days(date()) + Day)).
+-define(DATE, ?DATE(0)).

@@ -31,6 +31,9 @@
     week_turnover,          %% 当周流水
     week_collect_turnover,  %% 当周下级流水 下级代理上报
 
+    turnover,         %% 流水记录
+    collect_turnover, %% 下级流水 下级代理上报
+
     cash,             %% 现金
     credit,           %% 信用额
 

@@ -1,10 +1,12 @@
 -module(gc_agent).
+-behavior(gen_server).
+
 -export([start_link/1, stop/0]).
 -export([init/1, terminate/2, handle_call/3, handle_cast/2]).
 -export([collect/0, detail/1]).
--behavior(gen_server).
 
 -include("common.hrl").
+-include_lib("eunit/include/eunit.hrl").
 
 start_link(S = #tab_agent{identity = Id}) ->
   gen_server:start_link({local, ?GC_AGENT_NAME(Id)}, ?MODULE, [S], []).
@@ -79,15 +81,13 @@ handle_cast(stop, _S) ->
   {stop, normal, _S}.
 
 handle_call(detail, _From, S = #gc_agent{}) ->
-  Week = S#gc_agent.week_turnover + S#gc_agent.week_collect_turnover,
-  Today = S#gc_agent.today_turnover + S#gc_agent.today_collect_turnover,
+  Today = 0, %% today_sum(S#gc_agent.turnover) + today_sum(S#gc_agent.collect_turnover),
+  Week = 0, %% week_sum(S#gc_agent.turnover) + week_sum(S#gc_agent.collect_turnover),
 
   Result = [
     {identity, S#gc_agent.identity},
     {credit, S#gc_agent.credit}, {cash, S#gc_agent.cash}, {balance, S#gc_agent.balance}, 
     {today_turnover, Today}, {week_turnover, Week}],
-
-  ?LOG([{test, test}]),
 
   {reply, Result, S}.
 
@@ -107,6 +107,19 @@ detail(Identity) ->
 %%% Private Function
 %%%
 
+today_sum(L) ->
+  day_sum(L, date()).
+
+week_sum(L) ->
+  week_sum(L, 7, 0).
+
+week_sum(L, 0, Sum) -> Sum;
+week_sum(L, N, Sum) ->
+  week_sum(L, N - 1, Sum + day_sum(L, ?DATE(0 - N))).
+
+day_sum(L, D) ->
+  lists:sum(proplists:append_values(D, L)).
+
 gen_clct_l(Id) ->
   {gc_db:get_clct_l(Id), []}.
 
@@ -124,3 +137,12 @@ update_agt_sum(Agt = #agt{id = Id}, {WL, CL}) ->
 
 compute_collect_data(Id) ->
   ok.
+
+%%%
+%%% Unit Test
+%%% 
+
+sum_test_() -> [
+    ?_assertEqual(20, today_sum([{date(), 1}, {date(), 9}, {date(), 10}])),
+    ?_assertEqual(10, today_sum([{date(), 1}, {date(), 9}, {{2000, 1, 1}, 10}])),
+    ?_assertEqual(10, week_sum([{date(), 1}, {{2000, 1, 1}, 2}, {{2010, 1, 2}, 7}])) ].

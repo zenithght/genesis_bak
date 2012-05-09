@@ -6,6 +6,10 @@
 -define(ROOT_ID, 1).
 -define(LV1_ID, 2).
 
+common_test_() -> [
+    ?_assertEqual(date(), ?DATE),
+    ?_assertEqual(date(), ?DATE(0)) ].
+
 init_test_() -> ?SPAWN_TEST([
       fun () -> 
           ?SLEEP,
@@ -32,8 +36,8 @@ setup() ->
 
       {get_turnover, fun (week, ?LV1_ID) -> 10;
                          (week, _Agent) -> 0;
-                         (today, ?LV1_ID) -> 10;
-                         (today, _Agent) -> 0 end}
+                         (today, ?LV1_ID) -> {?DATE, 10};
+                         (today, _Agent) -> {?DATE, 0} end}
     ]),
 
   ?assertMatch({ok, _}, gc_agent_sup:start_link()),
