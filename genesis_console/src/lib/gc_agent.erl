@@ -6,7 +6,6 @@
 -export([collect/0, detail/1]).
 
 -include("common.hrl").
--include_lib("eunit/include/eunit.hrl").
 
 start_link(S = #tab_agent{identity = Id}) ->
   gen_server:start_link({local, ?GC_AGENT_NAME(Id)}, ?MODULE, [S], []).
@@ -113,9 +112,11 @@ today_sum(L) ->
 week_sum(L) ->
   week_sum(L, 7, 0).
 
-week_sum(L, 0, Sum) -> Sum;
+week_sum(L, 0, Sum) -> 
+  Sum + day_sum(L, ?DATE);
 week_sum(L, N, Sum) ->
-  week_sum(L, N - 1, Sum + day_sum(L, ?DATE(0 - N))).
+  S = Sum + day_sum(L, ?DATE(0 - N)),
+  week_sum(L, N - 1, S).
 
 day_sum(L, D) ->
   lists:sum(proplists:append_values(D, L)).
@@ -142,7 +143,10 @@ compute_collect_data(Id) ->
 %%% Unit Test
 %%% 
 
-sum_test_() -> [
-    ?_assertEqual(20, today_sum([{date(), 1}, {date(), 9}, {date(), 10}])),
-    ?_assertEqual(10, today_sum([{date(), 1}, {date(), 9}, {{2000, 1, 1}, 10}])),
-    ?_assertEqual(10, week_sum([{date(), 1}, {{2000, 1, 1}, 2}, {{2010, 1, 2}, 7}])) ].
+-include_lib("eunit/include/eunit.hrl").
+
+sum_test() ->
+  ?assertEqual(20, today_sum([{date(), 1}, {date(), 9}, {date(), 10}])),
+  ?assertEqual(10, today_sum([{date(), 1}, {date(), 9}, {{2000, 1, 1}, 10}])),
+  ?assertEqual(10, week_sum([{date(), 1}, {?DATE(-1), 2}, {?DATE(-2), 7}])),
+  ?assertEqual(10, week_sum([{date(), 1}, {?DATE(-8), 1}, {?DATE(-1), 2}, {?DATE(-2), 7}])).
