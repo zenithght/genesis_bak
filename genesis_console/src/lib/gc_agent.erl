@@ -21,9 +21,6 @@ init([S = #tab_agent{}]) ->
   ok = gc_db:init_xref(agent, S#tab_agent.aid),
   ok = gc_db:init_xref(player, S#tab_agent.aid),
 
-  WeekTurnover = gc_db:get_turnover(week, S#tab_agent.aid),
-  TodayTurnover = gc_db:get_turnover(today, S#tab_agent.aid),
-
   {ok, #gc_agent{
       identity = S#tab_agent.identity,
       balance = S#tab_agent.cash + S#tab_agent.credit,
@@ -31,11 +28,8 @@ init([S = #tab_agent{}]) ->
       cash = S#tab_agent.cash,
       credit = S#tab_agent.credit,
 
-      week_turnover = WeekTurnover,
-      today_turnover = TodayTurnover,
-
-      today_collect_turnover = 0,
-      week_collect_turnover = 0
+      turnover = gc_db:get_turnover(S#tab_agent.aid),
+      collect_turnover = []
     }}.
 
 terminate(Season, _S) ->
@@ -80,8 +74,8 @@ handle_cast(stop, _S) ->
   {stop, normal, _S}.
 
 handle_call(detail, _From, S = #gc_agent{}) ->
-  Today = 0, %% today_sum(S#gc_agent.turnover) + today_sum(S#gc_agent.collect_turnover),
-  Week = 0, %% week_sum(S#gc_agent.turnover) + week_sum(S#gc_agent.collect_turnover),
+  Today = today_sum(S#gc_agent.turnover) + today_sum(S#gc_agent.collect_turnover),
+  Week = week_sum(S#gc_agent.turnover) + week_sum(S#gc_agent.collect_turnover),
 
   Result = [
     {identity, S#gc_agent.identity},

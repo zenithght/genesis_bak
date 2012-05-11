@@ -6,15 +6,11 @@
 -define(ROOT_ID, 1).
 -define(LV1_ID, 2).
 
-common_test_() -> [
-    ?_assertEqual(date(), ?DATE),
-    ?_assertEqual(date(), ?DATE(0)) ].
-
 init_test_() -> ?SPAWN_TEST([
       fun () -> 
           ?SLEEP,
           ?assertMatch(
-            [{identity, root}, {credit, _}, {cash, _}, {balance, _}, {today_turnover, _}, {week_turnover, _}], 
+            [{identity, root}, {credit, _}, {cash, _}, {balance, _}, {today_turnover, 15}, {week_turnover, 15}], 
             gc_agent:detail(root))
       end
     ]).
@@ -34,10 +30,8 @@ setup() ->
       {get_sub_list, fun (?ROOT_ID) -> [?LV1_ID]; 
                          (?LV1_ID) -> [] end},
 
-      {get_turnover, fun (week, ?LV1_ID) -> 10;
-                         (week, _Agent) -> 0;
-                         (today, ?LV1_ID) -> {?DATE, 10};
-                         (today, _Agent) -> {?DATE, 0} end}
+      {get_turnover, fun (?LV1_ID) -> [{?DATE, 5}];
+          (?ROOT_ID) -> [{?DATE, 10}] end}
     ]),
 
   ?assertMatch({ok, _}, gc_agent_sup:start_link()),
