@@ -6,8 +6,13 @@
 -define(ROOT_ID, 1).
 -define(LV1_ID, 2).
 
+-define(ROOT_KEY, root).
+-define(LV1_KEY, lv1).
+
 init_test_() -> ?SPAWN_TEST([
       fun () -> 
+          gc_agent_sup:start_link(),
+          gc_agent:collect(),
           ?SLEEP,
           ?assertMatch(
             [{identity, root}, {credit, _}, {cash, _}, {balance, _}, {today_turnover, 15}, {week_turnover, 15}], 
@@ -31,11 +36,11 @@ setup() ->
                          (?LV1_ID) -> [] end},
 
       {get_turnover, fun (?LV1_ID) -> [{?DATE, 5}];
-          (?ROOT_ID) -> [{?DATE, 10}] end}
-    ]),
+                         (?ROOT_ID) -> [{?DATE, 10}] end},
 
-  ?assertMatch({ok, _}, gc_agent_sup:start_link()),
-  ?assertMatch(ok, gc_agent:collect()).
+      {get_collection_list, fun (?ROOT_ID) -> [?LV1_KEY];
+                                (?LV1_ID) -> [] end }
+    ]).
 
 cleanup(_) ->
   meck:unload(gc_db).
