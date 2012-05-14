@@ -38,10 +38,11 @@
     credit,           %% 信用额
 
     balance,          %% 余额
-    players_balance,  %% 下级玩家余额
-    agents_balance,   %% 下级代理余额
+    sum,              %% 通过收集汇总的数据结果 #agt{}
 
     %% 此数据用于对下级代理收集数据时使用
-    clct_t,           %% 收集数据计时器 如果计时器为引用状态说明正在进行数据采集
-    clct_l            %% 待收集数据的代理列表
+    clct_timer,       %% 收集数据计时器 如果计时器为引用状态说明正在进行数据采集
+    clct_list,        %% 待收集数据的代理列表
+
+    clct_table_id     %% 用于存储下级代理汇报数据ETS表ID
   }).

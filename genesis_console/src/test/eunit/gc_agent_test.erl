@@ -38,7 +38,7 @@ setup() ->
       {get_turnover, fun (?LV1_ID) -> [{?DATE, 5}];
                          (?ROOT_ID) -> [{?DATE, 10}] end},
 
-      {get_collection_list, fun (?ROOT_ID) -> [?LV1_KEY];
+      {get_collection_list, fun (?ROOT_ID) -> [{?LV1_KEY}];
                                 (?LV1_ID) -> [] end }
     ]).
 
