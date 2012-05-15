@@ -32,6 +32,7 @@ init([S = #tab_agent{}]) ->
       cash = S#tab_agent.cash,
       credit = S#tab_agent.credit,
 
+      turnover_daily = Turnover,
       today_turnover = today_sum(Turnover),
       week_turnover = week_sum(Turnover),
 
@@ -90,13 +91,13 @@ handle_cast({to_receive, A = #agt{}}, S = #gc_agent{}) ->
       end
   end;
 
+handle_cast({turnover, Date, Turnover}, S) ->
+  {noreply, S};
+
 handle_cast(stop, _S) ->
   {stop, normal, _S}.
 
 handle_call(detail, _From, S = #gc_agent{sum = Sum}) ->
-  %Today = today_sum(S#gc_agent.turnover) + today_sum(S#gc_agent.collect_turnover),
-  %Week = week_sum(S#gc_agent.turnover) + week_sum(S#gc_agent.collect_turnover),
-
   Result = [
     {identity, S#gc_agent.identity},
     {credit, S#gc_agent.credit}, {cash, S#gc_agent.cash}, {balance, Sum#agt.balance}, 
@@ -118,6 +119,9 @@ detail(Identity) ->
   Name = "gc_" ++ atom_to_list(Identity) ++ "_agent",
   Agent = whereis(list_to_existing_atom(Name)),
   gen_server:call(Agent, detail).
+
+log_turnover(Identity, Date, Turnover) ->
+  gen_server:cast(to_pid(Identity), {turnover, Date, Turnover}).
 
 %%%
 %%% Private Function
