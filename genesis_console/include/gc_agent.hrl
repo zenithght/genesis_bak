@@ -43,5 +43,5 @@
     clct_timer,       %% 收集数据计时器 如果计时器为引用状态说明正在进行数据采集
     clct_list,        %% 待收集数据的代理列表
 
-    clct_table_id     %% 用于存储下级代理汇报数据ETS表ID
+    clct_table        %% 用于存储下级代理汇报数据ETS表ID
   }).

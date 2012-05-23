@@ -3,7 +3,7 @@
 
 -export([start_link/1, stop/0]).
 -export([init/1, terminate/2, handle_call/3, handle_cast/2]).
--export([collect/0, detail/1, to_pid/1]).
+-export([collect/0, detail/1, to_pid/1, log_turnover/3]).
 
 -include("common.hrl").
 
@@ -21,30 +21,27 @@ init([S = #tab_agent{}]) ->
   ok = gc_db:init_xref(agent, S#tab_agent.aid),
   ok = gc_db:init_xref(player, S#tab_agent.aid),
 
-  Turnover = gc_db:get_turnover(S#tab_agent.aid),
-
-  {ok, #gc_agent{
+  Agent = #gc_agent{
       id = S#tab_agent.aid,
       identity = S#tab_agent.identity,
-      balance = S#tab_agent.cash + S#tab_agent.credit,
-      parent = S#tab_agent.parent,
-
       cash = S#tab_agent.cash,
       credit = S#tab_agent.credit,
+      balance = S#tab_agent.cash + S#tab_agent.credit,
+      parent = S#tab_agent.parent,
+      turnover_daily = gc_db:get_turnover(S#tab_agent.aid),
+      clct_table = ets:new(clct_table, [])
+    },
 
-      turnover_daily = Turnover,
-      today_turnover = today_sum(Turnover),
-      week_turnover = week_sum(Turnover),
+  Sum = compute_sum_data(Agent),
 
-      clct_table_id = ets:new(clct_table, [])
-    }}.
+  {ok, Agent#gc_agent{sum = Sum}}.
 
 terminate(Season, _S) ->
   ok.
 
 %% 通知进程向下级代理进程发送“发送汇总数据”的消息。
 %% 此消息从ROOT始发，以递归形式向下级发送。
-handle_cast(collect, S) when is_reference(S#gc_agent.clct_timer) ->                     
+handle_cast(collect, S) when is_reference(S#gc_agent.clct_timer) ->
   %% 收集数据时不响应任何collect消息
   {noreply, S};
 handle_cast(collect, S = #gc_agent{}) ->
@@ -63,36 +60,32 @@ handle_cast(collect, S = #gc_agent{}) ->
 handle_cast(report, S = #gc_agent{level = ?GC_ROOT_LEVEL}) ->
   {noreply, S};
 handle_cast(report, S = #gc_agent{}) ->
-  Agt = compute_sum_data(S),
   Name = gc_agent:to_pid(S#gc_agent.parent),
-  gen_server:cast(Name, {to_receive, Agt}),
+  gen_server:cast(Name, {report, S#gc_agent.sum}),
   {noreply, S};
 
 %% 接收下级代理进程发送的汇总数据
-handle_cast({to_receive, #agt{}}, S) 
+handle_cast({report, #agt{}}, S) 
   when not is_reference(S#gc_agent.clct_timer) ->
     {noreply, S};
-handle_cast({to_receive, A = #agt{}}, S = #gc_agent{}) ->
-  %% update #agt to ets
-  case lists:keyfind(A#agt.identity, 1, S#gc_agent.clct_list) of
-    false ->
+handle_cast({report, Agt = #agt{identity = Identity}}, S = #gc_agent{clct_list = L}) ->
+  case is_include(Identity, L) of
+    false -> 
       {noreply, S};
-    {Identity} ->
-      ets:insert(S#gc_agent.clct_table_id, A),
-      L = lists:keydelete(A#agt.identity, 1, S#gc_agent.clct_list),
-
-      case L of
-        [] ->
-          Sum = compute_sum_data(S),
+    true ->
+      ets:insert(S#gc_agent.clct_table, Agt),
+      case exclude(Identity, L) of
+        empty ->
+          Sum = compute_sum_data(S#gc_agent{}),
           gen_server:cast(self(), report),
           {noreply, S#gc_agent{sum = Sum, clct_list = [], clct_timer = ?UNDEF}};
-        _ ->
+        L ->
           {noreply, S#gc_agent{clct_list = L}}
       end
   end;
 
-handle_cast({turnover, Date, Turnover}, S) ->
-  {noreply, S};
+handle_cast({turnover, Date, Turnover}, S = #gc_agent{turnover_daily = Daily}) ->
+  {noreply, S#gc_agent{turnover_daily = Daily ++ [{Date, Turnover}]}};
 
 handle_cast(stop, _S) ->
   {stop, normal, _S}.
@@ -155,24 +148,34 @@ update_agt_sum(Agt = #agt{id = Id}, {WL, CL}) ->
       {lists:keydelete(Id, WL), CL ++ [Reporter]}
   end.
 
-compute_sum_data(S = #gc_agent{}) ->
-  Acc0 = {S#gc_agent.balance, S#gc_agent.today_turnover, S#gc_agent.week_turnover},
+compute_sum_data(S = #gc_agent{turnover_daily = Turnover}) ->
+  TodayTurnover = today_sum(Turnover),
+  WeekTurnover = week_sum(Turnover),
+
+  Acc0 = {S#gc_agent.balance, TodayTurnover, WeekTurnover},
 
   Fun = fun (A = #agt{}, {Balance, Today, Week}) ->
       {Balance + A#agt.balance, Today + A#agt.today_turnover, Week + A#agt.week_turnover} end,
 
-  {Balance, Today, Week} = ets:foldl(Fun, Acc0, S#gc_agent.clct_table_id),
+  {Balance, Today, Week} = ets:foldl(Fun, Acc0, S#gc_agent.clct_table),
 
   #agt{
-    id = S#gc_agent.id,               %% 代理编号
-    identity = S#gc_agent.identity,   %% 代理标识符
-    cash = S#gc_agent.cash,             %% 现金
-    credit = S#gc_agent.credit,           %% 信用额
-    balance = Balance,          %% 账户余额 下级代理上报
-    today_turnover = Today,   %% 当日流水 下级代理上报
-    week_turnover = Week,    %% 当周流水 下级代理上报
-    update_time = now()
+    id = S#gc_agent.id, identity = S#gc_agent.identity,
+    cash = S#gc_agent.cash, credit = S#gc_agent.cash, balance = Balance,
+    today_turnover = Today, week_turnover = Week, update_time = now()
   }.
+
+is_include(Identity, List) ->
+  case lists:keyfind(Identity, 1, List) of
+    false -> false;
+    _ -> true
+  end.
+
+exclude(Identity, List) ->
+  case lists:keydelete(Identity, 1, List) of
+    [] -> empty;
+    L -> L
+  end.
 
 %%%
 %%% Unit Test
