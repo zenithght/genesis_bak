@@ -60,9 +60,10 @@ handle_cast(collect, S = #gc_agent{}) ->
 handle_cast(report, S = #gc_agent{level = ?GC_ROOT_LEVEL}) ->
   {noreply, S};
 handle_cast(report, S = #gc_agent{}) ->
+  Sum = compute_sum_data(S#gc_agent{}),
   Name = gc_agent:to_pid(S#gc_agent.parent),
-  gen_server:cast(Name, {report, S#gc_agent.sum}),
-  {noreply, S};
+  gen_server:cast(Name, {report, Sum}),
+  {noreply, S#gc_agent{sum = Sum}};
 
 %% 接收下级代理进程发送的汇总数据
 handle_cast({report, #agt{}}, S) 
@@ -76,9 +77,8 @@ handle_cast({report, Agt = #agt{identity = Identity}}, S = #gc_agent{clct_list =
       ets:insert(S#gc_agent.clct_table, Agt),
       case exclude(Identity, L) of
         empty ->
-          Sum = compute_sum_data(S#gc_agent{}),
           gen_server:cast(self(), report),
-          {noreply, S#gc_agent{sum = Sum, clct_list = [], clct_timer = ?UNDEF}};
+          {noreply, S#gc_agent{clct_list = [], clct_timer = ?UNDEF}};
         L ->
           {noreply, S#gc_agent{clct_list = L}}
       end

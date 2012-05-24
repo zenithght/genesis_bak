@@ -24,6 +24,15 @@ init_test_() -> ?SPAWN_TEST([
           ?SLEEP,
           ?assertMatch(
             [{identity, root}, {credit, _}, {cash, _}, {balance, _}, {today_turnover, 25}, {week_turnover, 25}], 
+            gc_agent:detail(root)),
+
+          ?SLEEP,
+          gc_agent:log_turnover(lv1, date(), 10),
+          ?SLEEP,
+          gc_agent:collect(),
+          ?SLEEP,
+          ?assertMatch(
+            [{identity, root}, {credit, _}, {cash, _}, {balance, _}, {today_turnover, 35}, {week_turnover, 35}], 
             gc_agent:detail(root))
       end
     ]).
