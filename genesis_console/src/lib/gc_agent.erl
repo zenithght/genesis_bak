@@ -24,12 +24,13 @@ init([S = #tab_agent{}]) ->
   Agent = #gc_agent{
       id = S#tab_agent.aid,
       identity = S#tab_agent.identity,
+      level = S#tab_agent.level,
       cash = S#tab_agent.cash,
       credit = S#tab_agent.credit,
       balance = S#tab_agent.cash + S#tab_agent.credit,
       parent = S#tab_agent.parent,
       turnover_daily = gc_db:get_turnover(S#tab_agent.aid),
-      clct_table = ets:new(clct_table, [])
+      clct_table = ets:new(clct_table, [set, {keypos, #agt.id}])
     },
 
   Sum = compute_sum_data(Agent),
@@ -41,6 +42,7 @@ terminate(Season, _S) ->
 
 %% 通知进程向下级代理进程发送“发送汇总数据”的消息。
 %% 此消息从ROOT始发，以递归形式向下级发送。
+
 handle_cast(collect, S) when is_reference(S#gc_agent.clct_timer) ->
   %% 收集数据时不响应任何collect消息
   {noreply, S};
@@ -58,7 +60,8 @@ handle_cast(collect, S = #gc_agent{}) ->
 
 %% 通知进程向上级代理进程发送汇总数据
 handle_cast(report, S = #gc_agent{level = ?GC_ROOT_LEVEL}) ->
-  {noreply, S};
+  Sum = compute_sum_data(S#gc_agent{}),
+  {noreply, S#gc_agent{sum = Sum}};
 handle_cast(report, S = #gc_agent{}) ->
   Sum = compute_sum_data(S#gc_agent{}),
   Name = gc_agent:to_pid(S#gc_agent.parent),
@@ -79,8 +82,8 @@ handle_cast({report, Agt = #agt{identity = Identity}}, S = #gc_agent{clct_list =
         empty ->
           gen_server:cast(self(), report),
           {noreply, S#gc_agent{clct_list = [], clct_timer = ?UNDEF}};
-        L ->
-          {noreply, S#gc_agent{clct_list = L}}
+        EL ->
+          {noreply, S#gc_agent{clct_list = EL}}
       end
   end;
 
@@ -162,7 +165,7 @@ compute_sum_data(S = #gc_agent{turnover_daily = Turnover}) ->
   #agt{
     id = S#gc_agent.id, identity = S#gc_agent.identity,
     cash = S#gc_agent.cash, credit = S#gc_agent.cash, balance = Balance,
-    today_turnover = Today, week_turnover = Week, update_time = now()
+    today_turnover = Today, week_turnover = Week, update_time = {date(), time()}
   }.
 
 is_include(Identity, List) ->
