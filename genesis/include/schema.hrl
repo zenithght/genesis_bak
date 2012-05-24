@@ -112,4 +112,3 @@
     turnover, %% amt
     update_time
   }).
-

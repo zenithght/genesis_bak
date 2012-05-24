@@ -66,7 +66,8 @@ setup() ->
       {get_collection_list, fun (?ROOT_ID) -> [{?LV1A_KEY}, {?LV1B_KEY}];
                                 (?LV1A_ID) -> [{?LV2A_KEY}];
                                 (?LV1B_ID) -> [];
-                                (?LV2A_ID) -> [] end }
+                                (?LV2A_ID) -> [] end },
+      {monitor, fun (_) -> ok end }
     ]).
 
 cleanup(_) ->

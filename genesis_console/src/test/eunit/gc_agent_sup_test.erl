@@ -16,6 +16,7 @@ setup() ->
   meck:expect(gc_db, get_turnover, 
     fun(_Agent) -> [{?DATE, 10}] end),
   meck:expect(gc_db, get_balance, fun(_Agent) -> 1000 end),
+  meck:expect(gc_db, monitor, fun (_) -> ok end),
   gc_agent_sup:start_link().
 
 cleanup(_) ->
