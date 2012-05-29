@@ -21,7 +21,6 @@ get_daily_turnover(Agent) ->
 get_daily_turnover(Agent, Days) ->
   [{{y, m, d}, turnover}].
 
-%% 获取代理当周的流水数据（非收集）
 get_turnover(week, Id) ->
   ok;
 

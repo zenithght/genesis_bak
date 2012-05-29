@@ -3,6 +3,16 @@
 -include("common.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
+dynamic_agent_test_() -> ?SPAWN_TEST([
+      fun () ->
+          R = gc_agent_sup:add_sub(#tab_agent{identity = sub}),
+          ?assert(is_pid(whereis(gc_monitor))),
+          ?assert(is_pid(whereis(gc_agent_sup))),
+          ?assert(is_pid(whereis(gc_root_agent))),
+          ?assert(is_pid(whereis(gc_sub_agent)))
+      end
+    ]).
+
 gc_agent_sup_test_() -> ?SPAWN_TEST([
       ?_assert(is_pid(whereis(gc_monitor))),
       ?_assert(is_pid(whereis(gc_agent_sup))),

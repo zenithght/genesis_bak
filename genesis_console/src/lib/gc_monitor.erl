@@ -38,7 +38,6 @@ handle_cast(stop, _LoopData) ->
 
 handle_info({mnesia_table_event, {write, #tab_turnover_log{pid = PId, date = Date, amt = Amt}, _}}, Pd) ->
   Identity = gc_db:lookup_agent(PId),
-  ?LOG([{agent, Identity}]),
   gc_agent:log_turnover(Identity, Date, Amt),
   {noreply, Pd#pdata{log_counter = Pd#pdata.log_counter + 1}}.
 
