@@ -7,4 +7,9 @@ gem "guard-haml"
 gem "guard-sass"
 gem "guard-coffeescript"
 gem "guard-shell"
-gem "growl_notify"
+
+if RUBY_PLATFORM =~ /linux/
+  gem "libnotify"
+else
+  gem "growl_notify"
+end

@@ -1,3 +1,6 @@
 [submodule "chicago_boss"]
 	path = chicago_boss
 	url = git://github.com/evanmiller/ChicagoBoss.git
+[submodule "meck"]
+	path = meck
+	url = git://github.com/eproxus/meck.git
