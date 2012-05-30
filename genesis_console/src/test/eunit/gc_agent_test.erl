@@ -50,23 +50,15 @@ setup() ->
     [
       {get_all, fun (tab_agent) -> [Root, Lv1a, Lv1b, Lv2a] end},
 
-      {init_xref, fun (player, _Agent) -> ok;
-                      (agent, _Agent) -> ok end},
-
-      {get_sub_list, fun (?ROOT_ID) -> [?LV1A_ID, ?LV1B_ID]; 
-                         (?LV1A_ID) -> [?LV2A_ID];
-                         (?LV1B_ID) -> [];
-                         (?LV2A_ID) -> [] end},
-
       {get_turnover, fun (?LV1A_ID) -> [{?DATE, 5}];
                          (?LV1B_ID) -> [{?DATE, 5}];
                          (?LV2A_ID) -> [{?DATE, 5}];
                          (?ROOT_ID) -> [{?DATE, 10}] end},
 
-      {get_collection_list, fun (?ROOT_ID) -> [{?LV1A_KEY}, {?LV1B_KEY}];
-                                (?LV1A_ID) -> [{?LV2A_KEY}];
-                                (?LV1B_ID) -> [];
-                                (?LV2A_ID) -> [] end },
+      {get_collection_list, fun (?ROOT_KEY) -> [{?LV1A_KEY}, {?LV1B_KEY}];
+                                (?LV1A_KEY) -> [{?LV2A_KEY}];
+                                (?LV1B_KEY) -> [];
+                                (?LV2A_KEY) -> [] end },
       {monitor, fun (_) -> ok end }
     ]).
 

@@ -18,9 +18,6 @@ stop() ->
 %%
 
 init([S = #tab_agent{}]) ->
-  ok = gc_db:init_xref(agent, S#tab_agent.aid),
-  ok = gc_db:init_xref(player, S#tab_agent.aid),
-
   Agent = #gc_agent{
       id = S#tab_agent.aid,
       identity = S#tab_agent.identity,
@@ -47,7 +44,7 @@ handle_cast(collect, S) when is_reference(S#gc_agent.clct_timer) ->
   %% 收集数据时不响应任何collect消息
   {noreply, S};
 handle_cast(collect, S = #gc_agent{}) ->
-  case gc_db:get_collection_list(S#gc_agent.id) of
+  case gc_db:get_collection_list(S#gc_agent.identity) of
     [] ->
       gen_server:cast(self(), report),
       {noreply, S};
