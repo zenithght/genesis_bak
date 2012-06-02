@@ -15,7 +15,6 @@
 
 init_test_() -> ?SPAWN_TEST([
       fun () -> 
-          gc_agent_sup:start_link(),
           gc_agent:collect(),
           ?SLEEP,
           ?assertMatch([{identity, root}, {credit, _}, {cash, _}, {balance, _}, {today_turnover, 25}, {week_turnover, 25}], gc_agent:detail(root)),
@@ -48,8 +47,6 @@ setup() ->
   meck:new(gc_db),
   lists:map(fun({N, F}) -> meck:expect(gc_db, N, F) end, 
     [
-      {get_all, fun (tab_agent) -> [Root, Lv1a, Lv1b, Lv2a] end},
-
       {get_turnover, fun (?LV1A_ID) -> [{?DATE, 5}];
                          (?LV1B_ID) -> [{?DATE, 5}];
                          (?LV2A_ID) -> [{?DATE, 5}];
@@ -60,7 +57,10 @@ setup() ->
                                 (?LV1B_KEY) -> [];
                                 (?LV2A_KEY) -> [] end },
       {monitor, fun (_) -> ok end }
-    ]).
+    ]),
+
+  lists:map(fun (Agt) -> gc_agent:start_link(Agt) end,
+    [Root, Lv1a, Lv1b, Lv2a]).
 
 cleanup(_) ->
   meck:unload(gc_db).
