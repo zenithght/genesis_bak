@@ -11,6 +11,27 @@ index('GET', []) ->
 create('GET', []) ->
   {ok, []}.
 
+%%%
+%%% Private 
+%%%
+
+%sn() ->
+  %case random:seed(now()) of
+    %undefined -> sn();
+    %{_, _, N} -> integer_to_list(N)
+  %end.
+
+%create(Agt, Desc, Cash, Credit) 
+  %when is_atom(Agent), is_integer(Cash), is_integer(Credit), is_list(Desc) ->
+    %Identity = list_to_atom("agt" ++ sn()),
+    %Password = os:cmd("openssl rand 6 -base64"),
+
+    %Fun () ->
+      %mnesia:lock({table, tab_agent}, write),
+      %[P] = mnesia:index_read({tab_agent, R#tab_agent.aid}),
+
+%create(Agt, Desc, 
+
 %create('POST', []) ->
   %Errors = gc_validation:check_request(Req, [
       %fun repeat_identity/1,
@@ -50,3 +71,6 @@ create('GET', []) ->
     %_ ->
       %repeat_identity
   %end.
+  
+
+
