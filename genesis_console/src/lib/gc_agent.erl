@@ -1,17 +1,17 @@
 -module(gc_agent).
 -behavior(gen_server).
 
--export([start_link/1, stop/0]).
+-export([start_link/1, stop/1]).
 -export([init/1, terminate/2, handle_call/3, handle_cast/2]).
 -export([collect/0, detail/1, to_pid/1, log_turnover/3]).
 
 -include("common.hrl").
 
 start_link(S = #tab_agent{identity = Id}) ->
-  gen_server:start_link({local, ?GC_AGENT_NAME(Id)}, ?MODULE, [S], []).
+  gen_server:start_link({local, to_pid(Id)}, ?MODULE, [S], []).
 
-stop() ->
-  gen_server:cast(?MODULE, stop).
+stop(Identity) ->
+  gen_server:cast(to_pid(Identity), stop).
 
 %%
 %% Callback
@@ -34,7 +34,7 @@ init([S = #tab_agent{}]) ->
 
   {ok, Agent#gc_agent{sum = Sum}}.
 
-terminate(Season, _S) ->
+terminate(_, _) ->
   ok.
 
 %% 通知进程向下级代理进程发送“发送汇总数据”的消息。

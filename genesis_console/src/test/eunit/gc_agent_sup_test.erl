@@ -20,4 +20,6 @@ setup() ->
   gc_agent:start_link(#tab_agent{identity = root}).
 
 cleanup(_) ->
+  gc_monitor:stop(),
+  gc_agent:stop(root),
   meck:unload(gc_db).

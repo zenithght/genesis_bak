@@ -25,7 +25,7 @@ init([]) ->
   {ok, #pdata{log_counter = 0}}.
 
 terminate(Reason, _LoopData) ->
-  ?LOG([{gc_monitor, Reason}]).
+  ok.
 
 handle_call(log_counter, _From, Pd) ->
   {reply, Pd#pdata.log_counter, Pd};

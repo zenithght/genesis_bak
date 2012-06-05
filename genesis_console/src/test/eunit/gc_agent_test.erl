@@ -59,8 +59,10 @@ setup() ->
       {monitor, fun (_) -> ok end }
     ]),
 
-  lists:map(fun (Agt) -> gc_agent:start_link(Agt) end,
+  ?assertEqual(false, is_pid(whereis(gc_agent:to_pid(?ROOT_KEY)))),
+  R = lists:map(fun (Agt) -> gc_agent:start_link(Agt), Agt#tab_agent.identity end,
     [Root, Lv1a, Lv1b, Lv2a]).
 
-cleanup(_) ->
+cleanup(R) ->
+  lists:map(fun (Identity) -> gc_agent:stop(Identity) end, R),
   meck:unload(gc_db).
